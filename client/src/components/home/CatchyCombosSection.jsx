@@ -62,7 +62,7 @@ const CatchyCombosSection = ({ title, subtitle }) => {
   useEffect(() => {
     const fetchCombos = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/combos');
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/combos`);
         if (res.data && res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
           setCombos(res.data.data.filter(c => c.status !== 'Inactive'));
         }

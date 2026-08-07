@@ -1,0 +1,220 @@
+/* Store Website - Combos Page Styling */
+
+.combos-website-page {
+  background-color: var(--bg-primary, #0b0c10);
+  color: var(--text-primary, #ffffff);
+  min-height: 90vh;
+}
+
+.combos-hero-banner {
+  background: linear-gradient(180deg, rgba(197, 34, 31, 0.15) 0%, rgba(11, 12, 16, 0) 100%), #0d0f12;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.combos-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(197, 34, 31, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 6px 14px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.combos-hero-title {
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.combos-hero-sub {
+  font-size: 0.95rem;
+  color: #94a3b8;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* Filter Tab Buttons - High Contrast White Text */
+.combo-filter-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 24px;
+  padding: 8px 22px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.combo-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.combo-filter-btn.active {
+  background: #c5221f !important;
+  color: #ffffff !important;
+  border-color: #c5221f !important;
+  box-shadow: 0 4px 14px rgba(197, 34, 31, 0.45);
+}
+
+/* Combo Card Grid */
+.combo-card-client {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.combo-card-client:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+}
+
+.combo-card-img-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  overflow: hidden;
+  background: #111;
+}
+
+.combo-card-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.combo-card-client:hover .combo-card-img {
+  transform: scale(1.04);
+}
+
+.combo-card-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: #c5221f;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 5px 11px;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.combo-card-pieces-count {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.combo-card-body {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.combo-card-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.combo-card-items-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+}
+
+.combo-card-items-list li {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.combo-card-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.combo-card-offer-price {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #2ecc71;
+}
+
+.combo-card-msrp {
+  font-size: 0.88rem;
+  color: #64748b;
+  text-decoration: line-through;
+  margin-left: 6px;
+}
+
+.btn-buy-bundle {
+  width: 100%;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 0.88rem;
+  padding: 11px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  margin-top: 14px;
+}
+
+.btn-buy-bundle:hover {
+  background: #c5221f;
+  color: #ffffff;
+}

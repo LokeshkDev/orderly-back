@@ -1,0 +1,132 @@
+.orderly-bottom-navbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1050;
+  background: #000000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  box-shadow: 0 -6px 25px rgba(0, 0, 0, 0.95);
+}
+
+[data-theme="light"] .orderly-bottom-navbar {
+  background: #000000 !important;
+}
+
+.bottom-nav-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 0 10px;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #A0A0A0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 4px 6px;
+  position: relative;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.bottom-nav-item:hover, .bottom-nav-item.active {
+  color: var(--accent-red, #c5221f) !important;
+}
+
+.bottom-nav-icon {
+  font-size: 1.2rem;
+  transition: transform 0.2s ease;
+}
+
+.bottom-nav-item.active .bottom-nav-icon {
+  transform: translateY(-2px) scale(1.1);
+  color: var(--accent-red, #c5221f) !important;
+}
+
+.bottom-nav-label {
+  text-transform: capitalize;
+  line-height: 1.1;
+}
+
+/* Center Highlighted Floating Cart / Bag Button */
+.center-cart-highlight {
+  margin-top: -22px;
+  position: relative;
+  z-index: 1060;
+  background: transparent !important;
+}
+
+.center-cart-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent-red, #c5221f);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3.5px solid #000000;
+  box-shadow: 0 6px 20px rgba(197, 34, 31, 0.65);
+  position: relative;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.center-cart-highlight:active .center-cart-circle,
+.center-cart-highlight:hover .center-cart-circle {
+  transform: scale(1.1);
+  background: #991b1b;
+  box-shadow: 0 8px 24px rgba(197, 34, 31, 0.8);
+}
+
+.center-cart-icon {
+  font-size: 1.4rem;
+  color: #ffffff !important;
+}
+
+.center-cart-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: #ffffff;
+  color: #c5221f;
+  font-size: 0.68rem;
+  font-weight: 900;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  border: 1px solid #c5221f;
+}
+
+.center-cart-label {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 0.72rem;
+  margin-top: 2px;
+}
+
+/* Page bottom padding fix so fixed bottom nav doesn't overlap footer content */
+@media (max-width: 991px) {
+  body {
+    padding-bottom: 72px;
+  }
+}

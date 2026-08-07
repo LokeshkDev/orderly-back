@@ -1,0 +1,149 @@
+.orderly-checkout-page {
+  background: var(--bg-primary);
+}
+
+.checkout-block, .order-summary-block {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+}
+
+.block-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-red);
+}
+
+.checkout-input {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  color: var(--text-white);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.checkout-input:focus {
+  border-color: var(--accent-red);
+}
+
+/* Address Type Pills (Home, Office, Other) Highlighting */
+.addr-type-pills-group {
+  display: flex;
+  gap: 8px;
+}
+
+.addr-type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.addr-type-pill:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+}
+
+.addr-type-pill.active {
+  background: #c1121f !important;
+  border-color: #c1121f !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(193, 18, 31, 0.5);
+}
+
+.addr-type-pill .pill-icon {
+  font-size: 0.95rem;
+}
+
+/* High-Contrast Saved Address Pill Button */
+.saved-address-pill-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.saved-address-pill-btn:hover {
+  background: rgba(193, 18, 31, 0.25);
+  border-color: #c1121f;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.payment-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.payment-radio-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.payment-radio-card.active {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 15px var(--accent-red-glow);
+}
+
+.payment-radio-card input {
+  accent-color: var(--accent-red);
+}
+
+.pay-icon {
+  font-size: 1.8rem;
+  color: var(--accent-red);
+}
+
+.summary-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.summary-item-img {
+  width: 50px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.summary-item-info {
+  flex: 1;
+}
+
+.summary-item-info h6 {
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.summary-item-price {
+  font-weight: 700;
+  font-size: 0.9rem;
+}

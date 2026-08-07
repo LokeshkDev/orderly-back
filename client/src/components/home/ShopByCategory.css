@@ -1,0 +1,110 @@
+/* Shop By Category Styling - Drag to Swipe, No Scrollbar */
+
+.shop-by-category-section {
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.category-section-subtitle {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: var(--accent-red);
+  text-transform: uppercase;
+  font-family: var(--font-heading);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.category-section-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  font-family: var(--font-heading);
+  margin-bottom: 0;
+}
+
+.category-circles-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Hide Scrollbar for all browsers */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.category-circles-scroll-wrapper::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.category-circles-scroll-wrapper.dragging {
+  cursor: grabbing !important;
+}
+
+.category-circles-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 16px 10px 10px;
+  min-width: max-content;
+}
+
+.category-circle-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  width: 110px;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.category-circle-card:hover {
+  transform: translateY(-6px);
+}
+
+.circle-image-ring {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 3px;
+  background: #181818;
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.category-circle-card:hover .circle-image-ring {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 16px var(--accent-red-glow);
+}
+
+.circle-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  pointer-events: none;
+  transition: transform 0.5s ease;
+}
+
+.category-circle-card:hover .circle-img {
+  transform: scale(1.1);
+}
+
+.circle-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.category-circle-card:hover .circle-label {
+  color: #ffffff;
+}

@@ -8,30 +8,6 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import './VideoBannerSection.css';
 
-const DEFAULT_VIDEO_FILMS = [
-  {
-    id: 1,
-    title: 'Product Film',
-    subtitle: 'Italian Tailoring & Craftsmanship',
-    thumbnail: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fashion-model-in-a-black-jacket-41551-large.mp4'
-  },
-  {
-    id: 2,
-    title: 'Expert Review Highlights',
-    subtitle: 'Selvedge Denim & Fit Analysis',
-    thumbnail: 'https://images.unsplash.com/photo-1490578474895-699bc4e2cf59?q=80&w=800&auto=format&fit=crop',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-model-posing-in-a-fashion-photoshoot-42847-large.mp4'
-  },
-  {
-    id: 3,
-    title: 'Introduction Film',
-    subtitle: 'ORDERLY Brand Heritage',
-    thumbnail: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?q=80&w=800&auto=format&fit=crop',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-man-holding-a-jacket-on-his-shoulder-42761-large.mp4'
-  }
-];
-
 /**
  * Universal Video Embed Parser: Supports YouTube, Instagram Reels, Facebook Videos, Vimeo, and Direct Uploaded MP4s.
  */
@@ -97,39 +73,24 @@ const getEmbedInfo = (url = '') => {
 
 const VideoBannerSection = ({ title, subtitle }) => {
   const [activeVideo, setActiveVideo] = useState(null);
-  const [filmsList, setFilmsList] = useState(DEFAULT_VIDEO_FILMS);
+  const [filmsList, setFilmsList] = useState([]);
   const swiperRef = useRef(null);
 
   useEffect(() => {
     const loadFilms = async () => {
       try {
         const apiData = await getVideoFilms();
-        if (Array.isArray(apiData) && apiData.length > 0) {
-          setFilmsList(apiData);
-          return;
-        }
-      } catch (e) {}
-
-      try {
-        const saved = localStorage.getItem('orderly_video_films');
-        if (saved !== null) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setFilmsList(parsed);
-            return;
-          }
-        }
-      } catch (e) {}
+        const films = Array.isArray(apiData) ? apiData : apiData?.data;
+        setFilmsList(Array.isArray(films) ? films : []);
+      } catch (e) {
+        setFilmsList([]);
+      }
     };
     loadFilms();
 
     window.addEventListener('orderly_video_films_updated', loadFilms);
-    window.addEventListener('storage', loadFilms);
-    window.addEventListener('focus', loadFilms);
     return () => {
       window.removeEventListener('orderly_video_films_updated', loadFilms);
-      window.removeEventListener('storage', loadFilms);
-      window.removeEventListener('focus', loadFilms);
     };
   }, []);
 
@@ -142,6 +103,7 @@ const VideoBannerSection = ({ title, subtitle }) => {
   };
 
   const totalFilms = filmsList.length;
+  if (totalFilms === 0) return null;
   const isLoopable = totalFilms > 3;
   const embedData = activeVideo ? getEmbedInfo(activeVideo.videoUrl) : null;
 

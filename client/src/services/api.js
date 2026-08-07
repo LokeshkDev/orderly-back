@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -23,7 +23,7 @@ api.interceptors.request.use((config) => {
 // ----------------------------------------------------
 export const getHomepageSections = async () => {
   try {
-    const res = await api.get('/homepage-sections');
+    const res = await api.get('/homepage/sections');
     if (res.data && res.data.success) return res.data;
   } catch (error) {}
   return { success: true, data: [] };
@@ -63,7 +63,7 @@ export const getOccasions = async () => {
 
 export const getVideoFilms = async () => {
   try {
-    const res = await api.get('/video-films');
+    const res = await api.get('/homepage/video-films');
     if (res.data && res.data.success) return res.data;
   } catch (error) {}
   return { success: true, data: [] };

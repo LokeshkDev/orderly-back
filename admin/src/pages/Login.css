@@ -1,0 +1,75 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #0F1117;
+  color: #F1F5F9;
+}
+.login-card {
+  background-color: #1A1D27;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.brand-title {
+  text-align: center;
+  color: #C1121F;
+  margin-bottom: 0.5rem;
+}
+.brand-subtitle {
+  text-align: center;
+  color: #94A3B8;
+  margin-bottom: 2rem;
+}
+.input-group {
+  margin-bottom: 1rem;
+}
+.input-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #94A3B8;
+}
+.input-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background-color: #0F1117;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #F1F5F9;
+}
+.btn-primary {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #C1121F;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.btn-google {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: transparent;
+  color: #F1F5F9;
+  border: 1px solid #F1F5F9;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.divider {
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #94A3B8;
+}
+.error-message {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}

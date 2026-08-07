@@ -1,0 +1,74 @@
+.image-uploader-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.image-dropzone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-card);
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
+.image-dropzone:hover, .image-dropzone.active {
+  border-color: var(--accent-color);
+  background-color: rgba(193, 18, 31, 0.05);
+}
+
+.image-dropzone.uploading {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.upload-spinner {
+  animation: spin 1s linear infinite;
+  color: var(--accent-color);
+}
+
+.image-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.image-preview-item {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: var(--radius-input);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.image-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background-color: var(--danger-color);
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.remove-image-btn:hover {
+  opacity: 1;
+}

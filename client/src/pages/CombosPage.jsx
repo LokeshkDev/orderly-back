@@ -43,6 +43,16 @@ const CombosPage = () => {
       }
     };
     fetchCombosAndProducts();
+
+    window.addEventListener('orderly_products_updated', fetchCombosAndProducts);
+    window.addEventListener('storage', fetchCombosAndProducts);
+    window.addEventListener('focus', fetchCombosAndProducts);
+
+    return () => {
+      window.removeEventListener('orderly_products_updated', fetchCombosAndProducts);
+      window.removeEventListener('storage', fetchCombosAndProducts);
+      window.removeEventListener('focus', fetchCombosAndProducts);
+    };
   }, []);
 
   const categoryOptions = useMemo(() => {

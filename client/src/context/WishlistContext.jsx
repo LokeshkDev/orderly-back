@@ -41,4 +41,15 @@ export const WishlistProvider = ({ children }) => {
   );
 };
 
-export const useWishlist = () => useContext(WishlistContext);
+export const useWishlist = () => {
+  const context = useContext(WishlistContext);
+  if (!context) {
+    return {
+      wishlist: [],
+      toggleWishlist: () => {},
+      isInWishlist: () => false,
+      wishlistCount: 0
+    };
+  }
+  return context;
+};

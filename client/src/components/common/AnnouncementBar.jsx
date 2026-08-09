@@ -7,6 +7,7 @@ import './AnnouncementBar.css';
 const AnnouncementBar = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [announcements, setAnnouncements] = useState([]);
+  const [config, setConfig] = useState({ enabled: true, backgroundColor: '#000000', textColor: '#ffffff', accentColor: '#e11d48' });
   const [socialLinks, setSocialLinks] = useState({});
 
   useEffect(() => {
@@ -15,10 +16,29 @@ const AnnouncementBar = () => {
       try {
         const res = await getSettings();
         if (active && res && res.success && res.data) {
-          const parsed = typeof res.data.announcements === 'string'
-            ? res.data.announcements.split('|').filter(Boolean)
-            : Array.isArray(res.data.announcements) && res.data.announcements.length > 0 ? res.data.announcements : ["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"];
-          setAnnouncements(parsed.length > 0 ? parsed : ["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"]);
+          const cfg = res.data.announcement_config || {};
+          setConfig({
+            enabled: cfg.enabled !== false,
+            backgroundColor: cfg.backgroundColor || '#000000',
+            textColor: cfg.textColor || '#ffffff',
+            accentColor: cfg.accentColor || '#e11d48'
+          });
+
+          let items = [];
+          if (cfg.message) {
+            items.push(cfg.message);
+          }
+          if (typeof res.data.announcements === 'string') {
+            const split = res.data.announcements.split('|').filter(Boolean);
+            items.push(...split);
+          } else if (Array.isArray(res.data.announcements)) {
+            items.push(...res.data.announcements);
+          }
+
+          const uniqueItems = Array.from(new Set(items)).filter(Boolean);
+          const defaultText = "COMPLIMENTARY EXPRESS SHIPPING ON ALL ORDERS ABOVE ₹2,500";
+          setAnnouncements(uniqueItems.length > 0 ? uniqueItems : [defaultText]);
+
           setSocialLinks({
             facebook_url: res.data.facebook_url || '',
             instagram_url: res.data.instagram_url || '',
@@ -26,10 +46,10 @@ const AnnouncementBar = () => {
           });
           setCurrentIndex(0);
         } else {
-          setAnnouncements(["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"]);
+          setAnnouncements(["COMPLIMENTARY EXPRESS SHIPPING ON ALL ORDERS ABOVE ₹2,500"]);
         }
       } catch (err) {
-        setAnnouncements(["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"]);
+        setAnnouncements(["COMPLIMENTARY EXPRESS SHIPPING ON ALL ORDERS ABOVE ₹2,500"]);
       }
     };
     loadSettings();
@@ -44,58 +64,62 @@ const AnnouncementBar = () => {
   }, []);
 
   useEffect(() => {
-    if (announcements.length === 0) {
-      setAnnouncements(["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"]);
-      return undefined;
-    }
-    setCurrentIndex(prev => (prev >= announcements.length ? 0 : prev));
+    if (announcements.length <= 1) return undefined;
     const timer = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % announcements.length);
     }, 4500);
     return () => clearInterval(timer);
   }, [announcements.length]);
 
-  const currentText = announcements[currentIndex] || "FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS";
+  if (!config.enabled) return null;
+
+  const currentText = announcements[currentIndex] || "COMPLIMENTARY EXPRESS SHIPPING ON ALL ORDERS ABOVE ₹2,500";
   
-  // Helper to highlight currency amounts in RED (e.g. ₹1499)
+  // Helper to highlight currency amounts in RED (e.g. ₹2,500)
   const renderHighlightedAnnouncement = (text) => {
     if (!text) return null;
     const parts = text.split(/(₹\d+[\d,]*|\b\d+\s*%|\b\d+\s*DAYS\b)/gi);
     return parts.map((part, index) => {
       if (/^(₹\d+[\d,]*|\d+\s*%|\d+\s*DAYS)$/i.test(part)) {
-        return <span key={index} className="announcement-red-highlight">{part}</span>;
+        return <span key={index} className="announcement-red-highlight" style={{ color: config.accentColor }}>{part}</span>;
       }
       return part;
     });
   };
 
   return (
-    <div className="orderly-announcement-bar">
+    <div className="orderly-announcement-bar" style={{ backgroundColor: config.backgroundColor, color: config.textColor }}>
       <div className="announcement-bar-container">
         {/* Center Promos Rotator */}
         <div className="announcement-content">
-          <button 
-            className="announcement-nav-btn" 
-            onClick={() => setCurrentIndex(prev => (prev - 1 + announcements.length) % announcements.length)}
-            aria-label="Previous announcement"
-          >
-            <FiChevronLeft />
-          </button>
+          {announcements.length > 1 && (
+            <button 
+              className="announcement-nav-btn" 
+              onClick={() => setCurrentIndex(prev => (prev - 1 + announcements.length) % announcements.length)}
+              aria-label="Previous announcement"
+              style={{ color: config.textColor }}
+            >
+              <FiChevronLeft />
+            </button>
+          )}
           
-          <span className="announcement-text animate-fade-in">
+          <span className="announcement-text animate-fade-in" style={{ color: config.textColor }}>
             {renderHighlightedAnnouncement(currentText)}
           </span>
           
-          <button 
-            className="announcement-nav-btn" 
-            onClick={() => setCurrentIndex(prev => (prev + 1) % announcements.length)}
-            aria-label="Next announcement"
-          >
-            <FiChevronRight />
-          </button>
+          {announcements.length > 1 && (
+            <button 
+              className="announcement-nav-btn" 
+              onClick={() => setCurrentIndex(prev => (prev + 1) % announcements.length)}
+              aria-label="Next announcement"
+              style={{ color: config.textColor }}
+            >
+              <FiChevronRight />
+            </button>
+          )}
         </div>
 
-        {/* Right Side Social Media Icons (Authentic Original Brand Colors) */}
+        {/* Right Side Social Media Icons */}
         <div className="announcement-social-links">
           {socialLinks.facebook_url && (
             <a

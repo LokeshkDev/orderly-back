@@ -266,6 +266,11 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       };
       await api.put('/settings', settingsPayload);
 
+      // Also save to localStorage for client-side instant synchronization
+      localStorage.setItem('orderly_site_settings', JSON.stringify(settingsPayload));
+      localStorage.setItem('orderly_homepage_sections', JSON.stringify(sectionsPayload));
+      localStorage.setItem('orderly_last_settings_update', Date.now().toString());
+
       // Dispatch custom events to trigger live synchronization on customer website
       window.dispatchEvent(new CustomEvent('orderly_homepage_sections_updated'));
       window.dispatchEvent(new CustomEvent('orderly_settings_updated'));
@@ -385,13 +390,13 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
             href="http://localhost:5173" 
             target="_blank" 
             rel="noreferrer" 
-            className="btn btn-outline-dark btn-sm d-flex align-items-center gap-1"
+            className="btn-admin-outline d-flex align-items-center gap-1"
           >
             <FiExternalLink /> Preview Homepage
           </a>
 
           <button 
-            className="btn btn-danger btn-sm d-flex align-items-center gap-1 px-3 fw-bold"
+            className="btn-admin-red d-flex align-items-center gap-1 px-3 fw-bold"
             onClick={handlePublishHomepage}
             disabled={savingAll}
           >
@@ -445,7 +450,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
               <h4 className="fw-bold text-dark mb-1">Homepage Section Order & Visibility Management</h4>
               <p className="text-muted small mb-0">Drag or click Move Up / Move Down to change the top-to-bottom section rendering sequence on the customer homepage.</p>
             </div>
-            <button className="btn btn-danger btn-sm" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Layout
             </button>
           </div>
@@ -498,16 +503,20 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                       </div>
                     </td>
                     <td className="text-end pe-4">
-                      <div className="btn-group btn-group-sm">
+                      <div className="d-inline-flex gap-1">
                         <button 
-                          className="btn btn-outline-secondary" 
+                          type="button"
+                          className="btn-admin-outline" 
+                          style={{ padding: '4px 10px', fontSize: '0.78rem' }}
                           onClick={() => moveSection(idx, 'up')}
                           disabled={idx === 0}
                         >
                           <FiArrowUp /> Move Up
                         </button>
                         <button 
-                          className="btn btn-outline-secondary" 
+                          type="button"
+                          className="btn-admin-outline" 
+                          style={{ padding: '4px 10px', fontSize: '0.78rem' }}
                           onClick={() => moveSection(idx, 'down')}
                           disabled={idx === sections.length - 1}
                         >
@@ -601,7 +610,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           </div>
 
           <div className="mt-4 pt-3 border-top">
-            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Announcement Bar
             </button>
           </div>
@@ -616,7 +625,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
               <h4 className="fw-bold text-dark mb-1">Hero Slider Slides</h4>
               <p className="text-muted small mb-0">Add, edit, or remove full-width editorial hero slides.</p>
             </div>
-            <button className="btn btn-danger btn-sm" onClick={openAddSlideModal}>
+            <button className="btn-admin-red" onClick={openAddSlideModal}>
               <FiPlus /> Add New Hero Slide
             </button>
           </div>
@@ -651,10 +660,10 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                     <td><code className="cat-slug-badge">{slide.cta_primary_text || 'SHOP NOW'}</code></td>
                     <td><strong>#{slide.display_order || 1}</strong></td>
                     <td className="text-end pe-4">
-                      <button className="btn btn-outline-dark btn-sm me-2" onClick={() => openEditSlideModal(slide)}>
+                      <button className="btn-admin-outline me-2" onClick={() => openEditSlideModal(slide)}>
                         <FiEdit /> Edit
                       </button>
-                      <button className="btn btn-outline-danger btn-sm" onClick={() => handleDeleteSlide(slide)}>
+                      <button className="btn-admin-outline text-danger" onClick={() => handleDeleteSlide(slide)}>
                         <FiTrash2 />
                       </button>
                     </td>
@@ -727,7 +736,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           </div>
 
           <div className="mt-4 pt-3 border-top">
-            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Service Features
             </button>
           </div>
@@ -772,7 +781,8 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                     <button
                       key={cat.id}
                       type="button"
-                      className={`btn btn-sm ${isSelected ? 'btn-danger' : 'btn-outline-dark'}`}
+                      className={isSelected ? 'btn-admin-red' : 'btn-admin-outline'}
+                      style={{ padding: '6px 12px', fontSize: '0.82rem' }}
                       onClick={() => {
                         setCollectionsConfig(prev => {
                           const current = prev.selectedCategories || [];
@@ -791,7 +801,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           </div>
 
           <div className="mt-4 pt-3 border-top">
-            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Collections
             </button>
           </div>
@@ -852,7 +862,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           </div>
 
           <div className="mt-4 pt-3 border-top">
-            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Best Sellers
             </button>
           </div>
@@ -915,7 +925,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                     onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block2: { ...prev.block2, discountTitle: e.target.value } }))}
                   />
                 </div>
-                <div className="mb-2">
+                <div className="mb-3">
                   <label className="admin-form-label small">Subtitle</label>
                   <input 
                     type="text" 
@@ -924,13 +934,28 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                     onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block2: { ...prev.block2, subtitle: e.target.value } }))}
                   />
                 </div>
+                
+                {/* Upload Image (Cover Image) */}
+                <div className="mb-3">
+                  <FileUploadInput 
+                    value={promotionsConfig.block2?.image || ''}
+                    onChange={(url) => setPromotionsConfig(prev => ({ ...prev, block2: { ...prev.block2, image: url } }))}
+                    type="image"
+                    folder="hero"
+                    label="COVER IMAGE (Upload Cover Image)"
+                    recommendedSize="Recommended: 1200 x 800 px (3:2 Aspect Ratio, Max 10MB)"
+                  />
+                </div>
+
+                {/* Upload Video (Autoplay Video) */}
                 <div>
-                  <label className="admin-form-label small">Banner Image URL</label>
-                  <input 
-                    type="text" 
-                    className="admin-input form-control-sm"
-                    value={promotionsConfig.block2?.image}
-                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block2: { ...prev.block2, image: e.target.value } }))}
+                  <FileUploadInput 
+                    value={promotionsConfig.block2?.videoUrl || ''}
+                    onChange={(url) => setPromotionsConfig(prev => ({ ...prev, block2: { ...prev.block2, videoUrl: url } }))}
+                    type="video"
+                    folder="videos"
+                    label="BACKGROUND VIDEO (Upload Video)"
+                    recommendedSize="Recommended: 1920 x 1080 px (16:9 Full HD MP4/WebM, Max 50MB)"
                   />
                 </div>
               </div>
@@ -972,7 +997,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           </div>
 
           <div className="mt-4 pt-3 border-top">
-            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Promo Blocks
             </button>
           </div>
@@ -1031,7 +1056,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           </div>
 
           <div className="mt-4 pt-3 border-top">
-            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Lookbook
             </button>
           </div>
@@ -1079,7 +1104,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           </div>
 
           <div className="mt-4 pt-3 border-top">
-            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Newsletter Settings
             </button>
           </div>
@@ -1117,7 +1142,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           </div>
 
           <div className="mt-4 pt-3 border-top">
-            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Footer
             </button>
           </div>
@@ -1155,7 +1180,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           </div>
 
           <div className="mt-4 pt-3 border-top">
-            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Global Settings
             </button>
           </div>
@@ -1186,8 +1211,8 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
             </div>
           </div>
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-            <button type="button" className="btn btn-outline-secondary" onClick={() => setIsSlideModalOpen(false)}>Cancel</button>
-            <button type="submit" className="btn btn-danger">Save Slide</button>
+            <button type="button" className="btn-admin-outline" onClick={() => setIsSlideModalOpen(false)}>Cancel</button>
+            <button type="submit" className="btn-admin-red">Save Slide</button>
           </div>
         </form>
       </Modal>

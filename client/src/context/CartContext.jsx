@@ -140,4 +140,28 @@ export const CartProvider = ({ children }) => {
   );
 };
 
-export const useCart = () => useContext(CartContext);
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (!context) {
+    return {
+      cart: [],
+      isCartOpen: false,
+      setIsCartOpen: () => {},
+      addToCart: () => {},
+      removeFromCart: () => {},
+      updateQuantity: () => {},
+      clearCart: () => {},
+      subtotal: 0,
+      total: 0,
+      shippingCost: 0,
+      freeShippingThreshold: 1499,
+      shippingFee: 99,
+      appliedCoupon: null,
+      discountAmount: 0,
+      applyCoupon: () => {},
+      removeCoupon: () => {},
+      totalItems: 0
+    };
+  }
+  return context;
+};

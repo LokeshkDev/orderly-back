@@ -14,8 +14,8 @@ const Navbar = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { totalItems, setIsCartOpen } = useCart();
-  const { wishlistCount } = useWishlist();
+  const { totalItems = 0, setIsCartOpen = () => {} } = useCart() || {};
+  const { wishlistCount = 0 } = useWishlist() || {};
 
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(
     localStorage.getItem('orderly_customer_token') ||

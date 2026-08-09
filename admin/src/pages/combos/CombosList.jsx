@@ -5,6 +5,7 @@ import {
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import FileUploadInput from '../../components/common/FileUploadInput';
 import './CombosList.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -739,6 +740,21 @@ const CombosList = () => {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Combo Cover Image Upload */}
+                <div className="col-12 mt-3 px-1">
+                  <FileUploadInput 
+                    value={formData.images?.[0] || ''}
+                    onChange={(url) => setFormData(prev => ({ 
+                      ...prev, 
+                      images: url ? [url, ...(prev.images?.slice(1) || [])] : prev.images 
+                    }))}
+                    type="image"
+                    folder="combos"
+                    label="COMBO BANNER / COVER IMAGE (Upload)"
+                    recommendedSize="Recommended: 1200 x 800 px (3:2 Aspect Ratio)"
+                  />
                 </div>
               </div>
 

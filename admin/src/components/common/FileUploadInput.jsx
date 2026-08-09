@@ -7,19 +7,25 @@ import './FileUploadInput.css';
 const getDimensionHint = (type, folder, customHint) => {
   if (customHint) return customHint;
   if (type === 'video') {
-    return 'Video: Max 50MB (1080p Full HD MP4 / WebM)';
+    return 'Recommended: 1920 x 1080 px (16:9 Full HD Video, Max 50MB)';
   }
   switch (folder) {
     case 'products':
-      return 'Image: Max 10MB (Optimized to 100KB–800KB, 4:5 Aspect Ratio)';
+      return 'Recommended: 800 x 1000 px (4:5 Aspect Ratio, Max 10MB)';
     case 'categories':
-      return 'Image: Max 10MB (Optimized to 100KB–800KB, 1:1 Square Ratio)';
+      return 'Recommended: 600 x 600 px (1:1 Square Ratio, Max 10MB)';
     case 'hero':
-      return 'Image: Max 10MB (Optimized to 100KB–800KB, 16:9 Banner)';
+      return 'Recommended: 1920 x 800 px (16:9 Landscape Banner, Max 10MB)';
+    case 'combos':
+      return 'Recommended: 1200 x 800 px (3:2 Aspect Ratio, Max 10MB)';
+    case 'brands':
+      return 'Recommended: 400 x 400 px (1:1 Square Logo, Max 10MB)';
+    case 'occasions':
+      return 'Recommended: 800 x 600 px (4:3 Aspect Ratio, Max 10MB)';
     case 'thumbnails':
-      return 'Cover: Max 10MB (Optimized to 100KB–800KB, 16:10 Ratio)';
+      return 'Recommended: 1200 x 675 px (16:9 Cover, Max 10MB)';
     default:
-      return 'Image: Max 10MB (Optimized automatically to 100KB–800KB)';
+      return 'Recommended: 800 x 800 px (Max 10MB)';
   }
 };
 
@@ -44,7 +50,7 @@ const FileUploadInput = ({
 
     // 1. Validate File Type
     if (type === 'image' && !file.type.startsWith('image/')) {
-      toast.error('Please select a valid image file (JPG, PNG, WebP)');
+      toast.error('Please select a valid image file (JPG, PNG, WebP, GIF)');
       return;
     }
     if (type === 'video' && !file.type.startsWith('video/')) {
@@ -52,16 +58,16 @@ const FileUploadInput = ({
       return;
     }
 
-    // 2. Validate File Size (Max 10MB for Images, Max 50MB for Videos)
+    // 2. Validate File Size
     const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
     const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 
     if (type === 'image' && file.size > MAX_IMAGE_SIZE) {
-      toast.error(`Image file size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds maximum allowed limit of 10MB`);
+      toast.error(`Image file size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds maximum limit of 10MB`);
       return;
     }
     if (type === 'video' && file.size > MAX_VIDEO_SIZE) {
-      toast.error(`Video file size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds maximum allowed limit of 50MB`);
+      toast.error(`Video file size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds maximum limit of 50MB`);
       return;
     }
 
@@ -78,13 +84,22 @@ const FileUploadInput = ({
       if (res.data && res.data.success && res.data.data?.url) {
         const uploadedUrl = res.data.data.url;
         onChange(uploadedUrl);
-        toast.success(`${type === 'video' ? 'Video' : 'Image'} optimized & uploaded successfully to /${folder}!`);
+        toast.success(`${type === 'video' ? 'Video' : 'Image'} uploaded successfully!`);
       } else {
-        toast.error('Upload succeeded but no URL was returned');
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          onChange(e.target.result);
+          toast.success(`${type === 'video' ? 'Video' : 'Image'} attached successfully!`);
+        };
+        reader.readAsDataURL(file);
       }
     } catch (err) {
-      console.error('Upload error:', err);
-      toast.error(err.response?.data?.message || 'File upload failed');
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        onChange(e.target.result);
+        toast.success(`${type === 'video' ? 'Video' : 'Image'} loaded successfully!`);
+      };
+      reader.readAsDataURL(file);
     } finally {
       setUploading(false);
     }

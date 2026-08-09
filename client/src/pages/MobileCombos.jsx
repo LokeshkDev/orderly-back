@@ -61,6 +61,16 @@ const MobileCombos = () => {
       }
     };
     fetchCombosAndProducts();
+
+    window.addEventListener('orderly_products_updated', fetchCombosAndProducts);
+    window.addEventListener('storage', fetchCombosAndProducts);
+    window.addEventListener('focus', fetchCombosAndProducts);
+
+    return () => {
+      window.removeEventListener('orderly_products_updated', fetchCombosAndProducts);
+      window.removeEventListener('storage', fetchCombosAndProducts);
+      window.removeEventListener('focus', fetchCombosAndProducts);
+    };
   }, []);
 
   const categoryOptions = useMemo(() => {
@@ -128,12 +138,7 @@ const MobileCombos = () => {
       />
 
       <div className="mobile-app-wrapper mobile-only">
-        {/* 1. Compact Announcement Bar */}
-        <div className="mobile-announcement-bar">
-          Free Shipping on Orders Above <span className="mobile-announcement-highlight">₹1499</span> | Easy 7 Days Returns
-        </div>
-
-        {/* 2. Mobile App Header */}
+        {/* 1. Mobile App Header */}
         <MobileHeader onOpenMenu={() => setIsMenuOpen(true)} />
 
         {/* 3. Mobile Slide-Out Drawer */}

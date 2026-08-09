@@ -24,8 +24,18 @@ api.interceptors.request.use((config) => {
 export const getHomepageSections = async () => {
   try {
     const res = await api.get('/homepage/sections');
-    if (res.data && res.data.success) return res.data;
+    if (res.data && res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+      localStorage.setItem('orderly_homepage_sections', JSON.stringify(res.data.data));
+      return res.data;
+    }
   } catch (error) {}
+
+  const cached = localStorage.getItem('orderly_homepage_sections');
+  if (cached) {
+    try {
+      return { success: true, data: JSON.parse(cached) };
+    } catch(e) {}
+  }
   return { success: true, data: [] };
 };
 
@@ -256,10 +266,21 @@ export const deleteCustomer = async (id) => {
 export const getSettings = async () => {
   try {
     const res = await api.get('/settings');
-    return res.data;
-  } catch (error) {
-    return { success: false, data: {} };
+    if (res.data && res.data.success) {
+      if (res.data.data) {
+        localStorage.setItem('orderly_site_settings', JSON.stringify(res.data.data));
+      }
+      return res.data;
+    }
+  } catch (error) {}
+
+  const cached = localStorage.getItem('orderly_site_settings');
+  if (cached) {
+    try {
+      return { success: true, data: JSON.parse(cached) };
+    } catch(e) {}
   }
+  return { success: false, data: {} };
 };
 
 export const createOrder = async (orderData) => {

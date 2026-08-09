@@ -274,6 +274,7 @@ const Categories = () => {
                     type="image"
                     folder="categories"
                     label="CATEGORY BANNER IMAGE (Upload)"
+                    recommendedSize="Recommended: 600 x 600 px (1:1 Square Ratio)"
                   />
                 </div>
 

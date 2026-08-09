@@ -583,6 +583,7 @@ const ProductsList = () => {
                             folder="products"
                             label={`Image for ${color.name} Color Variant`}
                             placeholder={`Upload or paste image URL for ${color.name}...`}
+                            recommendedSize="Recommended: 800 x 1000 px (4:5 Aspect Ratio)"
                           />
                         </div>
                       ))}
@@ -795,6 +796,7 @@ const ProductsList = () => {
                     type="image"
                     folder="products"
                     label="PRODUCT MAIN COVER IMAGE (Upload)"
+                    recommendedSize="Recommended: 800 x 1000 px (4:5 Aspect Ratio)"
                   />
                 </div>
 

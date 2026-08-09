@@ -70,7 +70,7 @@ const Shop = () => {
     setSelectedBrand(brandParam);
   }, [categoryParam, brandParam]);
 
-  // Fetch complete product dataset from API
+  // Fetch complete product dataset from API & listen for Admin live updates
   useEffect(() => {
     const loadProducts = async () => {
       setLoading(true);
@@ -85,16 +85,14 @@ const Shop = () => {
 
     loadProducts();
 
-    const handleStorageChange = () => {
-      loadProducts();
-    };
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('focus', handleStorageChange);
-    window.addEventListener('orderly_products_updated', handleStorageChange);
+    window.addEventListener('orderly_products_updated', loadProducts);
+    window.addEventListener('storage', loadProducts);
+    window.addEventListener('focus', loadProducts);
+
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('focus', handleStorageChange);
-      window.removeEventListener('orderly_products_updated', handleStorageChange);
+      window.removeEventListener('storage', loadProducts);
+      window.removeEventListener('focus', loadProducts);
+      window.removeEventListener('orderly_products_updated', loadProducts);
     };
   }, []);
 

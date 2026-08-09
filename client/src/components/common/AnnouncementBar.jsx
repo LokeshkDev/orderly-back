@@ -17,17 +17,19 @@ const AnnouncementBar = () => {
         if (active && res && res.success && res.data) {
           const parsed = typeof res.data.announcements === 'string'
             ? res.data.announcements.split('|').filter(Boolean)
-            : Array.isArray(res.data.announcements) ? res.data.announcements : [];
-          setAnnouncements(parsed);
+            : Array.isArray(res.data.announcements) && res.data.announcements.length > 0 ? res.data.announcements : ["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"];
+          setAnnouncements(parsed.length > 0 ? parsed : ["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"]);
           setSocialLinks({
             facebook_url: res.data.facebook_url || '',
             instagram_url: res.data.instagram_url || '',
             youtube_url: res.data.youtube_url || ''
           });
           setCurrentIndex(0);
+        } else {
+          setAnnouncements(["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"]);
         }
       } catch (err) {
-        console.warn('Failed to load settings:', err.message);
+        setAnnouncements(["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"]);
       }
     };
     loadSettings();
@@ -43,7 +45,7 @@ const AnnouncementBar = () => {
 
   useEffect(() => {
     if (announcements.length === 0) {
-      setCurrentIndex(0);
+      setAnnouncements(["FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"]);
       return undefined;
     }
     setCurrentIndex(prev => (prev >= announcements.length ? 0 : prev));
@@ -53,7 +55,19 @@ const AnnouncementBar = () => {
     return () => clearInterval(timer);
   }, [announcements.length]);
 
-  if (announcements.length === 0) return null;
+  const currentText = announcements[currentIndex] || "FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS";
+  
+  // Helper to highlight currency amounts in RED (e.g. ₹1499)
+  const renderHighlightedAnnouncement = (text) => {
+    if (!text) return null;
+    const parts = text.split(/(₹\d+[\d,]*|\b\d+\s*%|\b\d+\s*DAYS\b)/gi);
+    return parts.map((part, index) => {
+      if (/^(₹\d+[\d,]*|\d+\s*%|\d+\s*DAYS)$/i.test(part)) {
+        return <span key={index} className="announcement-red-highlight">{part}</span>;
+      }
+      return part;
+    });
+  };
 
   return (
     <div className="orderly-announcement-bar">
@@ -69,7 +83,7 @@ const AnnouncementBar = () => {
           </button>
           
           <span className="announcement-text animate-fade-in">
-            {announcements[currentIndex]}
+            {renderHighlightedAnnouncement(currentText)}
           </span>
           
           <button 

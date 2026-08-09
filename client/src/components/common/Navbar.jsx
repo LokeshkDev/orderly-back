@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Link, NavLink } from 'react-router-dom';
-import { FiUser, FiShoppingBag, FiMenu } from 'react-icons/fi';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { FiUser, FiShoppingBag, FiMenu, FiSearch, FiHeart, FiX } from 'react-icons/fi';
 import MobileMenu from './MobileMenu';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 import logoImg from '../../assets/logo/logo.jpeg';
 import './Navbar.css';
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { totalItems, setIsCartOpen } = useCart();
+  const { wishlistCount } = useWishlist();
 
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(
     localStorage.getItem('orderly_customer_token') ||
@@ -41,6 +46,15 @@ const Navbar = () => {
     };
   }, []);
 
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
+
   return (
     <>
       <header className={`orderly-navbar ${isScrolled ? 'scrolled' : ''}`}>
@@ -62,28 +76,38 @@ const Navbar = () => {
           {/* Desktop Nav Links */}
           <nav className="desktop-nav d-none d-lg-flex">
             <NavLink to="/" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              Home
+              HOME
             </NavLink>
 
             <NavLink to="/shop" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              Shop
+              SHOP
             </NavLink>
 
             <NavLink to="/combos" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              Combos
+              COMBOS
             </NavLink>
 
             <NavLink to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              About Us
+              ABOUT US
             </NavLink>
 
             <NavLink to="/contact" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              Contact Us
+              CONTACT
             </NavLink>
           </nav>
 
           {/* Desktop Action Icons */}
           <div className="navbar-actions d-none d-lg-flex">
+            {/* Search Trigger Icon */}
+            <button 
+              className="nav-action-btn"
+              onClick={() => setIsSearchOpen(prev => !prev)}
+              aria-label="Search catalog"
+              title="Search products"
+            >
+              <FiSearch />
+            </button>
+
             {/* Customer Account / Profile Icon */}
             <Link 
               to={isLoggedIn ? "/profile" : "/login"} 
@@ -95,8 +119,48 @@ const Navbar = () => {
               {isLoggedIn && <span className="user-online-badge" />}
             </Link>
 
+            {/* Wishlist Link Icon */}
+            <Link
+              to="/wishlist"
+              className="nav-action-btn position-relative"
+              aria-label="Wishlist"
+              title="My Wishlist"
+            >
+              <FiHeart />
+              {wishlistCount > 0 && <span className="action-badge badge-red">{wishlistCount}</span>}
+            </Link>
+
+            {/* Cart Trigger */}
             <button 
-              className="nav-action-btn cart-btn-trigger"
+              className="nav-action-btn cart-btn-trigger position-relative"
+              onClick={() => setIsCartOpen(true)}
+              aria-label="Cart drawer"
+              title="Shopping Cart"
+            >
+              <FiShoppingBag />
+              {totalItems > 0 && <span className="action-badge badge-red">{totalItems}</span>}
+            </button>
+          </div>
+
+          {/* Mobile Header Actions */}
+          <div className="navbar-actions-mobile d-lg-none d-flex align-items-center gap-3">
+            <button 
+              className="nav-action-btn"
+              onClick={() => setIsSearchOpen(prev => !prev)}
+              aria-label="Search catalog"
+            >
+              <FiSearch />
+            </button>
+            <Link 
+              to="/wishlist" 
+              className="nav-action-btn position-relative"
+              aria-label="Wishlist"
+            >
+              <FiHeart />
+              {wishlistCount > 0 && <span className="action-badge badge-red">{wishlistCount}</span>}
+            </Link>
+            <button 
+              className="nav-action-btn cart-btn-trigger position-relative"
               onClick={() => setIsCartOpen(true)}
               aria-label="Cart drawer"
             >
@@ -104,20 +168,29 @@ const Navbar = () => {
               {totalItems > 0 && <span className="action-badge badge-red">{totalItems}</span>}
             </button>
           </div>
-
-          {/* Mobile / Tablet Header Actions */}
-          <div className="navbar-actions-mobile d-lg-none">
-            <Link 
-              to={isLoggedIn ? "/profile" : "/login"} 
-              className="nav-action-btn position-relative" 
-              aria-label="Customer Profile" 
-              title={isLoggedIn ? "My Profile" : "Account / Login"}
-            >
-              <FiUser />
-              {isLoggedIn && <span className="user-online-badge" />}
-            </Link>
-          </div>
         </div>
+
+        {/* Expandable Search Overlay */}
+        {isSearchOpen && (
+          <div className="navbar-search-overlay">
+            <div className="container">
+              <form onSubmit={handleSearchSubmit} className="search-overlay-form">
+                <FiSearch className="search-input-icon" />
+                <input
+                  type="text"
+                  placeholder="Search shirts, denim, jackets, oversized tees..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                  className="search-overlay-input"
+                />
+                <button type="button" className="search-close-btn" onClick={() => setIsSearchOpen(false)}>
+                  <FiX />
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Slide-overs */}

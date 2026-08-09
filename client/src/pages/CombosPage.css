@@ -1,220 +1,345 @@
-/* Store Website - Combos Page Styling */
+/* ORDERLY Desktop Combos Page Styling - Royal Black & Red Combo Catalog */
 
-.combos-website-page {
-  background-color: var(--bg-primary, #0b0c10);
-  color: var(--text-primary, #ffffff);
-  min-height: 90vh;
+.orderly-combos-page {
+  background-color: #050505;
+  color: #FFFFFF;
+  min-height: 100vh;
+  font-family: 'Outfit', sans-serif;
 }
 
+/* 1. COMBO HERO BANNER MATCHING REFERENCE SCREENSHOT */
 .combos-hero-banner {
-  background: linear-gradient(180deg, rgba(197, 34, 31, 0.15) 0%, rgba(11, 12, 16, 0) 100%), #0d0f12;
+  position: relative;
+  height: 220px;
+  background-color: #080808;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 48px 24px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
 }
 
-.combos-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(197, 34, 31, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(248, 113, 113, 0.3);
+.combos-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+      #050505 0%,
+      rgba(5, 5, 5, 0.92) 40%,
+      rgba(5, 5, 5, 0.3) 100%);
+  z-index: 1;
+}
+
+.combos-hero-bg-graphic {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50%;
+  height: 100%;
+  background: url('https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1600&auto=format&fit=crop') no-repeat center right / cover;
+  filter: brightness(0.65);
+  z-index: 0;
+}
+
+.combos-hero-eyebrow {
+  color: #E50914;
   font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0.12em;
-  padding: 6px 14px;
-  border-radius: 20px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  margin-bottom: 14px;
+  display: block;
+  margin-bottom: 4px;
 }
 
 .combos-hero-title {
-  font-size: 2.2rem;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  color: #ffffff;
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(2.2rem, 3.8vw, 3.2rem);
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.05;
   margin-bottom: 8px;
 }
 
 .combos-hero-sub {
-  font-size: 0.95rem;
-  color: #94a3b8;
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-/* Filter Tab Buttons - High Contrast White Text */
-.combo-filter-btn {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 24px;
-  padding: 8px 22px;
   font-size: 0.88rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
+  color: #A0A0A0;
+  margin: 0;
+}
+
+/* 2. FILTER & SORT TOOLBAR MATCHING REFERENCE SCREENSHOT */
+.combos-toolbar-bar {
+  background-color: #0D0D0D;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 14px 24px;
+  display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
-.combo-filter-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: translateY(-1px);
+.toolbar-label {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #E50914;
+  text-transform: uppercase;
 }
 
-.combo-filter-btn.active {
-  background: #c5221f !important;
-  color: #ffffff !important;
-  border-color: #c5221f !important;
-  box-shadow: 0 4px 14px rgba(197, 34, 31, 0.45);
+.orderly-custom-select {
+  background-color: #141414 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #FFFFFF !important;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  padding: 8px 36px 8px 14px !important;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23E50914' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  transition: all 0.2s ease;
 }
 
-/* Combo Card Grid */
-.combo-card-client {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+.orderly-custom-select:hover,
+.orderly-custom-select:focus {
+  border-color: #E50914 !important;
+  box-shadow: 0 0 10px rgba(229, 9, 20, 0.25) !important;
+}
+
+/* Force dark theme background on option items */
+.orderly-custom-select option {
+  background-color: #141414 !important;
+  color: #FFFFFF !important;
+  padding: 8px 12px;
+}
+
+/* Active Chips */
+.combos-active-chips-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: #0D0D0D;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+
+/* 3. 4-COLUMN DESKTOP COMBO GRID MATCHING REFERENCE SCREENSHOT */
+.desktop-combos-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 1200px) {
+  .desktop-combos-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 991px) {
+  .desktop-combos-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 4. CREATIVE CREATIVE COMBO CARD MATCHING REFERENCE SCREENSHOT */
+.creative-combo-card {
+  background-color: #0D0D0D;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 100%;
+  position: relative;
   display: flex;
   flex-direction: column;
+  transition: all 0.3s ease;
 }
 
-.combo-card-client:hover {
+.creative-combo-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+  border-color: rgba(229, 9, 20, 0.4);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
 }
 
-.combo-card-img-wrapper {
+.combo-card-top-bar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.combo-discount-badge {
+  background-color: #E50914;
+  color: #FFFFFF;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+.combo-wishlist-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+}
+
+.combo-wishlist-btn:hover,
+.combo-wishlist-btn.active {
+  background-color: #E50914;
+  border-color: #E50914;
+  color: #FFFFFF;
+}
+
+/* Multi-Product Split Image Box with Central Plus Circle */
+.combo-split-photo-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
   position: relative;
   width: 100%;
-  padding-top: 100%;
+  height: 250px;
+  background-color: #121212;
   overflow: hidden;
-  background: #111;
+  text-decoration: none;
 }
 
-.combo-card-img {
-  position: absolute;
-  top: 0;
-  left: 0;
+.combo-photo-col {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.combo-item-photo {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s ease;
+  transition: transform 0.5s ease;
 }
 
-.combo-card-client:hover .combo-card-img {
-  transform: scale(1.04);
+.creative-combo-card:hover .combo-item-photo {
+  transform: scale(1.05);
 }
 
-.combo-card-badge {
+/* Central Circular Plus Badge */
+.combo-plus-circle-badge {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  background: #c5221f;
-  color: #ffffff;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  padding: 5px 11px;
-  border-radius: 4px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
 }
 
-.combo-card-pieces-count {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
-  color: #ffffff;
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.combo-card-body {
-  padding: 20px;
-  flex: 1;
+/* Combo Info Body */
+.combo-card-info-body {
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  flex: 1;
+}
+
+.combo-card-title-link {
+  text-decoration: none;
 }
 
 .combo-card-title {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #ffffff;
-  margin-bottom: 8px;
-  line-height: 1.3;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0 0 4px;
+  transition: color 0.2s ease;
 }
 
-.combo-card-items-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 16px;
+.combo-card-title-link:hover .combo-card-title {
+  color: #E50914;
 }
 
-.combo-card-items-list li {
-  font-size: 0.82rem;
-  color: #94a3b8;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+.combo-card-items-summary {
+  font-size: 0.76rem;
+  color: #A0A0A0;
+  margin-bottom: 10px;
 }
 
 .combo-card-price-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: auto;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.combo-card-offer-price {
-  font-size: 1.3rem;
-  font-weight: 900;
-  color: #2ecc71;
-}
-
-.combo-card-msrp {
-  font-size: 0.88rem;
-  color: #64748b;
-  text-decoration: line-through;
-  margin-left: 6px;
-}
-
-.btn-buy-bundle {
-  width: 100%;
-  background: #ffffff;
-  color: #0f172a;
-  font-weight: 800;
-  font-size: 0.88rem;
-  padding: 11px 18px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  align-items: baseline;
   gap: 8px;
-  transition: all 0.2s ease;
-  text-decoration: none;
-  margin-top: 14px;
+  margin-bottom: 14px;
 }
 
-.btn-buy-bundle:hover {
-  background: #c5221f;
-  color: #ffffff;
+.combo-offer-price {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #E50914;
+}
+
+.combo-original-price {
+  font-size: 0.82rem;
+  color: #777777;
+  text-decoration: line-through;
+}
+
+/* CTA Button VIEW COMBO → */
+.btn-view-combo-cta {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 8px 0;
+  border-radius: 3px;
+  text-decoration: none;
+  display: block;
+  margin-top: auto;
+  transition: all 0.2s ease;
+}
+
+.btn-view-combo-cta:hover {
+  border-color: #E50914;
+  background-color: rgba(229, 9, 20, 0.1);
+  color: #E50914;
 }

@@ -2,19 +2,26 @@ import React, { useState, useEffect } from 'react';
 import SEO from '../components/common/SEO';
 import HeroCarousel from '../components/home/HeroCarousel';
 import ShopByCategory from '../components/home/ShopByCategory';
+import TrendingArrivalsSection from '../components/home/TrendingArrivalsSection';
+import PromoSection from '../components/home/PromoSection';
+import LookbookSection from '../components/home/LookbookSection';
 import VideoBannerSection from '../components/home/VideoBannerSection';
 import ShopByOccasion from '../components/home/ShopByOccasion';
-import TrendingArrivalsSection from '../components/home/TrendingArrivalsSection';
 import CatchyCombosSection from '../components/home/CatchyCombosSection';
+import Newsletter from '../components/home/Newsletter';
+import MobileHomepage from './MobileHomepage';
 import { getHomepageSections } from '../services/api';
 
 const DEFAULT_HOMEPAGE_SECTIONS = [
-  { section_key: 'hero_carousel', title: 'Hero Carousel', is_visible: true, display_order: 1 },
-  { section_key: 'shop_by_category', title: 'Shop by Category', is_visible: true, display_order: 2 },
-  { section_key: 'video_banner', title: 'Video Banner', is_visible: true, display_order: 3 },
-  { section_key: 'shop_by_occasion', title: 'Shop by Occasion', is_visible: true, display_order: 4 },
-  { section_key: 'trending_arrivals', title: 'Trending Arrivals', is_visible: true, display_order: 5 },
-  { section_key: 'featured_brands', title: 'Catchy Combo Bundles', is_visible: true, display_order: 6 }
+  { section_key: 'hero_carousel', title: 'Hero Carousel & Trust Bar', is_visible: true, display_order: 1 },
+  { section_key: 'shop_by_category', title: 'DISCOVER YOUR STYLE', is_visible: true, display_order: 2 },
+  { section_key: 'trending_arrivals', title: 'BEST SELLING PRODUCTS', is_visible: true, display_order: 3 },
+  { section_key: 'promo_offers', title: 'Promotional Offers', is_visible: true, display_order: 4 },
+  { section_key: 'lookbook_banner', title: 'The Lookbook 2026', is_visible: true, display_order: 5 },
+  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', is_visible: true, display_order: 6 },
+  { section_key: 'video_banner', title: 'Video Banner', is_visible: false, display_order: 7 },
+  { section_key: 'shop_by_occasion', title: 'Shop by Occasion', is_visible: false, display_order: 8 },
+  { section_key: 'featured_brands', title: 'Catchy Combo Bundles', is_visible: false, display_order: 9 }
 ];
 
 const Home = () => {
@@ -58,14 +65,20 @@ const Home = () => {
         return <HeroCarousel key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
       case 'shop_by_category':
         return <ShopByCategory key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
+      case 'trending_arrivals':
+        return <TrendingArrivalsSection key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
+      case 'promo_offers':
+        return <PromoSection key={sec.section_key} />;
+      case 'lookbook_banner':
+        return <LookbookSection key={sec.section_key} />;
       case 'video_banner':
         return <VideoBannerSection key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
       case 'shop_by_occasion':
         return <ShopByOccasion key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
-      case 'trending_arrivals':
-        return <TrendingArrivalsSection key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
       case 'featured_brands':
         return <CatchyCombosSection key={sec.section_key} title={sec.title || "Catchy Combo Bundles & Curated Sets"} subtitle={sec.subtitle || "EXCLUSIVE MULTI-PIECE BUNDLE SAVINGS"} />;
+      case 'newsletter_section':
+        return <Newsletter key={sec.section_key} />;
       default:
         return null;
     }
@@ -77,7 +90,11 @@ const Home = () => {
         title="ORDERLY Mens Wear | Luxury Men's Apparel & Fashion Store"
         description="Discover luxury men's fashion by ORDERLY. Shop shirts, oversized tees, selvedge denim, and blazers."
       />
-      <main className="orderly-home-page">
+      {/* MOBILE ONLY VIEW (< 768px): Dedicated Mobile App Experience */}
+      <MobileHomepage />
+
+      {/* DESKTOP ONLY VIEW (>= 768px): 100% Unchanged Desktop Homepage Layout */}
+      <main className="orderly-home-page desktop-only" style={{ backgroundColor: '#050505' }}>
         {renderList.map(sec => renderSectionComponent(sec))}
       </main>
     </>

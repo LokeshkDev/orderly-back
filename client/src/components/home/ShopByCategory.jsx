@@ -1,119 +1,137 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCategories } from '../../services/api';
 import './ShopByCategory.css';
 
+const DEFAULT_CATEGORIES = [
+  {
+    name: 'SHIRTS',
+    sub: 'Everyday Luxury Linen & Oxford',
+    categoryQuery: 'Shirts',
+    image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=800&auto=format&fit=crop'
+  },
+  {
+    name: 'DENIM & BOTTOMS',
+    sub: 'Sharp & Tailored Fit',
+    categoryQuery: 'Denim',
+    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop'
+  },
+  {
+    name: 'POLOS & TEES',
+    sub: 'Urban & Heavyweight Streetwear',
+    categoryQuery: 'Tees',
+    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop'
+  },
+  {
+    name: 'FORMAL SUITS & BLAZERS',
+    sub: 'Italian Tailored Precision',
+    categoryQuery: 'Suits',
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop'
+  },
+  {
+    name: 'HERITAGE & COMBOS',
+    sub: 'Bespoke Coordinated Sets',
+    categoryQuery: 'Ethnic',
+    image: 'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop'
+  }
+];
+
+const FALLBACK_IMAGES = [
+  'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop'
+];
+
 const ShopByCategory = ({ title, subtitle }) => {
   const navigate = useNavigate();
-  const scrollRef = useRef(null);
-  const [isMouseDown, setIsMouseDown] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [categoriesData, setCategoriesData] = useState([]);
+  const [categoriesData, setCategoriesData] = useState(DEFAULT_CATEGORIES);
 
-  // Fetch categories managed from the Admin CMS (DB) — no static fallbacks.
   useEffect(() => {
     const loadCategories = async () => {
       try {
         const res = await getCategories();
         if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
           const active = res.data.filter(c => c.is_active !== false);
-          const mapped = active.map(cat => ({
-            name: cat.name,
+          const mapped = active.map((cat, idx) => ({
+            name: (cat.name || '').toUpperCase(),
+            sub: cat.description || cat.sub || DEFAULT_CATEGORIES[idx % DEFAULT_CATEGORIES.length]?.sub || 'Premium Collection',
             categoryQuery: cat.slug || cat.name,
-            image: cat.image
+            image: (cat.image && cat.image.length > 10) ? cat.image : FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length]
           }));
-          setCategoriesData(mapped);
+          setCategoriesData(mapped.length > 0 ? mapped : DEFAULT_CATEGORIES);
         } else {
-          setCategoriesData([]);
+          setCategoriesData(DEFAULT_CATEGORIES);
         }
       } catch (err) {
-        console.warn('Failed to load categories from API:', err.message);
+        setCategoriesData(DEFAULT_CATEGORIES);
       }
     };
     loadCategories();
 
     window.addEventListener('orderly_categories_updated', loadCategories);
     window.addEventListener('storage', loadCategories);
-    window.addEventListener('focus', loadCategories);
     return () => {
       window.removeEventListener('orderly_categories_updated', loadCategories);
       window.removeEventListener('storage', loadCategories);
-      window.removeEventListener('focus', loadCategories);
     };
   }, []);
 
-  const handleMouseDown = (e) => {
-    if (!scrollRef.current) return;
-    setIsMouseDown(true);
-    setIsDragging(false);
-    setStartX(e.pageX - scrollRef.current.offsetLeft);
-    setScrollLeft(scrollRef.current.scrollLeft);
-  };
-
-  const handleMouseLeave = () => {
-    setIsMouseDown(false);
-  };
-
-  const handleMouseUp = () => {
-    setIsMouseDown(false);
-    // Delay resetting dragging to prevent click navigation when dragging
-    setTimeout(() => setIsDragging(false), 50);
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isMouseDown || !scrollRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5;
-    if (Math.abs(walk) > 5) {
-      setIsDragging(true);
-    }
-    scrollRef.current.scrollLeft = scrollLeft - walk;
-  };
-
   const handleCardClick = (categoryQuery) => {
-    if (!isDragging) {
-      navigate(`/shop?category=${encodeURIComponent(categoryQuery)}`);
-    }
+    navigate(`/shop?category=${encodeURIComponent(categoryQuery)}`);
   };
 
   return (
-    <section className="shop-by-category-section py-5">
+    <section id="collections" className="shop-by-category-section py-5">
       <div className="container-fluid px-lg-5">
-        <div className="text-center mb-4">
-          <span className="category-section-subtitle">{subtitle || 'EXPLORE APPAREL'}</span>
-          <h2 className="category-section-title">{title || 'Shop By Category'}</h2>
+        {/* Section Header */}
+        <div className="text-center mb-5">
+          <span className="category-eyebrow-red">
+            {subtitle || 'EXPLORE COLLECTIONS'}
+          </span>
+          <h2 className="category-main-heading">
+            {title || 'DISCOVER YOUR STYLE'}
+          </h2>
         </div>
 
-        {/* Drag-to-Swipe Container (No visible scrollbar) */}
-        <div 
-          ref={scrollRef}
-          className={`category-circles-scroll-wrapper ${isMouseDown ? 'dragging' : ''}`}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseLeave}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
-        >
-          <div className="category-circles-row">
-            {categoriesData.map((cat, idx) => (
+        {/* 5-Column Fashion Cards Grid */}
+        <div className="category-cards-grid">
+          {categoriesData.slice(0, 5).map((cat, idx) => {
+            const displayImg = (cat.image && cat.image.length > 10) 
+              ? cat.image 
+              : FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
+            return (
               <div 
                 key={idx}
-                className="category-circle-card"
+                className="fashion-category-card"
                 onClick={() => handleCardClick(cat.categoryQuery)}
               >
-                <div className="circle-image-ring">
-                  {cat.image ? (
-                    <img src={cat.image} alt={cat.name} className="circle-img" draggable={false} />
-                  ) : (
-                    <span className="circle-img circle-img-placeholder">{cat.name.charAt(0)}</span>
-                  )}
+                {/* 100% Full Card Background Cover Image */}
+                <img 
+                  src={displayImg} 
+                  alt={cat.name}
+                  className="fashion-cat-img"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
+                  }}
+                />
+                
+                {/* Gradient Dark Overlay */}
+                <div className="fashion-cat-overlay" />
+                <div className="fashion-cat-red-accent" />
+
+                {/* Bottom Aligned Text Content */}
+                <div className="fashion-cat-content">
+                  <h3 className="fashion-cat-title">{cat.name}</h3>
+                  <p className="fashion-cat-sub">{cat.sub}</p>
+                  <span className="fashion-cat-link">
+                    SHOP NOW <span className="cat-arrow">&rarr;</span>
+                  </span>
                 </div>
-                <span className="circle-label">{cat.name}</span>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
     </section>

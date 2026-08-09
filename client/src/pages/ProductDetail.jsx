@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { 
-  FiStar, FiHeart, FiShoppingBag, FiShield, 
-  FiRefreshCw, FiChevronRight, FiCheck, FiArrowDown, FiAlertCircle, FiEye 
+import {
+  FiHeart, FiShoppingBag, FiShield, FiRefreshCw, FiChevronRight,
+  FiCheck, FiArrowDown, FiAlertCircle, FiEye, FiChevronLeft,
+  FiMaximize2, FiMinus, FiPlus, FiTruck, FiLock, FiX, FiTag,
+  FiStar, FiEdit3
 } from 'react-icons/fi';
+import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
 import SEO from '../components/common/SEO';
 import ProductCard from '../components/product/ProductCard';
+import MobileProductDetail from '../components/product/MobileProductDetail';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useQuickView } from '../context/QuickViewContext';
@@ -13,20 +17,25 @@ import { getProductById, getProducts } from '../services/api';
 import { formatPrice, calculateDiscount } from '../utils/formatters';
 import './ProductDetail.css';
 
-// Universal bulletproof stock resolution helper
+/* ── Promotional offers displayed on PDP ──────────────────────────
+   In production these should be managed from admin settings or a
+   dedicated marketing CMS endpoint.  Update this array or create
+   an admin-managed "pdp_offers" site-setting to make them dynamic. */
+const PDP_PROMOTIONAL_OFFERS = [
+  { text: 'Get extra 10% off on prepaid orders', code: 'ORDERLY10' },
+  { text: 'Buy 2 Get extra 15% off', code: 'COMBO15' },
+];
+
+/* ── Universal bulletproof stock resolution helper ──────────────── */
 export const getVariantStock = (productObj, colorVal, sizeVal) => {
   if (!productObj) return 0;
   if (productObj.status === 'Draft') return 0;
 
-  // 1. If total inventory across all variants is 0, entire product is out of stock!
   if (productObj.inventory && Object.keys(productObj.inventory).length > 0) {
     const totalInventoryStock = Object.values(productObj.inventory).reduce((sum, val) => sum + Number(val || 0), 0);
-    if (totalInventoryStock <= 0) {
-      return 0;
-    }
+    if (totalInventoryStock <= 0) return 0;
   }
 
-  // 2. Check if product.stock is explicitly 0 (when no inventory matrix dictionary is defined)
   if (productObj.stock !== undefined && Number(productObj.stock) <= 0 && (!productObj.inventory || Object.keys(productObj.inventory).length === 0)) {
     return 0;
   }
@@ -35,15 +44,12 @@ export const getVariantStock = (productObj, colorVal, sizeVal) => {
   const sizeName = String(sizeVal || '').trim();
 
   if (productObj.inventory && Object.keys(productObj.inventory).length > 0) {
-    // 3. Exact key match: "Pure White-XXL"
     const key1 = `${colorName}-${sizeName}`;
     if (productObj.inventory[key1] !== undefined) return Number(productObj.inventory[key1]);
 
-    // 4. Spaced key match: "Pure White - XXL"
     const key2 = `${colorName} - ${sizeName}`;
     if (productObj.inventory[key2] !== undefined) return Number(productObj.inventory[key2]);
 
-    // 5. Case-insensitive & partial color key match
     const normColor = colorName.toLowerCase().trim();
     const normSize = sizeName.toLowerCase().trim();
 
@@ -60,18 +66,14 @@ export const getVariantStock = (productObj, colorVal, sizeVal) => {
       }
     }
 
-    // 6. Size-only fallback match: "XXL"
     if (productObj.inventory[sizeName] !== undefined) return Number(productObj.inventory[sizeName]);
   }
 
-  // 7. Total product stock fallback
   if (productObj.stock !== undefined) return Number(productObj.stock);
-
-  // Default to 0 if inventory exists but variant is unlisted
   return 0;
 };
 
-// Safe image extractor to prevent Cannot read properties of null (reading '0')
+/* ── Safe image extractor ──────────────────────────────────────── */
 const getSafeProductImage = (item) => {
   if (item && Array.isArray(item.images) && item.images.length > 0 && item.images[0]) {
     return item.images[0];
@@ -82,6 +84,24 @@ const getSafeProductImage = (item) => {
   return '';
 };
 
+/* ── Star rating renderer ──────────────────────────────────────── */
+const renderStars = (rating = 5) => {
+  const r = Number(rating) || 0;
+  const full = Math.floor(r);
+  const hasHalf = r % 1 >= 0.3;
+  const empty = 5 - full - (hasHalf ? 1 : 0);
+  return (
+    <>
+      {[...Array(Math.max(0, full))].map((_, i) => <FaStar key={`f${i}`} />)}
+      {hasHalf && <FaStarHalfAlt key="h" />}
+      {[...Array(Math.max(0, empty))].map((_, i) => <FaRegStar key={`e${i}`} />)}
+    </>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   ProductDetail — Premium Desktop PDP
+   ═══════════════════════════════════════════════════════════════════ */
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -90,10 +110,12 @@ const ProductDetail = () => {
   const { openQuickView } = useQuickView();
 
   const pairsWellRef = useRef(null);
+  const alsoLikeRef = useRef(null);
 
-  // All product data comes from the Admin-managed DB — no static fallbacks.
+  /* ── State ─────────────────────────────────────────────────────── */
   const [product, setProduct] = useState(null);
   const [suggestedProducts, setSuggestedProducts] = useState([]);
+  const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -101,15 +123,17 @@ const ProductDetail = () => {
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedImgIndex, setSelectedImgIndex] = useState(0);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
-  const [activeTab, setActiveTab] = useState('specs');
+  const [activeTab, setActiveTab] = useState('description');
   const [addedToast, setAddedToast] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Load product from DB API — suggestions come from the admin-chosen
-  // "Pairs Well With" products (product.suggested_products).
+  /* ── Fetch product from API ────────────────────────────────────── */
   useEffect(() => {
     const fetchProductData = async () => {
       setLoading(true);
       setNotFound(false);
+      setQuantity(1);
       const res = await getProductById(id);
       if (res && res.success && res.data) {
         const item = res.data;
@@ -118,7 +142,6 @@ const ProductDetail = () => {
         setSelectedSize(item.sizes?.[0] || '');
         setSelectedImgIndex(0);
 
-        // Fetch catalog to resolve suggested product IDs selected by admin.
         const relRes = await getProducts();
         if (relRes && relRes.success && Array.isArray(relRes.data)) {
           const catalog = relRes.data.filter(p => p && String(p.id) !== String(item.id));
@@ -127,10 +150,17 @@ const ProductDetail = () => {
             .map(sid => catalog.find(p => String(p.id) === String(sid)))
             .filter(Boolean);
           setSuggestedProducts(chosen.length > 0 ? chosen.slice(0, 4) : []);
+
+          // Category-based related products for "You May Also Like"
+          const related = catalog
+            .filter(p => p.category === item.category && !chosenIds.includes(String(p.id)))
+            .slice(0, 8);
+          setRelatedProducts(related);
         }
       } else {
         setProduct(null);
         setSuggestedProducts([]);
+        setRelatedProducts([]);
         setNotFound(true);
       }
       setLoading(false);
@@ -138,10 +168,7 @@ const ProductDetail = () => {
 
     fetchProductData();
 
-    // Listen for storage updates when admin modifies stock in another tab or same window
-    const handleStorageChange = () => {
-      fetchProductData();
-    };
+    const handleStorageChange = () => { fetchProductData(); };
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('orderly_products_updated', handleStorageChange);
     return () => {
@@ -150,35 +177,40 @@ const ProductDetail = () => {
     };
   }, [id]);
 
+  /* ── Derived values ────────────────────────────────────────────── */
   const activeProduct = product;
-
-  // Active color object & image gallery
   const activeColorObj = activeProduct?.colors?.find(c => c && c.name === selectedColor) || activeProduct?.colors?.[0];
   const galleryImages = (activeColorObj?.images && activeColorObj.images.length > 0)
     ? activeColorObj.images
     : (activeProduct?.images && activeProduct.images.length > 0 ? activeProduct.images : []);
-
   const currentMainImg = galleryImages[selectedImgIndex] || galleryImages[0] || '';
-
   const isWishlisted = wishlist.some(item => item && String(item.id) === String(activeProduct?.id));
   const discountPercent = calculateDiscount(activeProduct?.originalPrice, activeProduct?.price);
-
-  // Strict bulletproof stock calculation logic
   const stockCount = activeProduct ? getVariantStock(activeProduct, selectedColor, selectedSize) : 0;
 
-  // Add to Bag action
+  /* ── Handlers ──────────────────────────────────────────────────── */
   const handleAddToCart = () => {
     if (!activeProduct || stockCount <= 0) return;
-    addToCart(activeProduct, selectedSize, activeColorObj);
+    addToCart(activeProduct, selectedSize, activeColorObj, quantity);
     setAddedToast(true);
     setTimeout(() => setAddedToast(false), 3500);
-
-    // Smooth focus to "PAIRS WELL WITH / POPULAR PICKS"
     if (pairsWellRef.current) {
       pairsWellRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   };
 
+  const goToPrevImage = () => setSelectedImgIndex(prev => prev > 0 ? prev - 1 : galleryImages.length - 1);
+  const goToNextImage = () => setSelectedImgIndex(prev => prev < galleryImages.length - 1 ? prev + 1 : 0);
+  const handleQuantityChange = (delta) => setQuantity(prev => Math.max(1, Math.min(10, prev + delta)));
+
+  const scrollAlsoLike = (direction) => {
+    if (alsoLikeRef.current) {
+      const amount = direction === 'left' ? -320 : 320;
+      alsoLikeRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
+
+  /* ── Loading state ─────────────────────────────────────────────── */
   if (loading) {
     return (
       <div className="text-center py-5 my-5 text-white">
@@ -188,6 +220,7 @@ const ProductDetail = () => {
     );
   }
 
+  /* ── Not Found ─────────────────────────────────────────────────── */
   if (notFound || !activeProduct) {
     return (
       <div className="text-center py-5 my-5 text-white">
@@ -200,123 +233,245 @@ const ProductDetail = () => {
 
   const validSuggested = suggestedProducts.filter(item => item !== null && item !== undefined);
   const isMainProductInCart = cart.some(item => String(item.id) === String(activeProduct?.id));
+  const alsoLikeProducts = relatedProducts.length > 0 ? relatedProducts : validSuggested;
 
+  const tabs = [
+    { key: 'description', label: 'DESCRIPTION' },
+    { key: 'details', label: 'DETAILS' },
+    { key: 'sizeFit', label: 'SIZE & FIT' },
+    { key: 'shipping', label: 'SHIPPING & RETURNS' },
+    { key: 'reviews', label: `REVIEWS (${activeProduct.reviewsCount || 0})` },
+  ];
+
+  /* ══════════════════════════════════════════════════════════════════
+     RENDER
+     ══════════════════════════════════════════════════════════════════ */
   return (
     <>
-      <SEO 
+      <SEO
         title={`${activeProduct.name} | ORDERLY Menswear`}
         description={activeProduct.description}
       />
 
-      <main className="product-detail-page container-fluid px-lg-5 py-4">
-        {/* Toast alert on add to bag */}
+      {/* ── Mobile PDP (<= 767px) ────────────────────────────────── */}
+      <div className="orderly-mobile-pdp-wrapper">
+        <MobileProductDetail
+          activeProduct={activeProduct}
+          selectedColor={selectedColor}
+          setSelectedColor={setSelectedColor}
+          selectedSize={selectedSize}
+          setSelectedSize={setSelectedSize}
+          selectedImgIndex={selectedImgIndex}
+          setSelectedImgIndex={setSelectedImgIndex}
+          quantity={quantity}
+          handleQuantityChange={handleQuantityChange}
+          handleAddToCart={handleAddToCart}
+          toggleWishlist={toggleWishlist}
+          isWishlisted={isWishlisted}
+          openQuickView={openQuickView}
+          setShowSizeGuide={setShowSizeGuide}
+          validSuggested={validSuggested}
+          alsoLikeProducts={alsoLikeProducts}
+          cart={cart}
+          wishlist={wishlist}
+        />
+      </div>
+
+      {/* ── Desktop PDP (>= 768px) ───────────────────────────────── */}
+      <div className="orderly-desktop-pdp-wrapper">
+        <main className="product-detail-page">
+        {/* ── Toast ─────────────────────────────────────────────── */}
         {addedToast && (
           <div className="pdp-added-toast-banner">
-            <FiCheck /> Item Added to Bag! Check popular picks below... <FiArrowDown />
+            <FiCheck /> Item Added to Bag! Check popular picks below… <FiArrowDown />
           </div>
         )}
 
-        {/* Ajio Breadcrumbs */}
-        <nav className="breadcrumb-nav mb-4">
-          <Link to="/">Home</Link> <FiChevronRight />
-          <Link to="/shop">Shop</Link> <FiChevronRight />
-          <Link to={`/shop?category=${encodeURIComponent(activeProduct.category || 'All')}`}>{activeProduct.category}</Link> <FiChevronRight />
-          <span className="current-crumb">{activeProduct.name}</span>
+        {/* ── Breadcrumb ────────────────────────────────────────── */}
+        <nav className="pdp-breadcrumb" aria-label="Breadcrumb">
+          <Link to="/">Home</Link>
+          <FiChevronRight />
+          <Link to="/shop">Shop</Link>
+          <FiChevronRight />
+          <Link to={`/shop?category=${encodeURIComponent(activeProduct.category || 'All')}`}>
+            {activeProduct.category}
+          </Link>
+          <FiChevronRight />
+          <span className="pdp-crumb-current">{activeProduct.name}</span>
         </nav>
 
-        <div className="row g-4 lg-g-5 mb-5">
-          {/* Left Column: Vertical Image Gallery + Main Image */}
-          <div className="col-lg-7">
-            <div className="d-flex flex-column flex-md-row gap-3">
-              {/* Vertical Thumbnail List */}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            MAIN PRODUCT SECTION (Gallery + Info)
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <section className="pdp-main-section">
+          {/* ── LEFT: Image Gallery ─────────────────────────────── */}
+          <div className="pdp-gallery-col">
+            <div className="pdp-gallery-layout">
+              {/* Vertical Thumbnails */}
               {galleryImages.length > 1 && (
-                <div className="thumbnail-list-wrapper order-2 order-md-1">
+                <div className="pdp-thumbs-strip">
                   {galleryImages.map((img, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      className={`thumb-btn ${selectedImgIndex === idx ? 'active' : ''}`}
+                      className={`pdp-thumb-btn ${selectedImgIndex === idx ? 'active' : ''}`}
                       onClick={() => setSelectedImgIndex(idx)}
+                      aria-label={`View image ${idx + 1}`}
                     >
-                      <img src={img} alt={`Thumbnail ${idx + 1}`} />
+                      <img src={img} alt={`${activeProduct.name} thumbnail ${idx + 1}`} />
                     </button>
                   ))}
+                  {galleryImages.length > 4 && (
+                    <button
+                      type="button"
+                      className="pdp-thumbs-scroll-hint"
+                      onClick={goToNextImage}
+                      aria-label="More images"
+                    >
+                      <FiArrowDown />
+                    </button>
+                  )}
                 </div>
               )}
 
-              {/* Main Image Viewer */}
-              <div className="main-image-wrapper order-1 order-md-2 flex-grow-1">
-                {activeProduct.badge && (
-                  <span className="pdp-badge">{activeProduct.badge}</span>
+              {/* Main Image */}
+              <div className="pdp-main-image-box">
+                {/* Discount Badge */}
+                {discountPercent > 0 && (
+                  <span className="pdp-discount-badge-overlay">-{discountPercent}%</span>
                 )}
+
                 {currentMainImg ? (
-                  <img src={currentMainImg} alt={activeProduct.name} className="pdp-main-img" />
+                  <img
+                    src={currentMainImg}
+                    alt={activeProduct.name}
+                    className="pdp-hero-img"
+                    onClick={() => setIsFullscreen(true)}
+                  />
                 ) : (
-                  <div className="pdp-main-img pdp-img-placeholder d-flex align-items-center justify-content-center">
+                  <div className="pdp-hero-img pdp-img-placeholder d-flex align-items-center justify-content-center">
                     <span className="text-muted">No Image Available</span>
                   </div>
+                )}
+
+                {/* Image Navigation Arrows */}
+                {galleryImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      className="pdp-img-nav pdp-img-prev"
+                      onClick={goToPrevImage}
+                      aria-label="Previous image"
+                    >
+                      <FiChevronLeft />
+                    </button>
+                    <button
+                      type="button"
+                      className="pdp-img-nav pdp-img-next"
+                      onClick={goToNextImage}
+                      aria-label="Next image"
+                    >
+                      <FiChevronRight />
+                    </button>
+                  </>
+                )}
+
+                {/* Fullscreen Button */}
+                {currentMainImg && (
+                  <button
+                    type="button"
+                    className="pdp-fullscreen-trigger"
+                    onClick={() => setIsFullscreen(true)}
+                    aria-label="View fullscreen"
+                  >
+                    <FiMaximize2 />
+                  </button>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Right Sticky Column: Details, Purchase Actions & Popular Picks */}
-          <div className="col-lg-5">
-            <div className="pdp-details-sticky">
-              {activeProduct.brand && <span className="pdp-brand-name">{activeProduct.brand}</span>}
-              <h1 className="pdp-product-title">{activeProduct.name}</h1>
+          {/* ── RIGHT: Product Information ───────────────────────── */}
+          <div className="pdp-info-col">
+            <div className="pdp-info-inner">
+              {/* Product Title */}
+              <h1 className="pdp-product-name">{activeProduct.name}</h1>
 
               {/* Rating & Reviews */}
               {(activeProduct.rating || activeProduct.reviewsCount) && (
-                <div className="pdp-rating-row mb-3">
-                  <div className="rating-pill">
-                    <FiStar className="star-fill" />
-                    <span>{activeProduct.rating || 4.8}</span>
+                <div className="pdp-rating-row">
+                  <div className="pdp-rating-stars">
+                    {renderStars(activeProduct.rating || 4.8)}
                   </div>
+                  <span className="pdp-rating-score">{activeProduct.rating || 4.8}</span>
                   {activeProduct.reviewsCount && (
                     <>
-                      <span className="rating-divider">|</span>
-                      <span className="reviews-text">{activeProduct.reviewsCount} Customer Reviews</span>
+                      <span className="pdp-rating-count">
+                        ({activeProduct.reviewsCount} Reviews)
+                      </span>
+                      <span className="pdp-rating-divider">|</span>
+                      <button
+                        type="button"
+                        className="pdp-add-review-link"
+                        onClick={() => setActiveTab('reviews')}
+                      >
+                        Add Your Review
+                      </button>
                     </>
                   )}
                 </div>
               )}
 
-              {/* Pricing Box in ₹ INR */}
-              <div className="pdp-price-box mb-4">
-                <div className="d-flex align-items-baseline gap-3">
-                  <span className="pdp-price">{formatPrice(activeProduct.price)}</span>
-                  {activeProduct.originalPrice && (
-                    <span className="pdp-old-price">{formatPrice(activeProduct.originalPrice)}</span>
-                  )}
-                  {discountPercent > 0 && (
-                    <span className="pdp-discount-tag">{discountPercent}% OFF</span>
-                  )}
-                </div>
-                <p className="taxes-inclusive-text">Inclusive of all taxes</p>
+              {/* Price Block */}
+              <div className="pdp-price-block">
+                <span className="pdp-current-price">{formatPrice(activeProduct.price)}</span>
+                {activeProduct.originalPrice && (
+                  <span className="pdp-original-price">{formatPrice(activeProduct.originalPrice)}</span>
+                )}
+                {discountPercent > 0 && (
+                  <span className="pdp-off-tag">{discountPercent}% OFF</span>
+                )}
               </div>
+              <p className="pdp-tax-note">Inclusive of all taxes</p>
 
-              <hr className="divider-line mb-4" />
-
-              {/* Color Swatch Selector */}
-              {activeProduct.colors && activeProduct.colors.length > 0 && (
-                <div className="pdp-option-group mb-4">
-                  <div className="d-flex align-items-center justify-content-between mb-2">
-                    <span className="option-label">COLOR: <strong>{selectedColor}</strong></span>
+              {/* Offers Section */}
+              {PDP_PROMOTIONAL_OFFERS.length > 0 && (
+                <div className="pdp-offers-card">
+                  <div className="pdp-offers-heading">
+                    <FiTag /> <span>Offers for you</span>
                   </div>
-                  <div className="color-swatches-row">
+                  {PDP_PROMOTIONAL_OFFERS.map((offer, idx) => (
+                    <div key={idx} className="pdp-offer-row">
+                      <span className="pdp-offer-text">{offer.text}</span>
+                      <div className="pdp-offer-code-row">
+                        <span className="pdp-offer-code-label">Use code:</span>
+                        <span className="pdp-coupon-badge">{offer.code}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Color Selector */}
+              {activeProduct.colors && activeProduct.colors.length > 0 && (
+                <div className="pdp-option-group">
+                  <span className="pdp-option-label">
+                    Color: <strong>{selectedColor}</strong>
+                  </span>
+                  <div className="pdp-color-swatches">
                     {activeProduct.colors.map((color, idx) => (
                       <button
                         key={idx}
                         type="button"
-                        className={`pdp-color-swatch ${selectedColor === color.name ? 'active' : ''}`}
+                        className={`pdp-swatch ${selectedColor === color.name ? 'active' : ''}`}
                         onClick={() => {
                           setSelectedColor(color.name);
                           setSelectedImgIndex(0);
                         }}
                         title={color.name}
+                        aria-label={`Select color ${color.name}`}
                       >
-                        <span className="swatch-inner" style={{ backgroundColor: color.hex }} />
+                        <span className="pdp-swatch-inner" style={{ backgroundColor: color.hex }} />
                       </button>
                     ))}
                   </div>
@@ -325,17 +480,18 @@ const ProductDetail = () => {
 
               {/* Size Selector */}
               {activeProduct.sizes && activeProduct.sizes.length > 0 && (
-                <div className="pdp-option-group mb-4">
-                  <div className="d-flex align-items-center justify-content-between mb-2">
-                    <span className="option-label">SELECT SIZE: <strong>{selectedSize}</strong></span>
-                    <button 
-                      className="size-guide-btn" 
+                <div className="pdp-option-group">
+                  <div className="pdp-size-header">
+                    <span className="pdp-option-label">Size:</span>
+                    <button
+                      type="button"
+                      className="pdp-size-guide-link"
                       onClick={() => setShowSizeGuide(true)}
                     >
-                      Size Chart
+                      <FiEdit3 /> Size Guide
                     </button>
                   </div>
-                  <div className="size-buttons-row">
+                  <div className="pdp-size-options">
                     {activeProduct.sizes.map((sz, idx) => {
                       const szStock = getVariantStock(activeProduct, selectedColor, sz);
                       const isOut = szStock <= 0;
@@ -343,10 +499,11 @@ const ProductDetail = () => {
                         <button
                           key={idx}
                           type="button"
-                          className={`pdp-size-btn ${selectedSize === sz ? 'active' : ''} ${isOut ? 'size-btn-out' : ''}`}
+                          className={`pdp-size-option ${selectedSize === sz ? 'active' : ''} ${isOut ? 'out-of-stock' : ''}`}
                           onClick={() => setSelectedSize(sz)}
+                          aria-label={`Size ${sz}${isOut ? ' - out of stock' : ''}`}
                         >
-                          {sz} {isOut && <span className="slash-cross">✕</span>}
+                          {sz}
                         </button>
                       );
                     })}
@@ -354,88 +511,143 @@ const ProductDetail = () => {
                 </div>
               )}
 
-              {/* Stock Status Indicator - Hide number unless stock <= 3 */}
-              <div className="pdp-stock-status mb-4">
+              {/* Stock Status */}
+              <div className="pdp-stock-row">
                 {stockCount > 3 ? (
-                  <span className="stock-in"><FiCheck /> In Stock</span>
+                  <span className="pdp-stock-available">
+                    <span className="pdp-stock-dot" /> In Stock
+                    <span className="pdp-stock-ship">Ships within 24 hours</span>
+                  </span>
                 ) : stockCount > 0 ? (
-                  <span className="stock-limited-badge d-inline-flex align-items-center gap-2">
-                    <FiAlertCircle /> Limited Stock - Only {stockCount} left!
+                  <span className="pdp-stock-limited">
+                    <FiAlertCircle /> Limited Stock — Only {stockCount} left!
                   </span>
                 ) : (
-                  <span className="stock-out-badge d-inline-flex align-items-center gap-2">
+                  <span className="pdp-stock-out">
                     <FiAlertCircle /> OUT OF STOCK FOR {selectedColor?.toUpperCase()} ({selectedSize})
                   </span>
                 )}
               </div>
 
-              {/* Primary Actions: Add to Bag & Wishlist */}
-              <div className="pdp-actions-row d-flex gap-3 mb-4">
+              {/* Quantity + CTA Row */}
+              <div className="pdp-cta-row">
+                <div className="pdp-qty-control">
+                  <button
+                    type="button"
+                    className="pdp-qty-btn"
+                    onClick={() => handleQuantityChange(-1)}
+                    disabled={quantity <= 1}
+                    aria-label="Decrease quantity"
+                  >
+                    <FiMinus />
+                  </button>
+                  <span className="pdp-qty-value">{quantity}</span>
+                  <button
+                    type="button"
+                    className="pdp-qty-btn"
+                    onClick={() => handleQuantityChange(1)}
+                    disabled={quantity >= 10 || stockCount <= 0}
+                    aria-label="Increase quantity"
+                  >
+                    <FiPlus />
+                  </button>
+                </div>
+
                 <button
-                  className={`btn-primary-orderly pdp-cart-btn flex-grow-1 ${stockCount <= 0 ? 'btn-disabled-stock' : ''}`}
+                  type="button"
+                  className={`pdp-add-cart-btn ${stockCount <= 0 ? 'disabled' : ''}`}
                   onClick={handleAddToCart}
                   disabled={stockCount <= 0}
                 >
-                  <FiShoppingBag /> {stockCount > 0 ? 'ADD TO BAG' : 'OUT OF STOCK'}
+                  <FiShoppingBag />
+                  {stockCount > 0 ? 'ADD TO CART' : 'OUT OF STOCK'}
                 </button>
 
                 <button
-                  className={`btn-outline-orderly pdp-wish-btn ${isWishlisted ? 'active' : ''}`}
+                  type="button"
+                  className={`pdp-action-icon-btn ${isWishlisted ? 'active' : ''}`}
                   onClick={() => toggleWishlist(activeProduct)}
+                  aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                  title={isWishlisted ? 'Wishlisted' : 'Save'}
                 >
-                  <FiHeart /> {isWishlisted ? 'WISHLISTED' : 'SAVE'}
+                  <FiHeart />
                 </button>
               </div>
 
-              {/* PAIRS WELL WITH / POPULAR PICKS — admin-selected suggestions */}
-              {validSuggested.length > 0 && (
-                <div ref={pairsWellRef} className="pairs-well-theme-card mb-4">
-                  <div className="d-flex align-items-center justify-content-between mb-3">
-                    <h4 className="pairs-well-theme-title mb-0">PAIRS WELL WITH</h4>
+              {/* Trust & Service Strip */}
+              <div className="pdp-trust-strip">
+                <div className="pdp-trust-item">
+                  <FiShield className="pdp-trust-icon" />
+                  <div>
+                    <strong>100% Original</strong>
+                    <span>Products</span>
                   </div>
+                </div>
+                <div className="pdp-trust-item">
+                  <FiRefreshCw className="pdp-trust-icon" />
+                  <div>
+                    <strong>Easy 7 Days</strong>
+                    <span>Returns</span>
+                  </div>
+                </div>
+                <div className="pdp-trust-item">
+                  <FiTruck className="pdp-trust-icon" />
+                  <div>
+                    <strong>Free Shipping</strong>
+                    <span>on orders ₹1499+</span>
+                  </div>
+                </div>
+                <div className="pdp-trust-item">
+                  <FiLock className="pdp-trust-icon" />
+                  <div>
+                    <strong>Secure</strong>
+                    <span>Payments</span>
+                  </div>
+                </div>
+              </div>
 
-                  <div className="pairs-well-list">
+              {/* Pairs Well With Section (inside right column below trust strip) */}
+              {validSuggested.length > 0 && (
+                <div ref={pairsWellRef} className="pdp-pairs-section">
+                  <div className="pdp-section-header">
+                    <h3 className="pdp-section-title">PAIRS WELL WITH</h3>
+                    <Link to="/shop" className="pdp-view-all-link">View All</Link>
+                  </div>
+                  <div className="pdp-pairs-grid">
                     {validSuggested.slice(0, 2).map((item, idx) => (
-                      <div key={item.id || idx} className="pairs-well-item-row">
-                        {/* Left Thumbnail Image with Badge */}
-                        <div className="pairs-img-wrapper">
+                      <div key={item.id || idx} className="pdp-pair-card">
+                        <div className="pdp-pair-img-wrap">
                           {getSafeProductImage(item) ? (
-                            <img src={getSafeProductImage(item)} alt={item.name || 'Product'} className="pairs-img-thumb" />
+                            <img src={getSafeProductImage(item)} alt={item.name || 'Product'} />
                           ) : (
-                            <div className="pairs-img-thumb pairs-img-placeholder d-flex align-items-center justify-content-center">
-                              <span className="text-muted extra-small">No Image</span>
+                            <div className="pdp-pair-img-placeholder">
+                              <span>No Image</span>
                             </div>
                           )}
                         </div>
-
-                        {/* Right Details Column */}
-                        <div className="pairs-info-col">
-                          <div className="pairs-info-top">
-                            <h5 className="pairs-item-name">{item.name}</h5>
-                            <div className="pairs-item-price">
-                              <span className="pairs-from-label">from </span>
-                              <strong className="pairs-price-val">{formatPrice(item.price)}</strong>
-                            </div>
-                            {item.rating && (
-                              <div className="pairs-item-stars">
-                                <span className="star-fill">★★★★★</span>
-                                <span className="reviews-count-text"> ({item.reviewsCount || 0})</span>
-                              </div>
-                            )}
+                        <div className="pdp-pair-info">
+                          <h5 className="pdp-pair-name">{item.name}</h5>
+                          <div className="pdp-pair-price">
+                            <span className="pdp-pair-from">from </span>
+                            <strong>{formatPrice(item.price)}</strong>
                           </div>
-
-                          <div className="d-flex gap-3 mt-2">
-                            <button 
+                          {item.rating && (
+                            <div className="pdp-pair-rating">
+                              <span className="pdp-pair-stars">{renderStars(item.rating)}</span>
+                              <span className="pdp-pair-count">({item.reviewsCount || 0})</span>
+                            </div>
+                          )}
+                          <div className="pdp-pair-actions">
+                            <button
                               type="button"
-                              className="btn-theme-view-options flex-grow-1"
+                              className="pdp-pair-quick-view"
                               onClick={() => openQuickView(item)}
                             >
-                              <FiEye className="me-1" /> QUICK VIEW
+                              <FiEye /> QUICK VIEW
                             </button>
-
-                            <button 
+                            <button
                               type="button"
-                              className={`btn-theme-add-bag flex-grow-1 ${!isMainProductInCart ? 'btn-disabled-pair' : ''}`}
+                              className={`pdp-pair-add-btn ${!isMainProductInCart ? 'disabled' : ''}`}
                               disabled={!isMainProductInCart}
                               onClick={() => {
                                 if (!isMainProductInCart) return;
@@ -454,9 +666,9 @@ const ProductDetail = () => {
                                   });
                                 }
                               }}
-                              title={!isMainProductInCart ? "Add main item to bag first" : "Add to Bag"}
+                              title={!isMainProductInCart ? 'Add main item to bag first' : 'Add to Bag'}
                             >
-                              <FiShoppingBag className="me-1" /> {isMainProductInCart ? 'ADD TO BAG' : 'ADD MAIN ITEM FIRST'}
+                              <FiShoppingBag />
                             </button>
                           </div>
                         </div>
@@ -465,104 +677,254 @@ const ProductDetail = () => {
                   </div>
                 </div>
               )}
-
-              {/* Feature Highlights */}
-              <div className="pdp-features-grid py-2">
-                <div className="feature-item">
-                  <FiShield /> 100% Genuine Handpicked Quality
-                </div>
-                <div className="feature-item">
-                  <FiRefreshCw /> 15 Days Easy Returns & Exchanges
-                </div>
-              </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Product Details & Specifications */}
-        <section className="pdp-tabs-section my-5">
-          <div className="tabs-header">
-            <button 
-              className={`tab-btn ${activeTab === 'specs' ? 'active' : ''}`}
-              onClick={() => setActiveTab('specs')}
-            >
-              PRODUCT SPECIFICATIONS
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`}
-              onClick={() => setActiveTab('desc')}
-            >
-              DESCRIPTION & CARE
-            </button>
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            TABS SECTION (FULL WIDTH)
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <section className="pdp-content-section">
+          {/* Tab Navigation */}
+          <div className="pdp-tabs-nav">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`pdp-tab-btn ${activeTab === tab.key ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          <div className="tab-content-container py-4">
-            {activeTab === 'specs' && (
-              <div className="row g-3">
-                {activeProduct.specifications?.map((spec, i) => (
-                  <div key={i} className="col-md-6 col-lg-4">
-                    <div className="spec-card">
-                      <span className="spec-label">{spec.label}</span>
-                      <span className="spec-val">{spec.value}</span>
-                    </div>
-                  </div>
-                ))}
+          {/* Tab Content Panel (Full Width) */}
+          <div className="pdp-tab-panel pdp-tab-panel-fullwidth">
+            {/* Description */}
+            {activeTab === 'description' && (
+              <div className="pdp-desc-content">
+                {activeProduct.description && (
+                  <p className="pdp-desc-text">{activeProduct.description}</p>
+                )}
+                {activeProduct.specifications && activeProduct.specifications.length > 0 && (
+                  <ul className="pdp-desc-features">
+                    {activeProduct.specifications.slice(0, 6).map((spec, i) => (
+                      <li key={i}>{spec.value || spec.label}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
-            {activeTab === 'desc' && (
-              <div className="desc-box">
-                <p className="lead">{activeProduct.description}</p>
+            {/* Details / Specifications */}
+            {activeTab === 'details' && (
+              <div className="pdp-specs-content">
+                {activeProduct.specifications && activeProduct.specifications.length > 0 ? (
+                  <div className="pdp-specs-grid">
+                    {activeProduct.specifications.map((spec, i) => (
+                      <div key={i} className="pdp-spec-row">
+                        <span className="pdp-spec-label">{spec.label}</span>
+                        <span className="pdp-spec-value">{spec.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted">No specifications available for this product.</p>
+                )}
+              </div>
+            )}
+
+            {/* Size & Fit */}
+            {activeTab === 'sizeFit' && (
+              <div className="pdp-size-fit-content">
+                <p className="pdp-desc-text">Refer to the size chart below for accurate measurements. For the best fit, we recommend measuring yourself and comparing with the chart.</p>
+                <table className="pdp-size-table">
+                  <thead>
+                    <tr>
+                      <th>Size</th>
+                      <th>Chest (in)</th>
+                      <th>Waist (in)</th>
+                      <th>Length (in)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>S</td><td>38"</td><td>30"</td><td>27"</td></tr>
+                    <tr><td>M</td><td>40"</td><td>32"</td><td>28"</td></tr>
+                    <tr><td>L</td><td>42"</td><td>34"</td><td>29"</td></tr>
+                    <tr><td>XL</td><td>44"</td><td>36"</td><td>30"</td></tr>
+                    <tr><td>XXL</td><td>46"</td><td>38"</td><td>31"</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Shipping & Returns */}
+            {activeTab === 'shipping' && (
+              <div className="pdp-shipping-content">
+                <h4>Shipping</h4>
+                <ul className="pdp-desc-features">
+                  <li>Free standard shipping on orders above ₹1,499</li>
+                  <li>Standard delivery within 5–7 business days</li>
+                  <li>Express delivery available at checkout</li>
+                  <li>Orders placed before 2 PM are shipped the same day</li>
+                </ul>
+                <h4 style={{ marginTop: '20px' }}>Returns & Exchanges</h4>
+                <ul className="pdp-desc-features">
+                  <li>Easy returns within 7 days of delivery</li>
+                  <li>Product must be unused with original tags attached</li>
+                  <li>Refund processed within 5–7 business days</li>
+                  <li>Exchange subject to product availability</li>
+                </ul>
+              </div>
+            )}
+
+            {/* Reviews */}
+            {activeTab === 'reviews' && (
+              <div className="pdp-reviews-content">
+                <div className="pdp-reviews-summary">
+                  <div className="pdp-reviews-big-score">
+                    <span className="pdp-reviews-number">{activeProduct.rating || 4.8}</span>
+                    <span className="pdp-reviews-outof">/5</span>
+                  </div>
+                  <div className="pdp-reviews-stars-large">
+                    {renderStars(activeProduct.rating || 4.8)}
+                  </div>
+                  <p className="pdp-reviews-total">
+                    Based on {activeProduct.reviewsCount || 0} customer reviews
+                  </p>
+                </div>
               </div>
             )}
           </div>
         </section>
 
-        {/* Bottom Related Section — admin-selected suggestions */}
-        {validSuggested.length > 0 && (
-          <section className="related-products-section my-5">
-            <h2 className="section-title mb-4">YOU MAY ALSO LIKE</h2>
-            <div className="row g-3 g-md-4">
-              {validSuggested.map(rel => (
-                <div key={rel.id} className="col-6 col-md-3">
-                  <ProductCard product={rel} />
-                </div>
-              ))}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            YOU MAY ALSO LIKE — Full Width Section
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {alsoLikeProducts.length > 0 && (
+          <section className="pdp-also-like-section pdp-also-like-fullwidth">
+            <div className="pdp-section-header">
+              <h3 className="pdp-section-title">YOU MAY ALSO LIKE</h3>
+              <Link to="/shop" className="pdp-view-all-link">View All</Link>
+            </div>
+            <div className="pdp-also-like-wrapper">
+              {alsoLikeProducts.length > 4 && (
+                <button
+                  type="button"
+                  className="pdp-carousel-nav pdp-carousel-prev"
+                  onClick={() => scrollAlsoLike('left')}
+                  aria-label="Scroll left"
+                >
+                  <FiChevronLeft />
+                </button>
+              )}
+              <div className="pdp-also-like-track" ref={alsoLikeRef}>
+                {alsoLikeProducts.map(rel => (
+                  <div key={rel.id} className="pdp-also-like-card">
+                    <ProductCard product={rel} />
+                  </div>
+                ))}
+              </div>
+              {alsoLikeProducts.length > 4 && (
+                <button
+                  type="button"
+                  className="pdp-carousel-nav pdp-carousel-next"
+                  onClick={() => scrollAlsoLike('right')}
+                  aria-label="Scroll right"
+                >
+                  <FiChevronRight />
+                </button>
+              )}
             </div>
           </section>
         )}
-      </main>
 
-      {/* Size Guide Modal */}
-      {showSizeGuide && (
-        <div className="size-modal-backdrop" onClick={() => setShowSizeGuide(false)}>
-          <div className="size-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-dark">
-              <h3 className="mb-0">Size Chart Guide</h3>
-              <button className="btn-close-modal" onClick={() => setShowSizeGuide(false)}>✕</button>
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            FULLSCREEN IMAGE MODAL
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {isFullscreen && currentMainImg && (
+          <div className="pdp-fullscreen-overlay" onClick={() => setIsFullscreen(false)}>
+            <button
+              type="button"
+              className="pdp-fullscreen-close"
+              onClick={() => setIsFullscreen(false)}
+              aria-label="Close fullscreen"
+            >
+              <FiX />
+            </button>
+            <img
+              src={currentMainImg}
+              alt={activeProduct.name}
+              className="pdp-fullscreen-image"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="pdp-fs-nav pdp-fs-prev"
+                  onClick={(e) => { e.stopPropagation(); goToPrevImage(); }}
+                  aria-label="Previous image"
+                >
+                  <FiChevronLeft />
+                </button>
+                <button
+                  type="button"
+                  className="pdp-fs-nav pdp-fs-next"
+                  onClick={(e) => { e.stopPropagation(); goToNextImage(); }}
+                  aria-label="Next image"
+                >
+                  <FiChevronRight />
+                </button>
+              </>
+            )}
+            <div className="pdp-fs-counter">
+              {selectedImgIndex + 1} / {galleryImages.length}
             </div>
-            <table className="table table-dark table-bordered text-center align-middle">
-              <thead>
-                <tr>
-                  <th>Size</th>
-                  <th>Chest (Inches)</th>
-                  <th>Waist (Inches)</th>
-                  <th>Length (Inches)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>S</td><td>38"</td><td>30"</td><td>27"</td></tr>
-                <tr><td>M</td><td>40"</td><td>32"</td><td>28"</td></tr>
-                <tr><td>L</td><td>42"</td><td>34"</td><td>29"</td></tr>
-                <tr><td>XL</td><td>44"</td><td>36"</td><td>30"</td></tr>
-                <tr><td>XXL</td><td>46"</td><td>38"</td><td>31"</td></tr>
-              </tbody>
-            </table>
           </div>
-        </div>
-      )}
-    </>
-  );
+        )}
+
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            SIZE GUIDE MODAL
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {showSizeGuide && (
+          <div className="pdp-size-modal-overlay" onClick={() => setShowSizeGuide(false)}>
+            <div className="pdp-size-modal-box" onClick={(e) => e.stopPropagation()}>
+              <div className="pdp-size-modal-header">
+                <h3>Size Chart Guide</h3>
+                <button
+                  type="button"
+                  className="pdp-modal-close-btn"
+                  onClick={() => setShowSizeGuide(false)}
+                >
+                  <FiX />
+                </button>
+              </div>
+              <table className="pdp-size-table">
+                <thead>
+                  <tr>
+                    <th>Size</th>
+                    <th>Chest (Inches)</th>
+                    <th>Waist (Inches)</th>
+                    <th>Length (Inches)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>S</td><td>38"</td><td>30"</td><td>27"</td></tr>
+                  <tr><td>M</td><td>40"</td><td>32"</td><td>28"</td></tr>
+                  <tr><td>L</td><td>42"</td><td>34"</td><td>29"</td></tr>
+                  <tr><td>XL</td><td>44"</td><td>36"</td><td>30"</td></tr>
+                  <tr><td>XXL</td><td>46"</td><td>38"</td><td>31"</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  </>
+);
 };
 
 export default ProductDetail;

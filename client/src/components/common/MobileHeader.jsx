@@ -1,0 +1,100 @@
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { FiMenu, FiSearch, FiUser, FiHeart, FiShoppingBag, FiX } from 'react-icons/fi';
+import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
+import logoImg from '../../assets/logo/logo.jpeg';
+
+const MobileHeader = ({ onOpenMenu }) => {
+  const { totalItems, setIsCartOpen } = useCart();
+  const { wishlist } = useWishlist();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const wishlistCount = wishlist ? wishlist.length : 0;
+
+  return (
+    <>
+      <header className="mobile-app-header mobile-only">
+        {/* Left: Hamburger Drawer Trigger */}
+        <div className="mobile-header-left">
+          <button 
+            type="button" 
+            className="mobile-header-icon-btn" 
+            onClick={onOpenMenu}
+            aria-label="Open Navigation Menu"
+          >
+            <FiMenu />
+          </button>
+        </div>
+
+        {/* Center: ORDERLY Brand Logo */}
+        <div className="mobile-header-center">
+          <Link to="/">
+            <img src={logoImg} alt="ORDERLY" className="mobile-header-logo" />
+          </Link>
+        </div>
+
+        {/* Right: Search, Account, Wishlist, Cart */}
+        <div className="mobile-header-right">
+          <button 
+            type="button" 
+            className="mobile-header-icon-btn"
+            onClick={() => setIsSearchOpen(prev => !prev)}
+            aria-label="Search"
+          >
+            <FiSearch />
+          </button>
+
+          <Link to="/login" className="mobile-header-icon-btn" aria-label="Account">
+            <FiUser />
+          </Link>
+
+          <Link to="/wishlist" className="mobile-header-icon-btn" aria-label="Wishlist">
+            <FiHeart />
+            {wishlistCount > 0 && (
+              <span className="mobile-cart-badge">{wishlistCount}</span>
+            )}
+          </Link>
+
+          <button 
+            type="button" 
+            className="mobile-header-icon-btn"
+            onClick={() => setIsCartOpen(true)}
+            aria-label="Open Shopping Bag"
+          >
+            <FiShoppingBag />
+            {totalItems > 0 && (
+              <span className="mobile-cart-badge">{totalItems}</span>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* Expandable Search Input Bar */}
+      {isSearchOpen && (
+        <div className="p-2 bg-dark border-bottom border-secondary mobile-only position-relative z-3">
+          <div className="d-flex align-items-center gap-2 px-2">
+            <input 
+              type="text" 
+              className="form-control form-control-sm bg-black text-white border-secondary"
+              placeholder="Search shirts, tees, denim, suits..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+            />
+            <button 
+              type="button" 
+              className="btn btn-sm btn-outline-light" 
+              onClick={() => setIsSearchOpen(false)}
+            >
+              <FiX />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default MobileHeader;

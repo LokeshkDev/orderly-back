@@ -1,0 +1,362 @@
+/* ORDERLY Mobile Combos App Design System - Royal Black & Red Theme */
+
+@media (max-width: 767px) {
+  /* 1. COMPACT MOBILE HERO BANNER MATCHING REFERENCE SCREENSHOT */
+  .mobile-combo-hero {
+    position: relative;
+    height: 180px;
+    background: url('https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop') no-repeat center right / cover;
+    background-color: #080808;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+  }
+
+  .mobile-combo-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg, 
+      #050505 0%, 
+      rgba(5, 5, 5, 0.92) 50%, 
+      rgba(5, 5, 5, 0.35) 100%
+    );
+    z-index: 1;
+  }
+
+  .mobile-combo-hero-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  .mobile-hero-eyebrow {
+    color: #E50914;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .mobile-hero-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.05;
+    margin-bottom: 4px;
+  }
+
+  .mobile-hero-sub {
+    font-size: 0.78rem;
+    color: #A0A0A0;
+    margin: 0;
+  }
+
+  /* 2. MOBILE FILTER & SORT CONTROLS MATCHING REFERENCE SCREENSHOT */
+  .mobile-combo-controls-container {
+    padding: 12px 16px;
+    background-color: #050505;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .mobile-combo-buttons-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .mobile-combo-ctrl-btn {
+    background-color: #121212;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    color: #FFFFFF;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 9px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-combo-ctrl-btn:active {
+    border-color: #E50914;
+    background-color: #1a1a1a;
+  }
+
+  .mobile-active-dot {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #E50914;
+  }
+
+  .mobile-active-chips-scroll {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 4px;
+  }
+
+  .mobile-chip-tag {
+    background-color: #141414;
+    border: 1px solid rgba(229, 9, 20, 0.4);
+    color: #FFFFFF;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mobile-reset-link {
+    background: transparent;
+    border: none;
+    color: #E50914;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* 3. SINGLE-COLUMN MOBILE COMBOS GRID MATCHING REFERENCE SCREENSHOT */
+  .mobile-combos-single-col-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .mobile-creative-combo-card {
+    background-color: #0D0D0D;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-combo-card-top {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .mobile-discount-badge {
+    background-color: #E50914;
+    color: #FFFFFF;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 2px;
+    pointer-events: auto;
+  }
+
+  .mobile-wishlist-circle-btn {
+    background: rgba(0, 0, 0, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #FFFFFF;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  .mobile-wishlist-circle-btn.active {
+    background-color: #E50914;
+    border-color: #E50914;
+  }
+
+  /* Multi-Product Split Image Box with Central Plus Circle */
+  .mobile-split-photo-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    position: relative;
+    width: 100%;
+    height: 220px;
+    background-color: #121212;
+    overflow: hidden;
+    text-decoration: none;
+  }
+
+  .mobile-photo-col {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .mobile-item-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Central Plus Circle Badge */
+  .mobile-plus-circle-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background-color: #000000;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #FFFFFF;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+  }
+
+  /* Combo Info Body */
+  .mobile-combo-info-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-combo-title-link {
+    text-decoration: none;
+  }
+
+  .mobile-combo-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin: 0 0 3px;
+  }
+
+  .mobile-combo-items-summary {
+    font-size: 0.74rem;
+    color: #A0A0A0;
+    margin-bottom: 8px;
+  }
+
+  .mobile-combo-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-offer-price {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #E50914;
+  }
+
+  .mobile-original-price {
+    font-size: 0.8rem;
+    color: #777777;
+    text-decoration: line-through;
+  }
+
+  /* CTA Button VIEW COMBO → */
+  .btn-mobile-view-combo-cta {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 8px 0;
+    border-radius: 3px;
+    text-decoration: none;
+    display: block;
+    transition: all 0.2s ease;
+  }
+
+  .btn-mobile-view-combo-cta:active {
+    border-color: #E50914;
+    background-color: rgba(229, 9, 20, 0.1);
+    color: #E50914;
+  }
+
+  .btn-mobile-load-more {
+    background-color: #121212;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 10px 0;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  /* 4. SORT BOTTOM SHEET */
+  .mobile-sort-bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #0D0D0D;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    padding: 16px;
+    z-index: 1050;
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .mobile-sort-option-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+    font-size: 0.85rem;
+    padding: 12px 14px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+  }
+
+  .mobile-sort-option-btn.active {
+    border-color: #E50914;
+    color: #E50914;
+    background-color: rgba(229, 9, 20, 0.05);
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+}

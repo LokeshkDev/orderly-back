@@ -41,10 +41,10 @@
 }
 
 .admin-tab-btn.active, .cms-tab-btn.active {
-  background: #c1121f !important;
+  background: #E50914 !important;
   color: #ffffff !important;
-  border-color: #c1121f !important;
-  box-shadow: 0 4px 12px rgba(193, 18, 31, 0.3) !important;
+  border-color: #E50914 !important;
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3) !important;
 }
 
 .cms-card {

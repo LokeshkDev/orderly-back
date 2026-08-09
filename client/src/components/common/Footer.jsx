@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiInstagram, FiFacebook, FiYoutube, FiPhone, FiMail, FiMapPin } from 'react-icons/fi';
-import { FaWhatsapp, FaTwitter, FaPinterest } from 'react-icons/fa';
+import { FiInstagram, FiFacebook, FiYoutube, FiTwitter } from 'react-icons/fi';
+import { FaHeart } from 'react-icons/fa';
 import { getSettings } from '../../services/api';
 import logoImg from '../../assets/logo/logo.jpeg';
 import './Footer.css';
@@ -20,102 +20,99 @@ const Footer = () => {
     const onSync = () => load();
     window.addEventListener('orderly_settings_updated', onSync);
     window.addEventListener('storage', onSync);
-    return () => { 
-      active = false; 
-      window.removeEventListener('orderly_settings_updated', onSync); 
-      window.removeEventListener('storage', onSync); 
+    return () => {
+      active = false;
+      window.removeEventListener('orderly_settings_updated', onSync);
+      window.removeEventListener('storage', onSync);
     };
   }, []);
 
-  const socials = [
-    { url: settings?.instagram_url, icon: <FiInstagram />, label: 'Instagram' },
-    { url: settings?.facebook_url, icon: <FiFacebook />, label: 'Facebook' },
-    { url: settings?.youtube_url, icon: <FiYoutube />, label: 'YouTube' },
-    { url: settings?.whatsapp_url || (settings?.contact_whatsapp ? `https://wa.me/${settings.contact_whatsapp.replace(/[^0-9]/g, '')}` : null), icon: <FaWhatsapp />, label: 'WhatsApp' },
-    { url: settings?.twitter_url, icon: <FaTwitter />, label: 'Twitter' },
-    { url: settings?.pinterest_url, icon: <FaPinterest />, label: 'Pinterest' }
-  ].filter(s => s.url);
-
   return (
     <footer className="orderly-footer">
-      <div className="container py-5">
+      <div className="container-fluid px-lg-5 py-5">
         <div className="row g-4 mb-5">
-          {/* Brand Bio */}
-          <div className="col-lg-4 col-md-6">
+          {/* Left Column: Brand Bio */}
+          <div className="col-lg-3 col-md-6">
             <div className="footer-brand mb-3">
               <img src={logoImg} alt="ORDERLY Mens Wear" className="footer-logo-img" />
             </div>
             <p className="footer-bio">
-              {settings?.footer_bio || settings?.store_tagline || 'Crafting Bespoke Luxury Apparel & Italian Tailoring for the Modern Gentleman.'}
+              {settings?.footer_bio || 'Orderly is your destination for premium men\'s wear. Crafted for style, built for comfort, made for you.'}
             </p>
-            {socials.length > 0 && (
-              <div className="footer-socials">
-                {socials.map(s => (
-                  <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.label} title={s.label}>{s.icon}</a>
-                ))}
-              </div>
-            )}
+            <div className="footer-socials">
+              <a href={settings?.facebook_url || "#"} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                <FiFacebook />
+              </a>
+              <a href={settings?.instagram_url || "#"} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                <FiInstagram />
+              </a>
+              <a href={settings?.twitter_url || "#"} target="_blank" rel="noopener noreferrer" aria-label="Twitter">
+                <FiTwitter />
+              </a>
+              <a href={settings?.youtube_url || "#"} target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+                <FiYoutube />
+              </a>
+            </div>
           </div>
 
-          {/* Column 1: Customer Support */}
-          <div className="col-lg-3 col-md-6 col-6">
-            <h6 className="footer-heading">Customer Care</h6>
+          {/* Column 1: SHOP */}
+          <div className="col-lg-2 col-md-6 col-6">
+            <h6 className="footer-heading">SHOP</h6>
             <ul className="footer-links">
-              <li><Link to="/contact">Contact & Store Locations</Link></li>
-              <li><Link to="/shipping-policy">Shipping & Delivery</Link></li>
-              <li><Link to="/returns-policy">Returns & Exchanges</Link></li>
-              <li><Link to="/about">About ORDERLY</Link></li>
+              <li><Link to="/shop">All Products</Link></li>
+              <li><Link to="/shop?category=Shirts">Shirts</Link></li>
+              <li><Link to="/shop?category=Tees">T-Shirts</Link></li>
+              <li><Link to="/shop?category=Pants">Pants</Link></li>
+              <li><Link to="/shop?category=Jackets">Jackets</Link></li>
+              <li><Link to="/shop?category=Accessories">Accessories</Link></li>
             </ul>
           </div>
 
-          {/* Column 2: Contact Details */}
-          <div className="col-lg-5 col-md-6">
-            <h6 className="footer-heading">Concierge Desk</h6>
-            <div className="footer-contact-info">
-              {settings?.contact_phone && (
-                <div className="contact-item">
-                  <FiPhone className="icon" />
-                  <a href={`tel:${settings.contact_phone}`} className="text-white text-decoration-none">{settings.contact_phone}</a>
-                </div>
-              )}
+          {/* Column 2: CUSTOMER CARE */}
+          <div className="col-lg-2 col-md-6 col-6">
+            <h6 className="footer-heading">CUSTOMER CARE</h6>
+            <ul className="footer-links">
+              <li><Link to="/profile">Track Order</Link></li>
+              <li><Link to="/returns-policy">Returns & Refunds</Link></li>
+              <li><Link to="/shipping-policy">Shipping Policy</Link></li>
+              <li><Link to="/about">Size Guide</Link></li>
+              <li><Link to="/contact">FAQs</Link></li>
+              <li><Link to="/contact">Contact Us</Link></li>
+            </ul>
+          </div>
 
-              {settings?.contact_whatsapp && (
-                <div className="contact-item">
-                  <FaWhatsapp className="icon text-success" />
-                  <a href={`https://wa.me/${settings.contact_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-success text-decoration-none fw-bold">
-                    WhatsApp Support ({settings.contact_whatsapp})
-                  </a>
-                </div>
-              )}
+          {/* Column 3: COMPANY */}
+          <div className="col-lg-2 col-md-6 col-6">
+            <h6 className="footer-heading">COMPANY</h6>
+            <ul className="footer-links">
+              <li><Link to="/about">About Us</Link></li>
+              <li><Link to="/about">Our Story</Link></li>
+              <li><Link to="/about">Careers</Link></li>
+              <li><Link to="/returns-policy">Privacy Policy</Link></li>
+              <li><Link to="/shipping-policy">Terms & Conditions</Link></li>
+            </ul>
+          </div>
 
-              {settings?.contact_email && (
-                <div className="contact-item">
-                  <FiMail className="icon" />
-                  <a href={`mailto:${settings.contact_email}`} className="text-white text-decoration-none">{settings.contact_email}</a>
-                </div>
-              )}
-
-              {settings?.contact_address && (
-                <div className="contact-item">
-                  <FiMapPin className="icon" />
-                  <span>{settings.contact_address}</span>
-                </div>
-              )}
+          {/* Column 4: PAYMENT METHODS */}
+          <div className="col-lg-3 col-md-6">
+            <h6 className="footer-heading">PAYMENT METHODS</h6>
+            <div className="payment-badges-row mb-3">
+              <span className="pay-badge">VISA</span>
+              <span className="pay-badge">MASTERCARD</span>
+              <span className="pay-badge">UPI</span>
+              <span className="pay-badge">PAYTM</span>
             </div>
+            <p className="security-text">
+              🔒 100% Secure Payments
+            </p>
           </div>
         </div>
 
-        {/* Footer Bottom */}
-        <div className="footer-bottom pt-4 border-top border-secondary d-flex flex-column flex-md-row align-items-center justify-content-between gap-3">
+        {/* Footer Bottom Bar */}
+        <div className="footer-bottom-bar pt-4 border-top border-dark d-flex flex-column flex-md-row align-items-center justify-content-between gap-2">
           <p className="copyright-text mb-0">
-            {settings?.footer_copyright || `© ${new Date().getFullYear()} ${settings?.store_name || 'ORDERLY Mens Wear'}. All Rights Reserved.`}
+            {settings?.footer_copyright || `© ${new Date().getFullYear()} Orderly. All Rights Reserved.`}
           </p>
-          <div className="payment-badges">
-            <span className="pay-badge">VISA</span>
-            <span className="pay-badge">MASTERCARD</span>
-            <span className="pay-badge">UPI</span>
-            <span className="pay-badge">NETBANKING</span>
-          </div>
         </div>
       </div>
     </footer>

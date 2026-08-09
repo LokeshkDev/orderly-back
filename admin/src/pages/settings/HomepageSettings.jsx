@@ -3,25 +3,28 @@ import { useSearchParams } from 'react-router-dom';
 import { 
   FiGrid, FiImage, FiVideo, FiSave, FiPlus, FiEdit, FiTrash2, 
   FiEye, FiEyeOff, FiArrowUp, FiArrowDown, FiLayers, FiSliders, FiFilm,
-  FiVolume2, FiShare2, FiCheck, FiSearch, FiGlobe, FiInstagram, FiFacebook, FiYoutube
+  FiVolume2, FiShare2, FiCheck, FiSearch, FiGlobe, FiInstagram, FiFacebook, FiYoutube,
+  FiShoppingBag, FiTruck, FiRotateCcw, FiShield, FiHeadphones, FiExternalLink, FiSettings, FiTag, FiGift, FiFileText
 } from 'react-icons/fi';
 import { FaWhatsapp, FaTwitter, FaPinterest } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
-import DataTable from '../../components/common/DataTable';
-import StatusBadge from '../../components/common/StatusBadge';
 import Modal from '../../components/common/Modal';
 import FileUploadInput from '../../components/common/FileUploadInput';
+import StatusBadge from '../../components/common/StatusBadge';
 import { getYouTubeThumbnail } from '../../utils/videoUtils';
 import './HomepageSettings.css';
 
 const DEFAULT_SECTIONS = [
-  { section_key: 'hero_carousel', title: 'Hero Carousel', subtitle: 'Homepage hero banner', is_visible: true, display_order: 1 },
-  { section_key: 'shop_by_category', title: 'Shop By Category', subtitle: 'EXPLORE APPAREL', is_visible: true, display_order: 2 },
-  { section_key: 'video_banner', title: 'Video Showcase Carousel', subtitle: 'Homepage video films', is_visible: true, display_order: 3 },
-  { section_key: 'shop_by_occasion', title: 'Shop By Occasion', subtitle: 'Occasion-based shopping', is_visible: true, display_order: 4 },
-  { section_key: 'trending_arrivals', title: 'Trending & New Arrivals', subtitle: 'HANDPICKED CURATION', is_visible: true, display_order: 5 },
-  { section_key: 'featured_brands', title: 'Featured Brands', subtitle: 'Curated In-House Houses', is_visible: true, display_order: 6 }
+  { section_key: 'hero_carousel', title: 'Hero Carousel & Trust Bar', subtitle: 'Main editorial hero slider & service features', is_visible: true, display_order: 1 },
+  { section_key: 'shop_by_category', title: 'Shop by Category (Collections)', subtitle: 'Discover Your Style categories grid', is_visible: true, display_order: 2 },
+  { section_key: 'trending_arrivals', title: 'Best Selling Products', subtitle: 'Handpicked products grid', is_visible: true, display_order: 3 },
+  { section_key: 'promo_offers', title: 'Promotional Offers (3 Blocks)', subtitle: 'Combo offers, 50% Off banner, New arrivals', is_visible: true, display_order: 4 },
+  { section_key: 'lookbook_banner', title: 'The Lookbook Editorial', subtitle: 'Large luxury editorial campaign banner', is_visible: true, display_order: 5 },
+  { section_key: 'video_banner', title: 'Video Campaign Showcase', subtitle: 'Brand film carousel', is_visible: true, display_order: 6 },
+  { section_key: 'shop_by_occasion', title: 'Shop By Occasion', subtitle: 'Occasion-based shopping grid', is_visible: true, display_order: 7 },
+  { section_key: 'featured_brands', title: 'Catchy Combo Bundles', subtitle: 'Multi-piece bundle deals', is_visible: true, display_order: 8 },
+  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', subtitle: 'Email subscription CTA banner', is_visible: true, display_order: 9 }
 ];
 
 const emptySlideForm = {
@@ -30,27 +33,19 @@ const emptySlideForm = {
   description: '',
   image_url: '',
   badge_text: '',
-  cta_primary_text: 'Discover ORDERLY',
+  cta_primary_text: 'SHOP NOW',
   cta_primary_link: '/shop',
-  cta_secondary_text: 'Explore Shirts',
-  cta_secondary_link: '/shop?category=Shirts',
+  cta_secondary_text: 'EXPLORE COLLECTIONS',
+  cta_secondary_link: '/shop',
   display_order: 1
 };
 
-const emptyFilmForm = {
+const emptyFeatureForm = {
+  icon: 'FiTruck',
   title: '',
-  subtitle: '',
-  thumbnail: '',
-  videoUrl: '',
-  display_order: 1
-};
-
-const emptyOccasionForm = {
-  name: '',
-  slug: '',
-  subtitle: '',
-  image: '',
-  display_order: 0
+  description: '',
+  enabled: true,
+  order: 1
 };
 
 const HomepageSettings = ({ defaultTab = 'sections' }) => {
@@ -58,74 +53,144 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
   const tabFromQuery = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromQuery || defaultTab);
 
-  useEffect(() => {
-    if (tabFromQuery) {
-      setActiveTab(tabFromQuery);
-    }
-  }, [tabFromQuery]);
-
   const handleTabChange = (tabKey) => {
     setActiveTab(tabKey);
     setSearchParams({ tab: tabKey });
   };
 
-  // 1. SECTIONS CMS STATE
+  // State Management
   const [sections, setSections] = useState(DEFAULT_SECTIONS);
-  const [loadingSections, setLoadingSections] = useState(true);
   const [savingSections, setSavingSections] = useState(false);
 
-  // 2. HERO SLIDES CMS STATE
   const [slides, setSlides] = useState([]);
-  const [loadingSlides, setLoadingSlides] = useState(true);
   const [isSlideModalOpen, setIsSlideModalOpen] = useState(false);
   const [editingSlide, setEditingSlide] = useState(null);
   const [slideFormData, setSlideFormData] = useState(emptySlideForm);
 
-  // 3. VIDEO FILMS SHOWCASE CMS STATE
-  const [videoFilms, setVideoFilms] = useState([]);
-  const [isFilmModalOpen, setIsFilmModalOpen] = useState(false);
-  const [editingFilm, setEditingFilm] = useState(null);
-  const [filmFormData, setFilmFormData] = useState(emptyFilmForm);
-
-  // 4. OCCASIONS CMS STATE
-  const [occasions, setOccasions] = useState([]);
-  const [loadingOccasions, setLoadingOccasions] = useState(false);
-  const [occasionSearch, setOccasionSearch] = useState('');
-  const [isOccasionModalOpen, setIsOccasionModalOpen] = useState(false);
-  const [editingOccasion, setEditingOccasion] = useState(null);
-  const [occasionFormData, setOccasionFormData] = useState(emptyOccasionForm);
-
-  // 5. TOPBAR ANNOUNCEMENTS STATE
-  const [announcementsText, setAnnouncementsText] = useState('');
-  const [savingTopbar, setSavingTopbar] = useState(false);
-
-  // 6. SOCIAL LINKS STATE
-  const [socialLinks, setSocialLinks] = useState({
-    instagram_url: '',
-    facebook_url: '',
-    youtube_url: '',
-    whatsapp_url: '',
-    twitter_url: '',
-    pinterest_url: ''
+  // Announcement Bar State
+  const [announcementConfig, setAnnouncementConfig] = useState({
+    enabled: true,
+    message: 'FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS',
+    highlightedText: '₹1499',
+    link: '',
+    backgroundColor: '#000000',
+    textColor: '#FFFFFF',
+    highlightColor: '#E50914'
   });
-  const [savingSocials, setSavingSocials] = useState(false);
 
-  // Load All Homepage & CMS Settings Data
+  // Service Features State
+  const [serviceFeatures, setServiceFeatures] = useState([
+    { icon: 'FiTruck', title: 'FREE SHIPPING', description: 'On orders above ₹1499', enabled: true, order: 1 },
+    { icon: 'FiRotateCcw', title: 'EASY RETURNS', description: 'Within 7 days', enabled: true, order: 2 },
+    { icon: 'FiShield', title: 'PREMIUM QUALITY', description: '100% Original Products', enabled: true, order: 3 },
+    { icon: 'FiHeadphones', title: '24/7 SUPPORT', description: "We're here to help", enabled: true, order: 4 }
+  ]);
+
+  // Collections Config State
+  const [collectionsConfig, setCollectionsConfig] = useState({
+    eyebrow: 'EXPLORE COLLECTIONS',
+    heading: 'DISCOVER YOUR STYLE',
+    selectedCategories: ['Casual Shirts', 'Formal Shirts', 'Tees & Polos', 'Activewear', 'Ethnic'],
+    displayLimit: 5
+  });
+  const [dbCategories, setDbCategories] = useState([]);
+
+  // Best Sellers Config State
+  const [bestSellersConfig, setBestSellersConfig] = useState({
+    eyebrow: 'TRENDING NOW',
+    heading: 'BEST SELLING PRODUCTS',
+    productSource: 'Best Selling',
+    selectedProducts: [],
+    productLimit: 5,
+    showRating: true,
+    showWishlist: true,
+    showAddToCart: true
+  });
+  const [dbProducts, setDbProducts] = useState([]);
+
+  // Promo Blocks Config State
+  const [promotionsConfig, setPromotionsConfig] = useState({
+    block1: {
+      title: 'COMBO OFFERS',
+      subtitle: 'Style, Best Value',
+      buttonText: 'EXPLORE COMBOS',
+      buttonLink: '/combos',
+      icon: 'FiGift'
+    },
+    block2: {
+      tag: 'UP TO',
+      discountTitle: '50% OFF',
+      subtitle: 'On Selected Items',
+      buttonText: 'SHOP NOW',
+      buttonLink: '/shop',
+      image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1200&auto=format&fit=crop'
+    },
+    block3: {
+      title: 'NEW ARRIVALS',
+      subtitle: 'Fresh Styles Just Landed',
+      buttonText: 'EXPLORE NOW',
+      buttonLink: '/shop',
+      icon: 'FiTag'
+    }
+  });
+
+  // Lookbook Config State
+  const [lookbookConfig, setLookbookConfig] = useState({
+    enabled: true,
+    title: 'THE LOOKBOOK',
+    year: '2026',
+    description: 'Elevate your wardrobe with the latest styles designed for the modern man.',
+    buttonText: 'EXPLORE NOW',
+    buttonLink: '/shop',
+    image: 'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=1600&auto=format&fit=crop'
+  });
+
+  // Newsletter Config State
+  const [newsletterConfig, setNewsletterConfig] = useState({
+    enabled: true,
+    title: 'STAY IN THE LOOP',
+    description: 'Subscribe to get updates on new arrivals, exclusive offers and more.',
+    placeholder: 'Enter your email',
+    buttonText: 'SUBSCRIBE',
+    discountCode: 'ORDERLY10'
+  });
+
+  // Footer Config State
+  const [footerConfig, setFooterConfig] = useState({
+    bio: "Orderly is your destination for premium men's wear. Crafted for style, built for comfort, made for you.",
+    copyright: '© 2026 Orderly. All Rights Reserved.',
+    socials: {
+      facebook: 'https://facebook.com',
+      instagram: 'https://instagram.com',
+      twitter: 'https://twitter.com',
+      youtube: 'https://youtube.com'
+    }
+  });
+
+  // Global Settings State
+  const [globalSettings, setGlobalSettings] = useState({
+    primaryColor: '#050505',
+    accentColor: '#E50914',
+    textColor: '#FFFFFF',
+    stickyHeader: true,
+    seoTitle: "ORDERLY Mens Wear | Luxury Men's Apparel & Fashion Store",
+    seoDescription: "Discover luxury men's fashion by ORDERLY. Shop shirts, oversized tees, selvedge denim, and blazers."
+  });
+
+  const [savingAll, setSavingAll] = useState(false);
+
+  // Load All Config Data from Database API
   const loadData = async () => {
-    setLoadingSections(true);
-    setLoadingSlides(true);
-    setLoadingOccasions(true);
-
     try {
-      const [secRes, slidesRes, filmsRes, occRes, settingsRes] = await Promise.allSettled([
+      const [secRes, slidesRes, catsRes, prodsRes, settingsRes] = await Promise.allSettled([
         api.get('/homepage/sections/all'),
         api.get('/hero-slides/all'),
-        api.get('/homepage/video-films'),
-        api.get('/occasions'),
+        api.get('/categories'),
+        api.get('/products'),
         api.get('/settings')
       ]);
 
-      // Process Homepage Sections
+      // 1. Sections
       if (secRes.status === 'fulfilled' && secRes.value.data?.success && Array.isArray(secRes.value.data.data) && secRes.value.data.data.length > 0) {
         const fetched = secRes.value.data.data;
         const merged = DEFAULT_SECTIONS.map((defItem) => {
@@ -134,48 +199,38 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         });
         merged.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
         setSections(merged);
-      } else {
-        setSections(DEFAULT_SECTIONS);
       }
 
-      // Process Hero Slides
+      // 2. Hero Slides
       if (slidesRes.status === 'fulfilled' && slidesRes.value.data?.success && Array.isArray(slidesRes.value.data.data)) {
         setSlides(slidesRes.value.data.data);
       }
 
-      // Process Video Showcase Films
-      if (filmsRes.status === 'fulfilled' && filmsRes.value.data?.success && Array.isArray(filmsRes.value.data.data)) {
-        setVideoFilms(filmsRes.value.data.data);
+      // 3. Database Categories
+      if (catsRes.status === 'fulfilled' && catsRes.value.data?.success && Array.isArray(catsRes.value.data.data)) {
+        setDbCategories(catsRes.value.data.data);
       }
 
-      // Process Occasions
-      if (occRes.status === 'fulfilled' && occRes.value.data?.success && Array.isArray(occRes.value.data.data)) {
-        setOccasions(occRes.value.data.data);
+      // 4. Database Products
+      if (prodsRes.status === 'fulfilled' && prodsRes.value.data?.success && Array.isArray(prodsRes.value.data.data)) {
+        setDbProducts(prodsRes.value.data.data);
       }
 
-      // Process Settings (Announcements & Social Links)
+      // 5. Site Settings
       if (settingsRes.status === 'fulfilled' && settingsRes.value.data?.success && settingsRes.value.data.data) {
         const st = settingsRes.value.data.data;
-        if (typeof st.announcements === 'string') {
-          setAnnouncementsText(st.announcements.split('|').join('\n'));
-        } else if (Array.isArray(st.announcements)) {
-          setAnnouncementsText(st.announcements.join('\n'));
-        }
-        setSocialLinks({
-          instagram_url: st.instagram_url || '',
-          facebook_url: st.facebook_url || '',
-          youtube_url: st.youtube_url || '',
-          whatsapp_url: st.whatsapp_url || '',
-          twitter_url: st.twitter_url || '',
-          pinterest_url: st.pinterest_url || ''
-        });
+        if (st.announcement_config) setAnnouncementConfig(prev => ({ ...prev, ...st.announcement_config }));
+        if (st.service_features) setServiceFeatures(st.service_features);
+        if (st.collections_config) setCollectionsConfig(prev => ({ ...prev, ...st.collections_config }));
+        if (st.best_sellers_config) setBestSellersConfig(prev => ({ ...prev, ...st.best_sellers_config }));
+        if (st.promotions_config) setPromotionsConfig(prev => ({ ...prev, ...st.promotions_config }));
+        if (st.lookbook_config) setLookbookConfig(prev => ({ ...prev, ...st.lookbook_config }));
+        if (st.newsletter_config) setNewsletterConfig(prev => ({ ...prev, ...st.newsletter_config }));
+        if (st.footer_config) setFooterConfig(prev => ({ ...prev, ...st.footer_config }));
+        if (st.global_homepage_settings) setGlobalSettings(prev => ({ ...prev, ...st.global_homepage_settings }));
       }
     } catch (err) {
       console.warn('CMS load note:', err);
-    } finally {
-      setLoadingSections(false);
-      setLoadingSlides(false);
-      setLoadingOccasions(false);
     }
   };
 
@@ -183,16 +238,48 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
     loadData();
   }, []);
 
-  // Save Video Films state
-  const saveVideoFilmsState = async (updatedList) => {
-    setVideoFilms(updatedList);
+  // Save / Publish All Homepage Configurations to DB
+  const handlePublishHomepage = async () => {
+    setSavingAll(true);
     try {
-      await api.put('/homepage/video-films', updatedList);
-    } catch (err) {}
-    window.dispatchEvent(new CustomEvent('orderly_video_films_updated'));
+      // 1. Save Section Order & Visibility
+      const sectionsPayload = sections.map((s, idx) => ({
+        section_key: s.section_key,
+        title: s.title,
+        subtitle: s.subtitle,
+        is_visible: s.is_visible !== false,
+        display_order: idx + 1
+      }));
+      await api.put('/homepage/sections', sectionsPayload);
+
+      // 2. Save JSON Configurations into SiteSetting DB Table
+      const settingsPayload = {
+        announcement_config: announcementConfig,
+        service_features: serviceFeatures,
+        collections_config: collectionsConfig,
+        best_sellers_config: bestSellersConfig,
+        promotions_config: promotionsConfig,
+        lookbook_config: lookbookConfig,
+        newsletter_config: newsletterConfig,
+        footer_config: footerConfig,
+        global_homepage_settings: globalSettings
+      };
+      await api.put('/settings', settingsPayload);
+
+      // Dispatch custom events to trigger live synchronization on customer website
+      window.dispatchEvent(new CustomEvent('orderly_homepage_sections_updated'));
+      window.dispatchEvent(new CustomEvent('orderly_settings_updated'));
+      window.dispatchEvent(new CustomEvent('orderly_hero_slides_updated'));
+
+      toast.success('🚀 Homepage successfully published to live website!');
+    } catch (err) {
+      toast.error('Failed to publish homepage configurations');
+    } finally {
+      setSavingAll(false);
+    }
   };
 
-  // --- SECTIONS CMS HANDLERS ---
+  // Sections Order handlers
   const handleSectionFieldChange = (index, field, value) => {
     const updated = [...sections];
     updated[index] = { ...updated[index], [field]: value };
@@ -215,28 +302,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
     setSections(reordered);
   };
 
-  const handleSaveSections = async () => {
-    setSavingSections(true);
-    try {
-      const payload = sections.map((s, idx) => ({
-        section_key: s.section_key,
-        title: s.title,
-        subtitle: s.subtitle,
-        is_visible: s.is_visible !== false,
-        display_order: idx + 1
-      }));
-
-      await api.put('/homepage/sections', payload);
-      window.dispatchEvent(new CustomEvent('orderly_homepage_sections_updated'));
-      toast.success('Homepage section layout updated!');
-    } catch (err) {
-      toast.error('Failed to update homepage sections layout');
-    } finally {
-      setSavingSections(false);
-    }
-  };
-
-  // --- HERO CAROUSEL HANDLERS ---
+  // Hero Slide Handlers
   const openAddSlideModal = () => {
     setEditingSlide(null);
     setSlideFormData({ ...emptySlideForm, display_order: slides.length + 1 });
@@ -251,10 +317,10 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       description: item.description || '',
       image_url: item.image_url || item.image || '',
       badge_text: item.badge_text || item.badge || '',
-      cta_primary_text: item.cta_primary_text || 'Discover ORDERLY',
+      cta_primary_text: item.cta_primary_text || 'SHOP NOW',
       cta_primary_link: item.cta_primary_link || '/shop',
-      cta_secondary_text: item.cta_secondary_text || 'Explore Shirts',
-      cta_secondary_link: item.cta_secondary_link || '/shop?category=Shirts',
+      cta_secondary_text: item.cta_secondary_text || 'EXPLORE COLLECTIONS',
+      cta_secondary_link: item.cta_secondary_link || '/shop',
       display_order: item.display_order || slides.length + 1
     });
     setIsSlideModalOpen(true);
@@ -300,236 +366,74 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
     }
   };
 
-  // --- VIDEO FILMS HANDLERS ---
-  const openAddFilmModal = () => {
-    setEditingFilm(null);
-    setFilmFormData({ ...emptyFilmForm, display_order: videoFilms.length + 1 });
-    setIsFilmModalOpen(true);
-  };
-
-  const openEditFilmModal = (item) => {
-    setEditingFilm(item);
-    setFilmFormData({
-      title: item.title || '',
-      subtitle: item.subtitle || '',
-      thumbnail: item.thumbnail || '',
-      videoUrl: item.videoUrl || item.video_url || '',
-      display_order: item.display_order || 1
-    });
-    setIsFilmModalOpen(true);
-  };
-
-  const handleSaveFilm = (e) => {
-    e.preventDefault();
-    if (!filmFormData.title || !filmFormData.videoUrl) {
-      toast.error('Film Title and Video URL are required');
-      return;
-    }
-
-    const resolvedThumb = filmFormData.thumbnail || getYouTubeThumbnail(filmFormData.videoUrl) || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop';
-
-    if (editingFilm) {
-      const updated = videoFilms.map(f => f.id === editingFilm.id ? { ...f, ...filmFormData, thumbnail: resolvedThumb } : f);
-      saveVideoFilmsState(updated);
-      toast.success('Video Film updated!');
-    } else {
-      const newFilm = {
-        id: Date.now(),
-        ...filmFormData,
-        thumbnail: resolvedThumb
-      };
-      const updated = [...videoFilms, newFilm];
-      saveVideoFilmsState(updated);
-      toast.success('New Video Showcase Film created!');
-    }
-    setIsFilmModalOpen(false);
-  };
-
-  const handleDeleteFilm = (item) => {
-    if (window.confirm(`Delete film "${item.title}"?`)) {
-      const updated = videoFilms.filter(f => f.id !== item.id);
-      saveVideoFilmsState(updated);
-      toast.success('Film deleted');
-    }
-  };
-
-  // --- OCCASIONS CMS HANDLERS ---
-  const openAddOccasionModal = () => {
-    setEditingOccasion(null);
-    setOccasionFormData({ ...emptyOccasionForm, display_order: occasions.length + 1 });
-    setIsOccasionModalOpen(true);
-  };
-
-  const openEditOccasionModal = (item) => {
-    setEditingOccasion(item);
-    setOccasionFormData({
-      name: item.name || '',
-      slug: item.slug || '',
-      subtitle: item.subtitle || '',
-      image: item.image || '',
-      display_order: item.display_order || 0
-    });
-    setIsOccasionModalOpen(true);
-  };
-
-  const handleSaveOccasion = async (e) => {
-    e.preventDefault();
-    if (!occasionFormData.name) {
-      toast.error('Occasion name is required');
-      return;
-    }
-    const payload = {
-      ...occasionFormData,
-      slug: occasionFormData.slug || occasionFormData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-    };
-    try {
-      if (editingOccasion) {
-        const res = await api.put(`/occasions/${editingOccasion.id}`, payload);
-        if (res.data?.success) {
-          setOccasions(prev => prev.map(o => o.id === editingOccasion.id ? { ...o, ...res.data.data } : o));
-          toast.success(`Occasion "${occasionFormData.name}" updated!`);
-        }
-      } else {
-        const res = await api.post('/occasions', payload);
-        if (res.data?.success) {
-          setOccasions(prev => [...prev, res.data.data]);
-          toast.success(`Occasion "${occasionFormData.name}" created!`);
-        }
-      }
-      window.dispatchEvent(new CustomEvent('orderly_occasions_updated'));
-      setIsOccasionModalOpen(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save occasion');
-    }
-  };
-
-  const handleDeleteOccasion = async (item) => {
-    if (window.confirm(`Delete occasion "${item.name}"?`)) {
-      try {
-        const res = await api.delete(`/occasions/${item.id}`);
-        if (res.data?.success) {
-          setOccasions(prev => prev.filter(o => o.id !== item.id));
-          toast.success('Occasion deleted');
-          window.dispatchEvent(new CustomEvent('orderly_occasions_updated'));
-        }
-      } catch (err) {
-        toast.error('Failed to delete occasion');
-      }
-    }
-  };
-
-  const handleToggleOccasionStatus = async (item) => {
-    try {
-      const res = await api.put(`/occasions/${item.id}`, { is_active: !item.is_active });
-      if (res.data?.success) {
-        setOccasions(prev => prev.map(o => o.id === item.id ? { ...o, ...res.data.data } : o));
-        toast.success('Occasion status updated');
-        window.dispatchEvent(new CustomEvent('orderly_occasions_updated'));
-      }
-    } catch (err) {
-      toast.error('Failed to update occasion status');
-    }
-  };
-
-  // --- TOPBAR HANDLER ---
-  const handleSaveTopbar = async (e) => {
-    e.preventDefault();
-    setSavingTopbar(true);
-    try {
-      const pipeFormatted = announcementsText
-        .split('\n')
-        .map(s => s.trim())
-        .filter(Boolean)
-        .join('|');
-
-      await api.put('/settings', { announcements: pipeFormatted });
-      window.dispatchEvent(new CustomEvent('orderly_settings_updated'));
-      toast.success('Topbar announcement messages updated!');
-    } catch (err) {
-      toast.error('Failed to save topbar announcements');
-    } finally {
-      setSavingTopbar(false);
-    }
-  };
-
-  // --- SOCIAL LINKS HANDLER ---
-  const handleSaveSocials = async (e) => {
-    e.preventDefault();
-    setSavingSocials(true);
-    try {
-      await api.put('/settings', socialLinks);
-      window.dispatchEvent(new CustomEvent('orderly_settings_updated'));
-      toast.success('Social media profile URLs updated!');
-    } catch (err) {
-      toast.error('Failed to save social links');
-    } finally {
-      setSavingSocials(false);
-    }
-  };
-
-  const filteredOccasions = occasions.filter(item => {
-    const q = occasionSearch.toLowerCase();
-    return (
-      item.name?.toLowerCase().includes(q) ||
-      item.subtitle?.toLowerCase().includes(q) ||
-      item.slug?.toLowerCase().includes(q)
-    );
-  });
-
   return (
     <div className="homepage-settings-page p-4">
-      {/* Top Header */}
-      <div className="d-flex align-items-center justify-content-between mb-4">
+      {/* Control Header Bar */}
+      <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4 p-3 bg-white border rounded-3 shadow-sm">
         <div>
-          <h1 className="admin-page-title d-flex align-items-center gap-2" style={{ color: '#0f172a', fontWeight: 800 }}>
-            <FiSliders className="text-danger" /> Homepage & CMS Master Settings
-          </h1>
-          <p className="text-muted mb-0 small">Control section layouts, hero slides, video films, occasions, topbar promos, and social links live on the storefront.</p>
+          <div className="d-flex align-items-center gap-2 mb-1">
+            <h1 className="admin-page-title m-0 text-dark fw-bold fs-4">
+              <FiSliders className="text-danger me-1" /> Homepage Content Control Center
+            </h1>
+            <span className="badge bg-success px-2 py-1 align-middle ms-2">● Live Sync</span>
+          </div>
+          <p className="text-muted mb-0 small">Manage all customer homepage sections, hero slides, promotions, collections, and global settings dynamically from the database.</p>
+        </div>
+
+        <div className="d-flex align-items-center gap-2">
+          <a 
+            href="http://localhost:5173" 
+            target="_blank" 
+            rel="noreferrer" 
+            className="btn btn-outline-dark btn-sm d-flex align-items-center gap-1"
+          >
+            <FiExternalLink /> Preview Homepage
+          </a>
+
+          <button 
+            className="btn btn-danger btn-sm d-flex align-items-center gap-1 px-3 fw-bold"
+            onClick={handlePublishHomepage}
+            disabled={savingAll}
+          >
+            <FiSave /> {savingAll ? 'Publishing...' : 'Publish Homepage'}
+          </button>
         </div>
       </div>
 
       {/* Tabs Navigation Bar */}
       <div className="admin-tabs-nav mb-4">
-        <button 
-          className={`admin-tab-btn ${activeTab === 'sections' ? 'active' : ''}`}
-          onClick={() => handleTabChange('sections')}
-        >
-          <FiSliders /> Section Layout & Order
+        <button className={`admin-tab-btn ${activeTab === 'sections' ? 'active' : ''}`} onClick={() => handleTabChange('sections')}>
+          <FiSliders /> Section Order & Visibility
         </button>
-
-        <button 
-          className={`admin-tab-btn ${activeTab === 'carousel' ? 'active' : ''}`}
-          onClick={() => handleTabChange('carousel')}
-        >
-          <FiImage /> Hero Carousel ({slides.length})
+        <button className={`admin-tab-btn ${activeTab === 'announcement' ? 'active' : ''}`} onClick={() => handleTabChange('announcement')}>
+          <FiVolume2 /> Announcement Bar
         </button>
-
-        <button 
-          className={`admin-tab-btn ${activeTab === 'video_films' ? 'active' : ''}`}
-          onClick={() => handleTabChange('video_films')}
-        >
-          <FiFilm /> Video Showcase ({videoFilms.length})
+        <button className={`admin-tab-btn ${activeTab === 'carousel' ? 'active' : ''}`} onClick={() => handleTabChange('carousel')}>
+          <FiImage /> Hero Slider ({slides.length})
         </button>
-
-        <button 
-          className={`admin-tab-btn ${activeTab === 'occasions' ? 'active' : ''}`}
-          onClick={() => handleTabChange('occasions')}
-        >
-          <FiGrid /> Shop By Occasions ({occasions.length})
+        <button className={`admin-tab-btn ${activeTab === 'service_features' ? 'active' : ''}`} onClick={() => handleTabChange('service_features')}>
+          <FiShield /> Service Features
         </button>
-
-        <button 
-          className={`admin-tab-btn ${activeTab === 'topbar' ? 'active' : ''}`}
-          onClick={() => handleTabChange('topbar')}
-        >
-          <FiVolume2 /> Topbar Announcements
+        <button className={`admin-tab-btn ${activeTab === 'collections' ? 'active' : ''}`} onClick={() => handleTabChange('collections')}>
+          <FiGrid /> Collections Grid
         </button>
-
-        <button 
-          className={`admin-tab-btn ${activeTab === 'social_links' ? 'active' : ''}`}
-          onClick={() => handleTabChange('social_links')}
-        >
-          <FiShare2 /> Social Media Links
+        <button className={`admin-tab-btn ${activeTab === 'best_sellers' ? 'active' : ''}`} onClick={() => handleTabChange('best_sellers')}>
+          <FiShoppingBag /> Best Selling Products
+        </button>
+        <button className={`admin-tab-btn ${activeTab === 'promotions' ? 'active' : ''}`} onClick={() => handleTabChange('promotions')}>
+          <FiGift /> Promo Blocks
+        </button>
+        <button className={`admin-tab-btn ${activeTab === 'lookbook' ? 'active' : ''}`} onClick={() => handleTabChange('lookbook')}>
+          <FiFileText /> Lookbook 2026
+        </button>
+        <button className={`admin-tab-btn ${activeTab === 'newsletter' ? 'active' : ''}`} onClick={() => handleTabChange('newsletter')}>
+          <FiTag /> Newsletter VIP
+        </button>
+        <button className={`admin-tab-btn ${activeTab === 'footer' ? 'active' : ''}`} onClick={() => handleTabChange('footer')}>
+          <FiShare2 /> Footer Links
+        </button>
+        <button className={`admin-tab-btn ${activeTab === 'global' ? 'active' : ''}`} onClick={() => handleTabChange('global')}>
+          <FiSettings /> Global & SEO
         </button>
       </div>
 
@@ -538,11 +442,11 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         <div className="admin-card-white p-4">
           <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
             <div>
-              <h4 className="fw-bold text-dark mb-1">Homepage Sections Order & Visibility</h4>
-              <p className="text-muted small mb-0">Reorder sections up and down. Toggle switch to show/hide sections instantly on the live website.</p>
+              <h4 className="fw-bold text-dark mb-1">Homepage Section Order & Visibility Management</h4>
+              <p className="text-muted small mb-0">Drag or click Move Up / Move Down to change the top-to-bottom section rendering sequence on the customer homepage.</p>
             </div>
-            <button className="btn-admin-red" onClick={handleSaveSections} disabled={savingSections}>
-              <FiSave /> {savingSections ? 'Saving...' : 'Save Section Layout'}
+            <button className="btn btn-danger btn-sm" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Layout
             </button>
           </div>
 
@@ -551,11 +455,11 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
               <thead>
                 <tr>
                   <th style={{ width: '60px' }}>ORDER</th>
-                  <th>SECTION NAME</th>
+                  <th>SECTION KEY</th>
                   <th>SECTION TITLE</th>
-                  <th>SUBTITLE / BADGE</th>
+                  <th>SUBTITLE</th>
                   <th>VISIBILITY</th>
-                  <th className="text-end pe-4">MOVE</th>
+                  <th className="text-end pe-4">MOVE ORDER</th>
                 </tr>
               </thead>
               <tbody>
@@ -588,8 +492,8 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                           onChange={(e) => handleSectionFieldChange(idx, 'is_visible', e.target.checked)}
                           id={`switch-${sec.section_key}`}
                         />
-                        <label className="form-check-label small text-muted" htmlFor={`switch-${sec.section_key}`}>
-                          {sec.is_visible !== false ? 'Visible' : 'Hidden'}
+                        <label className="form-check-label small text-muted ms-1" htmlFor={`switch-${sec.section_key}`}>
+                          {sec.is_visible !== false ? 'Enabled' : 'Disabled'}
                         </label>
                       </div>
                     </td>
@@ -600,14 +504,14 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                           onClick={() => moveSection(idx, 'up')}
                           disabled={idx === 0}
                         >
-                          <FiArrowUp />
+                          <FiArrowUp /> Move Up
                         </button>
                         <button 
                           className="btn btn-outline-secondary" 
                           onClick={() => moveSection(idx, 'down')}
                           disabled={idx === sections.length - 1}
                         >
-                          <FiArrowDown />
+                          <FiArrowDown /> Move Down
                         </button>
                       </div>
                     </td>
@@ -619,15 +523,100 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         </div>
       )}
 
-      {/* TAB 2: HERO CAROUSEL BANNERS */}
+      {/* TAB 2: ANNOUNCEMENT BAR */}
+      {activeTab === 'announcement' && (
+        <div className="admin-card-white p-4">
+          <div className="mb-3 border-bottom pb-3">
+            <h4 className="fw-bold text-dark mb-1">Top Announcement Bar Settings</h4>
+            <p className="text-muted small mb-0">Configure the top notification message strip shown above the main website header.</p>
+          </div>
+
+          <div className="row g-3">
+            <div className="col-12">
+              <div className="form-check form-switch mb-3">
+                <input 
+                  className="form-check-input" 
+                  type="checkbox"
+                  checked={announcementConfig.enabled}
+                  onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                  id="announcement-enabled-toggle"
+                />
+                <label className="form-check-label fw-bold text-dark" htmlFor="announcement-enabled-toggle">
+                  Enable Announcement Bar on Homepage
+                </label>
+              </div>
+            </div>
+
+            <div className="col-md-8">
+              <label className="admin-form-label">Announcement Text Message *</label>
+              <input 
+                type="text" 
+                className="admin-input" 
+                value={announcementConfig.message}
+                onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, message: e.target.value }))}
+                placeholder="FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"
+              />
+            </div>
+
+            <div className="col-md-4">
+              <label className="admin-form-label">Highlighted Text (Highlighted in RED)</label>
+              <input 
+                type="text" 
+                className="admin-input" 
+                value={announcementConfig.highlightedText}
+                onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, highlightedText: e.target.value }))}
+                placeholder="₹1499"
+              />
+            </div>
+
+            <div className="col-md-4">
+              <label className="admin-form-label">Background Color</label>
+              <input 
+                type="color" 
+                className="form-control form-control-color w-100" 
+                value={announcementConfig.backgroundColor}
+                onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, backgroundColor: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-md-4">
+              <label className="admin-form-label">Text Color</label>
+              <input 
+                type="color" 
+                className="form-control form-control-color w-100" 
+                value={announcementConfig.textColor}
+                onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, textColor: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-md-4">
+              <label className="admin-form-label">Highlight Accent Color</label>
+              <input 
+                type="color" 
+                className="form-control form-control-color w-100" 
+                value={announcementConfig.highlightColor}
+                onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, highlightColor: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Announcement Bar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: HERO SLIDES */}
       {activeTab === 'carousel' && (
         <div className="admin-card-white p-4">
           <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
             <div>
-              <h4 className="fw-bold text-dark mb-1">Hero Carousel Slides</h4>
-              <p className="text-muted small mb-0">Manage main full-width banner slides shown on the storefront homepage.</p>
+              <h4 className="fw-bold text-dark mb-1">Hero Slider Slides</h4>
+              <p className="text-muted small mb-0">Add, edit, or remove full-width editorial hero slides.</p>
             </div>
-            <button className="btn-admin-red" onClick={openAddSlideModal}>
+            <button className="btn btn-danger btn-sm" onClick={openAddSlideModal}>
               <FiPlus /> Add New Hero Slide
             </button>
           </div>
@@ -637,8 +626,8 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
               <thead>
                 <tr>
                   <th style={{ width: '80px' }}>BANNER</th>
-                  <th>SLIDE TITLE</th>
-                  <th>SUBTITLE & BADGE</th>
+                  <th>TITLE LINE 1 & 2</th>
+                  <th>EYEBROW & BADGE</th>
                   <th>PRIMARY CTA</th>
                   <th>ORDER</th>
                   <th className="text-end pe-4">ACTIONS</th>
@@ -651,21 +640,21 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                       <img 
                         src={slide.image_url || slide.image} 
                         alt={slide.title} 
-                        style={{ width: 64, height: 40, borderRadius: 6, objectFit: 'cover', border: '1px solid #cbd5e1' }} 
+                        style={{ width: 64, height: 40, borderRadius: 4, objectFit: 'cover', border: '1px solid #cbd5e1' }} 
                       />
                     </td>
-                    <td><strong className="text-dark">{slide.title || 'Untitled Banner'}</strong></td>
+                    <td><strong className="text-dark">{slide.title || 'OWN YOUR STYLE'}</strong></td>
                     <td>
-                      <span className="badge bg-danger text-white me-1">{slide.badge_text || 'PROMO'}</span>
+                      <span className="badge bg-danger text-white me-1">{slide.badge_text || 'HERO'}</span>
                       <span className="text-muted small">{slide.subtitle}</span>
                     </td>
-                    <td><code className="cat-slug-badge">{slide.cta_primary_text || 'Shop Now'}</code></td>
+                    <td><code className="cat-slug-badge">{slide.cta_primary_text || 'SHOP NOW'}</code></td>
                     <td><strong>#{slide.display_order || 1}</strong></td>
                     <td className="text-end pe-4">
-                      <button className="btn-admin-outline py-1 px-2 me-2" onClick={() => openEditSlideModal(slide)}>
+                      <button className="btn btn-outline-dark btn-sm me-2" onClick={() => openEditSlideModal(slide)}>
                         <FiEdit /> Edit
                       </button>
-                      <button className="btn-admin-outline py-1 px-2 text-danger" onClick={() => handleDeleteSlide(slide)}>
+                      <button className="btn btn-outline-danger btn-sm" onClick={() => handleDeleteSlide(slide)}>
                         <FiTrash2 />
                       </button>
                     </td>
@@ -677,339 +666,528 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         </div>
       )}
 
-      {/* TAB 3: VIDEO SHOWCASE FILMS */}
-      {activeTab === 'video_films' && (
-        <div className="admin-card-white p-4">
-          <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
-            <div>
-              <h4 className="fw-bold text-dark mb-1">Video Showcase Films</h4>
-              <p className="text-muted small mb-0">Upload or link YouTube, Instagram, Facebook, and Cloudflare R2 video films for the homepage carousel.</p>
-            </div>
-            <button className="btn-admin-red" onClick={openAddFilmModal}>
-              <FiPlus /> Add Video Film
-            </button>
-          </div>
-
-          <div className="table-responsive">
-            <table className="admin-matrix-table align-middle">
-              <thead>
-                <tr>
-                  <th style={{ width: '80px' }}>THUMB</th>
-                  <th>FILM TITLE</th>
-                  <th>SUBTITLE</th>
-                  <th>VIDEO SOURCE / URL</th>
-                  <th className="text-end pe-4">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {videoFilms.map(film => (
-                  <tr key={film.id}>
-                    <td>
-                      <img 
-                        src={film.thumbnail} 
-                        alt={film.title} 
-                        style={{ width: 64, height: 40, borderRadius: 6, objectFit: 'cover', border: '1px solid #cbd5e1' }} 
-                      />
-                    </td>
-                    <td><strong className="text-dark">{film.title}</strong></td>
-                    <td><span className="text-muted small">{film.subtitle || 'Product Showcase'}</span></td>
-                    <td><code className="cat-slug-badge" style={{ maxWidth: '280px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{film.videoUrl}</code></td>
-                    <td className="text-end pe-4">
-                      <button className="btn-admin-outline py-1 px-2 me-2" onClick={() => openEditFilmModal(film)}>
-                        <FiEdit /> Edit
-                      </button>
-                      <button className="btn-admin-outline py-1 px-2 text-danger" onClick={() => handleDeleteFilm(film)}>
-                        <FiTrash2 />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: SHOP BY OCCASIONS */}
-      {activeTab === 'occasions' && (
-        <div className="admin-card-white p-4">
-          <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3 border-bottom pb-3">
-            <div>
-              <h4 className="fw-bold text-dark mb-1">Shop By Occasions Manager</h4>
-              <p className="text-muted small mb-0">Create and manage curated occasion banners displayed live on the storefront homepage.</p>
-            </div>
-            <button className="btn-admin-red" onClick={openAddOccasionModal}>
-              <FiPlus /> Add New Occasion
-            </button>
-          </div>
-
-          <div className="mb-3 position-relative" style={{ maxWidth: '400px' }}>
-            <input 
-              type="text" 
-              className="admin-input ps-5"
-              placeholder="Search occasions..."
-              value={occasionSearch}
-              onChange={(e) => setOccasionSearch(e.target.value)}
-            />
-            <FiSearch style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-          </div>
-
-          <div className="table-responsive">
-            <table className="admin-matrix-table align-middle">
-              <thead>
-                <tr>
-                  <th style={{ width: '70px' }}>BANNER</th>
-                  <th>OCCASION TITLE</th>
-                  <th>SUBTITLE / TAGLINE</th>
-                  <th>SLUG</th>
-                  <th>ORDER</th>
-                  <th>STATUS</th>
-                  <th className="text-end pe-4">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOccasions.map(item => (
-                  <tr key={item.id}>
-                    <td>
-                      <img 
-                        src={item.image || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=200&auto=format&fit=crop'} 
-                        alt={item.name} 
-                        style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', border: '1px solid #cbd5e1' }}
-                      />
-                    </td>
-                    <td><strong className="text-dark">{item.name}</strong></td>
-                    <td><span className="badge bg-danger text-white px-2 py-1 rounded-pill small">{item.subtitle || 'Shop Occasion'}</span></td>
-                    <td><code className="cat-slug-badge">{item.slug}</code></td>
-                    <td><span className="fw-bold text-muted">#{item.display_order || 1}</span></td>
-                    <td>
-                      <StatusBadge status={item.is_active !== false ? 'active' : 'inactive'} />
-                    </td>
-                    <td className="text-end pe-4">
-                      <button className="btn-admin-outline py-1 px-2 me-2" onClick={() => handleToggleOccasionStatus(item)}>
-                        {item.is_active !== false ? <FiEyeOff /> : <FiEye />}
-                      </button>
-                      <button className="btn-admin-outline py-1 px-2 me-2" onClick={() => openEditOccasionModal(item)}>
-                        <FiEdit /> Edit
-                      </button>
-                      <button className="btn-admin-outline py-1 px-2 text-danger" onClick={() => handleDeleteOccasion(item)}>
-                        <FiTrash2 />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 5: TOPBAR ANNOUNCEMENTS */}
-      {activeTab === 'topbar' && (
+      {/* TAB 4: SERVICE FEATURES */}
+      {activeTab === 'service_features' && (
         <div className="admin-card-white p-4">
           <div className="mb-3 border-bottom pb-3">
-            <h4 className="fw-bold text-dark mb-1">Topbar Announcement Messages</h4>
-            <p className="text-muted small mb-0">Enter announcement ticker messages displayed at the very top of the website. Enter one announcement per line.</p>
+            <h4 className="fw-bold text-dark mb-1">Service & Trust Feature Blocks</h4>
+            <p className="text-muted small mb-0">Configure the 4 horizontal trust features displayed immediately below the hero slider.</p>
           </div>
 
-          <form onSubmit={handleSaveTopbar}>
-            <div className="mb-4">
-              <label className="admin-form-label">Announcement Ticker Lines (One per line)</label>
-              <textarea 
-                className="admin-input font-monospace"
-                rows={6}
-                value={announcementsText}
-                onChange={(e) => setAnnouncementsText(e.target.value)}
-                placeholder="⚡ FREE Express Shipping on orders above ₹1,999 | Use Code: ORDERLY20&#10;🔥 Festive Sale is Live: Save up to 40% OFF on Italian Suits&#10;✨ 15 Days Easy Returns & Exchanges Guaranteed"
+          <div className="row g-3">
+            {serviceFeatures.map((item, idx) => (
+              <div key={idx} className="col-md-6">
+                <div className="p-3 border rounded-3 bg-light">
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <span className="fw-bold text-dark">Feature #{idx + 1}</span>
+                    <div className="form-check form-switch">
+                      <input 
+                        className="form-check-input"
+                        type="checkbox"
+                        checked={item.enabled !== false}
+                        onChange={(e) => {
+                          const updated = [...serviceFeatures];
+                          updated[idx].enabled = e.target.checked;
+                          setServiceFeatures(updated);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="admin-form-label small">Feature Title</label>
+                    <input 
+                      type="text" 
+                      className="admin-input form-control-sm"
+                      value={item.title}
+                      onChange={(e) => {
+                        const updated = [...serviceFeatures];
+                        updated[idx].title = e.target.value;
+                        setServiceFeatures(updated);
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="admin-form-label small">Feature Description</label>
+                    <input 
+                      type="text" 
+                      className="admin-input form-control-sm"
+                      value={item.description}
+                      onChange={(e) => {
+                        const updated = [...serviceFeatures];
+                        updated[idx].description = e.target.value;
+                        setServiceFeatures(updated);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Service Features
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: COLLECTIONS / CATEGORIES */}
+      {activeTab === 'collections' && (
+        <div className="admin-card-white p-4">
+          <div className="mb-3 border-bottom pb-3">
+            <h4 className="fw-bold text-dark mb-1">Collections (Discover Your Style) Configuration</h4>
+            <p className="text-muted small mb-0">Select existing database categories to feature on the homepage.</p>
+          </div>
+
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="admin-form-label">Section Eyebrow Label</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={collectionsConfig.eyebrow}
+                onChange={(e) => setCollectionsConfig(prev => ({ ...prev, eyebrow: e.target.value }))}
               />
-              <span className="form-text text-muted extra-small">Each line will automatically rotate on the storefront topbar ticker.</span>
             </div>
 
-            <button type="submit" className="btn-admin-red" disabled={savingTopbar}>
-              <FiCheck /> {savingTopbar ? 'Saving...' : 'Save Topbar Announcements'}
-            </button>
-          </form>
-        </div>
-      )}
+            <div className="col-md-6">
+              <label className="admin-form-label">Section Main Heading</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={collectionsConfig.heading}
+                onChange={(e) => setCollectionsConfig(prev => ({ ...prev, heading: e.target.value }))}
+              />
+            </div>
 
-      {/* TAB 6: SOCIAL MEDIA LINKS */}
-      {activeTab === 'social_links' && (
-        <div className="admin-card-white p-4">
-          <div className="mb-3 border-bottom pb-3">
-            <h4 className="fw-bold text-dark mb-1">Social Media Profile Links</h4>
-            <p className="text-muted small mb-0">Set your official social media URLs displayed in the topbar header and website footer.</p>
+            <div className="col-12">
+              <label className="admin-form-label">Available Categories in Database</label>
+              <div className="d-flex flex-wrap gap-2 p-3 border rounded bg-light">
+                {dbCategories.map(cat => {
+                  const isSelected = collectionsConfig.selectedCategories?.includes(cat.name);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      className={`btn btn-sm ${isSelected ? 'btn-danger' : 'btn-outline-dark'}`}
+                      onClick={() => {
+                        setCollectionsConfig(prev => {
+                          const current = prev.selectedCategories || [];
+                          const updated = isSelected ? current.filter(c => c !== cat.name) : [...current, cat.name];
+                          return { ...prev, selectedCategories: updated };
+                        });
+                      }}
+                    >
+                      {isSelected ? '✓ ' : '+ '}{cat.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="form-text text-muted extra-small">Click categories to toggle their selection on the homepage.</span>
+            </div>
           </div>
 
-          <form onSubmit={handleSaveSocials}>
-            <div className="row g-3">
-              <div className="col-md-6">
-                <label className="admin-form-label d-flex align-items-center gap-2">
-                  <FiInstagram className="text-danger" /> Instagram Profile URL
-                </label>
-                <input 
-                  type="url"
-                  className="admin-input"
-                  value={socialLinks.instagram_url}
-                  onChange={(e) => setSocialLinks(prev => ({ ...prev, instagram_url: e.target.value }))}
-                  placeholder="https://instagram.com/orderly_menswear"
-                />
-              </div>
-
-              <div className="col-md-6">
-                <label className="admin-form-label d-flex align-items-center gap-2">
-                  <FiFacebook className="text-primary" /> Facebook Page URL
-                </label>
-                <input 
-                  type="url"
-                  className="admin-input"
-                  value={socialLinks.facebook_url}
-                  onChange={(e) => setSocialLinks(prev => ({ ...prev, facebook_url: e.target.value }))}
-                  placeholder="https://facebook.com/orderly_menswear"
-                />
-              </div>
-
-              <div className="col-md-6">
-                <label className="admin-form-label d-flex align-items-center gap-2">
-                  <FiYoutube className="text-danger" /> YouTube Channel URL
-                </label>
-                <input 
-                  type="url"
-                  className="admin-input"
-                  value={socialLinks.youtube_url}
-                  onChange={(e) => setSocialLinks(prev => ({ ...prev, youtube_url: e.target.value }))}
-                  placeholder="https://youtube.com/@orderly_menswear"
-                />
-              </div>
-
-              <div className="col-md-6">
-                <label className="admin-form-label d-flex align-items-center gap-2">
-                  <FaWhatsapp className="text-success" /> WhatsApp Business Support Link
-                </label>
-                <input 
-                  type="url"
-                  className="admin-input"
-                  value={socialLinks.whatsapp_url}
-                  onChange={(e) => setSocialLinks(prev => ({ ...prev, whatsapp_url: e.target.value }))}
-                  placeholder="https://wa.me/919876543210"
-                />
-              </div>
-
-              <div className="col-md-6">
-                <label className="admin-form-label d-flex align-items-center gap-2">
-                  <FaTwitter className="text-info" /> Twitter / X Profile URL
-                </label>
-                <input 
-                  type="url"
-                  className="admin-input"
-                  value={socialLinks.twitter_url}
-                  onChange={(e) => setSocialLinks(prev => ({ ...prev, twitter_url: e.target.value }))}
-                  placeholder="https://x.com/orderly_menswear"
-                />
-              </div>
-
-              <div className="col-md-6">
-                <label className="admin-form-label d-flex align-items-center gap-2">
-                  <FaPinterest className="text-danger" /> Pinterest Profile URL
-                </label>
-                <input 
-                  type="url"
-                  className="admin-input"
-                  value={socialLinks.pinterest_url}
-                  onChange={(e) => setSocialLinks(prev => ({ ...prev, pinterest_url: e.target.value }))}
-                  placeholder="https://pinterest.com/orderly_menswear"
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-top">
-              <button type="submit" className="btn-admin-red" disabled={savingSocials}>
-                <FiCheck /> {savingSocials ? 'Saving...' : 'Save Social Links'}
-              </button>
-            </div>
-          </form>
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Collections
+            </button>
+          </div>
         </div>
       )}
 
-      {/* MODAL: Hero Slide */}
+      {/* TAB 6: BEST SELLING PRODUCTS */}
+      {activeTab === 'best_sellers' && (
+        <div className="admin-card-white p-4">
+          <div className="mb-3 border-bottom pb-3">
+            <h4 className="fw-bold text-dark mb-1">Best Selling Products Section</h4>
+            <p className="text-muted small mb-0">Configure product section headers and display options.</p>
+          </div>
+
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="admin-form-label">Section Eyebrow</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={bestSellersConfig.eyebrow}
+                onChange={(e) => setBestSellersConfig(prev => ({ ...prev, eyebrow: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="admin-form-label">Section Main Heading</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={bestSellersConfig.heading}
+                onChange={(e) => setBestSellersConfig(prev => ({ ...prev, heading: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="admin-form-label">Product Display Limit</label>
+              <input 
+                type="number" 
+                className="admin-input"
+                value={bestSellersConfig.productLimit}
+                onChange={(e) => setBestSellersConfig(prev => ({ ...prev, productLimit: Number(e.target.value) || 5 }))}
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="admin-form-label">Product Source Strategy</label>
+              <select 
+                className="form-select admin-input"
+                value={bestSellersConfig.productSource}
+                onChange={(e) => setBestSellersConfig(prev => ({ ...prev, productSource: e.target.value }))}
+              >
+                <option value="Best Selling">Best Selling Products</option>
+                <option value="Latest Products">Latest Products</option>
+                <option value="Featured Products">Featured Products</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Best Sellers
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 7: PROMO BLOCKS */}
+      {activeTab === 'promotions' && (
+        <div className="admin-card-white p-4">
+          <div className="mb-3 border-bottom pb-3">
+            <h4 className="fw-bold text-dark mb-1">Three-Block Promotional Area</h4>
+            <p className="text-muted small mb-0">Configure titles, discount text, and images for the 3 promo cards.</p>
+          </div>
+
+          <div className="row g-4">
+            {/* Block 1 */}
+            <div className="col-md-4">
+              <div className="p-3 border rounded-3 bg-light">
+                <h6 className="fw-bold text-dark mb-3">Block 1 (Left - Combo Offers)</h6>
+                <div className="mb-2">
+                  <label className="admin-form-label small">Title</label>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control-sm"
+                    value={promotionsConfig.block1?.title}
+                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block1: { ...prev.block1, title: e.target.value } }))}
+                  />
+                </div>
+                <div className="mb-2">
+                  <label className="admin-form-label small">Subtitle</label>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control-sm"
+                    value={promotionsConfig.block1?.subtitle}
+                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block1: { ...prev.block1, subtitle: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <label className="admin-form-label small">Button Link</label>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control-sm"
+                    value={promotionsConfig.block1?.buttonLink}
+                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block1: { ...prev.block1, buttonLink: e.target.value } }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Block 2 */}
+            <div className="col-md-4">
+              <div className="p-3 border rounded-3 bg-light">
+                <h6 className="fw-bold text-dark mb-3">Block 2 (Center Banner - 50% OFF)</h6>
+                <div className="mb-2">
+                  <label className="admin-form-label small">Discount Title</label>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control-sm"
+                    value={promotionsConfig.block2?.discountTitle}
+                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block2: { ...prev.block2, discountTitle: e.target.value } }))}
+                  />
+                </div>
+                <div className="mb-2">
+                  <label className="admin-form-label small">Subtitle</label>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control-sm"
+                    value={promotionsConfig.block2?.subtitle}
+                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block2: { ...prev.block2, subtitle: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <label className="admin-form-label small">Banner Image URL</label>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control-sm"
+                    value={promotionsConfig.block2?.image}
+                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block2: { ...prev.block2, image: e.target.value } }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Block 3 */}
+            <div className="col-md-4">
+              <div className="p-3 border rounded-3 bg-light">
+                <h6 className="fw-bold text-dark mb-3">Block 3 (Right - New Arrivals)</h6>
+                <div className="mb-2">
+                  <label className="admin-form-label small">Title</label>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control-sm"
+                    value={promotionsConfig.block3?.title}
+                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block3: { ...prev.block3, title: e.target.value } }))}
+                  />
+                </div>
+                <div className="mb-2">
+                  <label className="admin-form-label small">Subtitle</label>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control-sm"
+                    value={promotionsConfig.block3?.subtitle}
+                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block3: { ...prev.block3, subtitle: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <label className="admin-form-label small">Button Link</label>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control-sm"
+                    value={promotionsConfig.block3?.buttonLink}
+                    onChange={(e) => setPromotionsConfig(prev => ({ ...prev, block3: { ...prev.block3, buttonLink: e.target.value } }))}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Promo Blocks
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 8: LOOKBOOK 2026 */}
+      {activeTab === 'lookbook' && (
+        <div className="admin-card-white p-4">
+          <div className="mb-3 border-bottom pb-3">
+            <h4 className="fw-bold text-dark mb-1">Lookbook Editorial Section</h4>
+            <p className="text-muted small mb-0">Configure title, year highlight, description, and editorial banner image.</p>
+          </div>
+
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="admin-form-label">Lookbook Title</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={lookbookConfig.title}
+                onChange={(e) => setLookbookConfig(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="admin-form-label">Highlight Year Text (Highlighted in RED)</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={lookbookConfig.year}
+                onChange={(e) => setLookbookConfig(prev => ({ ...prev, year: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-12">
+              <label className="admin-form-label">Description Text</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={lookbookConfig.description}
+                onChange={(e) => setLookbookConfig(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-12">
+              <FileUploadInput 
+                value={lookbookConfig.image} 
+                onChange={(url) => setLookbookConfig(prev => ({ ...prev, image: url }))} 
+                type="image" 
+                folder="lookbook" 
+                label="Editorial Banner Image" 
+                placeholder="Upload or paste image URL..." 
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Lookbook
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 9: NEWSLETTER */}
+      {activeTab === 'newsletter' && (
+        <div className="admin-card-white p-4">
+          <div className="mb-3 border-bottom pb-3">
+            <h4 className="fw-bold text-dark mb-1">Newsletter VIP Club</h4>
+            <p className="text-muted small mb-0">Configure title, description, and discount coupon code awarded upon subscription.</p>
+          </div>
+
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="admin-form-label">Newsletter Title</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={newsletterConfig.title}
+                onChange={(e) => setNewsletterConfig(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="admin-form-label">Discount Code Awarded</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={newsletterConfig.discountCode}
+                onChange={(e) => setNewsletterConfig(prev => ({ ...prev, discountCode: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-12">
+              <label className="admin-form-label">Description Text</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={newsletterConfig.description}
+                onChange={(e) => setNewsletterConfig(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Newsletter Settings
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 10: FOOTER LINKS */}
+      {activeTab === 'footer' && (
+        <div className="admin-card-white p-4">
+          <div className="mb-3 border-bottom pb-3">
+            <h4 className="fw-bold text-dark mb-1">Footer Content & Social Links</h4>
+            <p className="text-muted small mb-0">Manage footer brand bio, copyright text, and social profiles.</p>
+          </div>
+
+          <div className="row g-3">
+            <div className="col-12">
+              <label className="admin-form-label">Footer Brand Bio</label>
+              <textarea 
+                className="admin-input"
+                rows={3}
+                value={footerConfig.bio}
+                onChange={(e) => setFooterConfig(prev => ({ ...prev, bio: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="admin-form-label">Copyright Notice Text</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={footerConfig.copyright}
+                onChange={(e) => setFooterConfig(prev => ({ ...prev, copyright: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Footer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 11: GLOBAL & SEO */}
+      {activeTab === 'global' && (
+        <div className="admin-card-white p-4">
+          <div className="mb-3 border-bottom pb-3">
+            <h4 className="fw-bold text-dark mb-1">Global Theme Colors & SEO Metadata</h4>
+            <p className="text-muted small mb-0">Configure primary theme colors, sticky header, and meta tags for search engines.</p>
+          </div>
+
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="admin-form-label">SEO Page Title</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={globalSettings.seoTitle}
+                onChange={(e) => setGlobalSettings(prev => ({ ...prev, seoTitle: e.target.value }))}
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="admin-form-label">SEO Meta Description</label>
+              <input 
+                type="text" 
+                className="admin-input"
+                value={globalSettings.seoDescription}
+                onChange={(e) => setGlobalSettings(prev => ({ ...prev, seoDescription: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn btn-danger" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Global Settings
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Hero Slide Form */}
       <Modal isOpen={isSlideModalOpen} onClose={() => setIsSlideModalOpen(false)} title={editingSlide ? 'Edit Hero Slide' : 'Add Hero Slide'}>
         <form onSubmit={handleSaveSlide}>
           <div className="row g-3">
             <div className="col-md-6">
-              <label className="admin-form-label">Slide Title *</label>
-              <input type="text" className="admin-input" value={slideFormData.title} onChange={(e) => setSlideFormData(prev => ({ ...prev, title: e.target.value }))} placeholder="e.g. LUXURY RESORT COLLECTION" required />
+              <label className="admin-form-label">Headline Title (Use \n for line break) *</label>
+              <input type="text" className="admin-input" value={slideFormData.title} onChange={(e) => setSlideFormData(prev => ({ ...prev, title: e.target.value }))} placeholder="e.g. OWN YOUR\nSTYLE" required />
             </div>
             <div className="col-md-6">
-              <label className="admin-form-label">Badge Tag (Top Badge)</label>
-              <input type="text" className="admin-input" value={slideFormData.badge_text} onChange={(e) => setSlideFormData(prev => ({ ...prev, badge_text: e.target.value }))} placeholder="e.g. NEW ARRIVALS 2026" />
+              <label className="admin-form-label">Eyebrow Subtitle</label>
+              <input type="text" className="admin-input" value={slideFormData.subtitle} onChange={(e) => setSlideFormData(prev => ({ ...prev, subtitle: e.target.value }))} placeholder="PREMIUM MEN'S WEAR" />
             </div>
             <div className="col-12">
-              <label className="admin-form-label">Subtitle Text</label>
-              <input type="text" className="admin-input" value={slideFormData.subtitle} onChange={(e) => setSlideFormData(prev => ({ ...prev, subtitle: e.target.value }))} placeholder="e.g. Handcrafted European Linen Shirts" />
+              <label className="admin-form-label">Supporting Description</label>
+              <input type="text" className="admin-input" value={slideFormData.description} onChange={(e) => setSlideFormData(prev => ({ ...prev, description: e.target.value }))} placeholder="Premium menswear crafted for confidence, comfort and timeless style." />
             </div>
-            <div className="col-12">
-              <FileUploadInput value={slideFormData.image_url} onChange={(url) => setSlideFormData(prev => ({ ...prev, image_url: url }))} type="image" folder="hero" label="Hero Banner Image (Cloudflare R2 Upload)" placeholder="Upload or paste banner URL..." />
+            <div className="col-md-6">
+              <FileUploadInput value={slideFormData.image_url} onChange={(url) => setSlideFormData(prev => ({ ...prev, image_url: url }))} type="image" folder="hero" label="Desktop Banner Image URL *" placeholder="Upload desktop image URL..." />
+            </div>
+            <div className="col-md-6">
+              <FileUploadInput value={slideFormData.mobile_image_url} onChange={(url) => setSlideFormData(prev => ({ ...prev, mobile_image_url: url }))} type="image" folder="hero" label="Mobile Banner Image URL (Optional)" placeholder="Upload mobile image URL..." />
             </div>
           </div>
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-            <button type="button" className="btn-admin-outline" onClick={() => setIsSlideModalOpen(false)}>Cancel</button>
-            <button type="submit" className="btn-admin-red">Save Slide</button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* MODAL: Video Film */}
-      <Modal isOpen={isFilmModalOpen} onClose={() => setIsFilmModalOpen(false)} title={editingFilm ? 'Edit Video Film' : 'Add Video Film'}>
-        <form onSubmit={handleSaveFilm}>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label className="admin-form-label">Film Title *</label>
-              <input type="text" className="admin-input" value={filmFormData.title} onChange={(e) => setFilmFormData(prev => ({ ...prev, title: e.target.value }))} placeholder="e.g. Italian Tailoring Film" required />
-            </div>
-            <div className="col-md-6">
-              <label className="admin-form-label">Subtitle</label>
-              <input type="text" className="admin-input" value={filmFormData.subtitle} onChange={(e) => setFilmFormData(prev => ({ ...prev, subtitle: e.target.value }))} placeholder="e.g. Craftsmanship Analysis" />
-            </div>
-            <div className="col-12">
-              <label className="admin-form-label">Video Stream / Embed URL (YouTube, Instagram, R2 Upload) *</label>
-              <input type="text" className="admin-input" value={filmFormData.videoUrl} onChange={(e) => setFilmFormData(prev => ({ ...prev, videoUrl: e.target.value }))} placeholder="Paste YouTube link, Instagram Reel link, or Cloudflare R2 video MP4 link..." required />
-            </div>
-            <div className="col-12">
-              <FileUploadInput value={filmFormData.thumbnail} onChange={(url) => setFilmFormData(prev => ({ ...prev, thumbnail: url }))} type="image" folder="thumbnails" label="Film Cover Thumbnail (Optional)" placeholder="Upload custom poster image..." />
-            </div>
-          </div>
-          <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-            <button type="button" className="btn-admin-outline" onClick={() => setIsFilmModalOpen(false)}>Cancel</button>
-            <button type="submit" className="btn-admin-red">Save Video Film</button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* MODAL: Occasion */}
-      <Modal isOpen={isOccasionModalOpen} onClose={() => setIsOccasionModalOpen(false)} title={editingOccasion ? 'Edit Occasion' : 'Add Occasion'}>
-        <form onSubmit={handleSaveOccasion}>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label className="admin-form-label">Occasion Title *</label>
-              <input type="text" className="admin-input" value={occasionFormData.name} onChange={(e) => setOccasionFormData(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. Wedding Collection" required />
-            </div>
-            <div className="col-md-6">
-              <label className="admin-form-label">URL Slug</label>
-              <input type="text" className="admin-input" value={occasionFormData.slug} onChange={(e) => setOccasionFormData(prev => ({ ...prev, slug: e.target.value }))} placeholder="Auto-generated from title" />
-            </div>
-            <div className="col-md-8">
-              <label className="admin-form-label">Subtitle / Tagline</label>
-              <input type="text" className="admin-input" value={occasionFormData.subtitle} onChange={(e) => setOccasionFormData(prev => ({ ...prev, subtitle: e.target.value }))} placeholder="e.g. FOR THE BIG DAY" />
-            </div>
-            <div className="col-md-4">
-              <label className="admin-form-label">Display Order</label>
-              <input type="number" className="admin-input" value={occasionFormData.display_order} onChange={(e) => setOccasionFormData(prev => ({ ...prev, display_order: Number(e.target.value) || 0 }))} />
-            </div>
-            <div className="col-12">
-              <FileUploadInput value={occasionFormData.image} onChange={(url) => setOccasionFormData(prev => ({ ...prev, image: url }))} type="image" folder="occasions" label="Banner Cover Image (Cloudflare R2 Upload)" placeholder="Upload banner image..." />
-            </div>
-          </div>
-          <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-            <button type="button" className="btn-admin-outline" onClick={() => setIsOccasionModalOpen(false)}>Cancel</button>
-            <button type="submit" className="btn-admin-red">Save Occasion</button>
+            <button type="button" className="btn btn-outline-secondary" onClick={() => setIsSlideModalOpen(false)}>Cancel</button>
+            <button type="submit" className="btn btn-danger">Save Slide</button>
           </div>
         </form>
       </Modal>

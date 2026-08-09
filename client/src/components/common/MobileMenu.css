@@ -1,7 +1,8 @@
 .mobile-menu-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
   z-index: 2000;
   display: flex;
   justify-content: flex-start;
@@ -10,15 +11,14 @@
 
 .mobile-menu-drawer {
   width: 85%;
-  max-width: 360px;
+  max-width: 320px;
   height: 100%;
-  background: #141414 !important;
-  border-right: 1px solid var(--border-strong);
+  background: #0D0D0D !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
-  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.9);
-  animation: slideRight 0.3s ease;
-  opacity: 1 !important;
+  box-shadow: 10px 0 40px rgba(0, 0, 0, 0.95);
+  animation: slideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideRight {
@@ -30,21 +30,27 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: #0B0B0B;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #050505;
 }
 
 .mobile-logo-text {
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: var(--text-white);
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #FFFFFF;
 }
 
 .mobile-close-btn {
-  color: var(--text-muted);
-  font-size: 1.5rem;
+  color: #A0A0A0;
+  font-size: 1.4rem;
+  transition: color 0.2s ease;
+}
+
+.mobile-close-btn:hover {
+  color: #E50914;
 }
 
 .mobile-menu-body {
@@ -54,11 +60,11 @@
 }
 
 .mobile-nav-section-title {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--accent-red);
+  color: #E50914;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   margin: 20px 0 10px;
 }
 
@@ -66,24 +72,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0;
-  color: var(--text-muted);
-  font-weight: 500;
-  font-size: 0.95rem;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 14px 0;
+  color: #CCCCCC;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: color 0.2s ease;
 }
 
 .mobile-nav-item:hover {
-  color: var(--text-white);
-}
-
-.highlight-red {
-  color: var(--accent-red) !important;
-  font-weight: 700;
+  color: #FFFFFF;
 }
 
 .mobile-menu-footer {
   padding: 20px;
-  border-top: 1px solid var(--border-subtle);
-  background: #0B0B0B;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: #050505;
 }

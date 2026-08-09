@@ -1,49 +1,61 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { FiX, FiChevronRight, FiHeart } from 'react-icons/fi';
+import { NavLink } from 'react-router-dom';
+import { FiX, FiChevronRight, FiUser, FiHeart, FiShoppingBag, FiPhoneCall } from 'react-icons/fi';
+import logoImg from '../../assets/logo/logo.jpeg';
+import { useCart } from '../../context/CartContext';
 import './MobileMenu.css';
 
 const MobileMenu = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
+  const { totalItems, setIsCartOpen } = useCart();
+
+  const navLinks = [
+    { title: 'HOME', path: '/' },
+    { title: 'SHOP', path: '/shop' },
+    { title: 'COMBOS', path: '/combos' },
+    { title: 'ABOUT US', path: '/about' },
+    { title: 'CONTACT', path: '/contact' }
+  ];
 
   return (
-    <div className="mobile-menu-backdrop">
-      <div className="mobile-menu-drawer glass-panel">
-        <div className="mobile-menu-header">
-          <span className="mobile-logo-text">ORDERLY</span>
-          <button className="mobile-close-btn" onClick={onClose}>
-            <FiX />
+    <div className={`mobile-drawer-backdrop ${isOpen ? 'active' : ''}`} onClick={onClose}>
+      <div className="mobile-drawer-content" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="mobile-drawer-header">
+          <img src={logoImg} alt="ORDERLY" style={{ height: 26, objectFit: 'contain' }} />
+          <button type="button" className="btn-close btn-close-white" onClick={onClose} aria-label="Close menu" />
+        </div>
+
+        {/* Links List */}
+        <nav className="mobile-drawer-nav">
+          {navLinks.map((link, idx) => (
+            <NavLink
+              key={idx}
+              to={link.path}
+              onClick={onClose}
+              className={({ isActive }) => `mobile-drawer-link ${isActive ? 'active' : ''}`}
+            >
+              <span>{link.title}</span>
+              <FiChevronRight style={{ fontSize: '1.1rem', opacity: 0.6 }} />
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Quick Action Footer */}
+        <div className="pt-3 border-top border-secondary mt-auto">
+          <NavLink to="/login" onClick={onClose} className="btn btn-outline-light btn-sm w-100 mb-2 d-flex align-items-center justify-content-center gap-2">
+            <FiUser /> Account / Login
+          </NavLink>
+          
+          <button 
+            type="button" 
+            className="btn btn-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2 fw-bold"
+            onClick={() => {
+              onClose();
+              setIsCartOpen(true);
+            }}
+          >
+            <FiShoppingBag /> View Bag ({totalItems})
           </button>
-        </div>
-
-        <div className="mobile-menu-body">
-          <nav className="mobile-nav-links">
-            <Link to="/" onClick={onClose} className="mobile-nav-item">
-              Home <FiChevronRight />
-            </Link>
-
-            <div className="mobile-nav-section-title">Catalog</div>
-            <Link to="/shop" onClick={onClose} className="mobile-nav-item">
-              Shop All <FiChevronRight />
-            </Link>
-            <Link to="/combos" onClick={onClose} className="mobile-nav-item">
-              Combos <FiChevronRight />
-            </Link>
-
-            <div className="mobile-nav-section-title">Company</div>
-            <Link to="/about" onClick={onClose} className="mobile-nav-item">
-              About ORDERLY <FiChevronRight />
-            </Link>
-            <Link to="/contact" onClick={onClose} className="mobile-nav-item">
-              Contact Us <FiChevronRight />
-            </Link>
-          </nav>
-        </div>
-
-        <div className="mobile-menu-footer">
-          <Link to="/wishlist" onClick={onClose} className="btn-outline-orderly w-100 mb-2">
-            <FiHeart /> Wishlist
-          </Link>
         </div>
       </div>
     </div>

@@ -79,17 +79,30 @@ export const getAllSettings = async (req, res) => {
 
 export const updateSettings = async (req, res) => {
   try {
-    const settingsArray = req.body;
-    if (Array.isArray(settingsArray)) {
-      for (const item of settingsArray) {
+    const payload = req.body;
+    if (Array.isArray(payload)) {
+      for (const item of payload) {
         try {
-          const value = item.type === 'json'
+          const type = item.type || (typeof item.value === 'object' ? 'json' : 'text');
+          const value = type === 'json'
             ? (typeof item.value === 'string' ? item.value : JSON.stringify(item.value))
             : String(item.value ?? '');
           await SiteSetting.upsert({
             setting_key: item.key,
             setting_value: value,
-            setting_type: item.type || 'text'
+            setting_type: type
+          });
+        } catch (err) {}
+      }
+    } else if (payload && typeof payload === 'object') {
+      for (const [key, rawVal] of Object.entries(payload)) {
+        try {
+          const type = typeof rawVal === 'object' ? 'json' : 'text';
+          const value = type === 'json' ? JSON.stringify(rawVal) : String(rawVal ?? '');
+          await SiteSetting.upsert({
+            setting_key: key,
+            setting_value: value,
+            setting_type: type
           });
         } catch (err) {}
       }

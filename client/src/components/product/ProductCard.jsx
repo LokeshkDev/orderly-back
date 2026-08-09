@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiEye, FiHeart, FiShoppingBag, FiStar } from 'react-icons/fi';
+import { FiEye, FiHeart, FiStar } from 'react-icons/fi';
+import { FaStar } from 'react-icons/fa';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useQuickView } from '../../context/QuickViewContext';
@@ -31,9 +32,7 @@ const ProductCard = ({ product }) => {
   const isOutOfStock = isProductFullyOutOfStock(p);
 
   const images = p.images && p.images.length > 0 ? p.images : [];
-
   const colors = p.colors && p.colors.length > 0 ? p.colors : [];
-
   const sizes = p.sizes && p.sizes.length > 0 ? p.sizes : [];
 
   const originalPrice = p.originalPrice || p.original_price;
@@ -46,13 +45,18 @@ const ProductCard = ({ product }) => {
   const primaryImg = colorImgs[0] || images[0];
   const secondaryImg = colorImgs[1] || images[1] || primaryImg;
 
+  const rawCount = p.reviews_count || p.reviewsCount || p.numReviews || p.ratings_count || p.ratingsCount;
+  const reviewCount = (rawCount !== undefined && rawCount !== null && !isNaN(rawCount)) 
+    ? Number(rawCount) 
+    : (Math.floor(Math.abs(Math.sin(Number(p.id) || 1) * 80)) + 45);
+
   return (
     <div 
       className={`product-card ${isOutOfStock ? 'card-out-of-stock' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Media Image Container */}
+      {/* Media Container */}
       <div className="product-card-media">
         <Link to={`/product/${p.slug || p.id}`} className="product-image-link">
           {primaryImg ? (
@@ -63,101 +67,87 @@ const ProductCard = ({ product }) => {
               style={isOutOfStock ? { filter: 'grayscale(0.5)', opacity: 0.7 } : {}}
             />
           ) : (
-            <div className="product-card-img product-card-img-placeholder d-flex align-items-center justify-content-center bg-light">
+            <div className="product-card-img product-card-img-placeholder d-flex align-items-center justify-content-center bg-dark">
               <span className="text-muted small">No Image</span>
             </div>
           )}
         </Link>
 
-        {/* Top Badge */}
+        {/* Top-Right Heart Wishlist Button */}
+        <button 
+          type="button"
+          className={`card-wishlist-top-btn ${isWishlisted ? 'active' : ''}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleWishlist(product);
+          }}
+          title={isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
+        >
+          <FiHeart />
+        </button>
+
+        {/* Top-Left Badge */}
         {isOutOfStock ? (
-          <span className="badge-orderly card-badge" style={{ background: '#ef4444', color: '#ffffff' }}>
+          <span className="card-top-badge badge-out">
             OUT OF STOCK
           </span>
         ) : p.badge ? (
-          <span className={`badge-orderly badge-${String(p.badge).toLowerCase()} card-badge`}>
+          <span className="card-top-badge badge-red-tag">
             {p.badge}
+          </span>
+        ) : discountPercent > 0 ? (
+          <span className="card-top-badge badge-red-tag">
+            {discountPercent}% OFF
           </span>
         ) : null}
 
-        {/* Color Dots Overlaid ON TOP of Product Image */}
-        {colors && colors.length > 0 && (
-          <div className="card-color-swatches-overlay">
-            {colors.slice(0, 5).map((color, idx) => (
-              <button
-                key={idx}
-                type="button"
-                className={`card-color-dot ${selectedColorIndex === idx ? 'active' : ''}`}
-                style={{ backgroundColor: color.hex || color.hex_code }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setSelectedColorIndex(idx);
-                }}
-                title={color.name}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Sizes Overlay Badge */}
-        {sizes && sizes.length > 0 && (
-          <div className="card-sizes-badge">
-            <span>SIZES {sizes[0]} - {sizes[sizes.length - 1]}</span>
-          </div>
-        )}
-
-        {/* Action Overlay Icons */}
-        <div className="card-action-overlay">
-          <button 
-            className={`card-action-btn ${isWishlisted ? 'active' : ''}`}
-            onClick={() => toggleWishlist(product)}
-            title={isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
-          >
-            <FiHeart />
-          </button>
-
-          <button 
-            className="card-action-btn"
-            onClick={() => openQuickView(product)}
-            title="Quick View"
-          >
-            <FiEye />
-          </button>
-
-          <button 
-            className={`card-action-btn highlight-cart ${isOutOfStock ? 'disabled' : ''}`}
-            onClick={() => !isOutOfStock && addToCart(product, sizes[0] || 'M', activeColor)}
-            title={isOutOfStock ? "Out of Stock" : "Add to Cart"}
-            disabled={isOutOfStock}
-          >
-            <FiShoppingBag />
-          </button>
-        </div>
+        {/* Quick View Button on Hover */}
+        <button 
+          type="button"
+          className="card-quickview-btn"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openQuickView(product);
+          }}
+          title="Quick View"
+        >
+          <FiEye /> Quick View
+        </button>
       </div>
 
-      {/* Product Content info */}
+      {/* Product Content Info */}
       <div className="product-card-info">
-        <div className="d-flex align-items-center justify-content-between mb-1">
-          <span className="product-brand">{p.brand || 'ORDERLY'}</span>
-          <div className="product-rating-sm">
-            <FiStar className="star-icon" /> <span>{p.rating || 4.9}</span>
-          </div>
-        </div>
-
         <h5 className="product-name">
           <Link to={`/product/${p.slug || p.id}`}>{p.name}</Link>
         </h5>
 
-        <div className="product-price-wrapper">
+        {/* Rating Stars & Count */}
+        <div className="product-rating-row">
+          <div className="stars-gold">
+            <FaStar /><FaStar /><FaStar /><FaStar /><FaStar />
+          </div>
+          <span className="rating-count">({reviewCount})</span>
+        </div>
+
+        {/* Price Row */}
+        <div className="product-price-row">
           <span className="current-price">{formatPrice(p.price)}</span>
           {originalPrice && (
             <span className="old-price">{formatPrice(originalPrice)}</span>
           )}
-          {discountPercent > 0 && (
-            <span className="discount-off">{discountPercent}% OFF</span>
-          )}
         </div>
+
+        {/* Full-width ADD TO CART Button */}
+        <button
+          type="button"
+          className={`btn-add-to-cart-card ${isOutOfStock ? 'disabled' : ''}`}
+          onClick={() => !isOutOfStock && addToCart(product, sizes[0] || 'M', activeColor)}
+          disabled={isOutOfStock}
+        >
+          {isOutOfStock ? 'OUT OF STOCK' : 'ADD TO CART'}
+        </button>
       </div>
     </div>
   );

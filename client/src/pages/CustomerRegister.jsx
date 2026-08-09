@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import SEO from '../components/common/SEO';
 import { customerRegister } from '../services/api';
 import logoImg from '../assets/logo/logo.jpeg';
-import { FiUser, FiMail, FiLock, FiPhone, FiArrowRight } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiPhone, FiArrowRight, FiShield, FiEye, FiEyeOff, FiCheck, FiChevronLeft } from 'react-icons/fi';
 import './AuthPages.css';
 
 const CustomerRegister = () => {
@@ -11,6 +11,8 @@ const CustomerRegister = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -19,6 +21,10 @@ const CustomerRegister = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!agreeTerms) {
+      setError('Please accept the Terms of Service to create an account.');
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -31,7 +37,6 @@ const CustomerRegister = () => {
       localStorage.setItem('orderly_customer_token', token);
       localStorage.setItem('orderly_logged_in_user', JSON.stringify(customerRecord));
       window.dispatchEvent(new CustomEvent('orderly_auth_changed'));
-      toast.success(`Welcome to ORDERLY, ${name}!`);
       navigate(redirectTarget);
     } else {
       setError(res?.message || 'Registration failed. Please try again.');
@@ -41,93 +46,192 @@ const CustomerRegister = () => {
   return (
     <>
       <SEO title="Create Account | ORDERLY Menswear Atelier" />
-      <div className="auth-page-wrapper register-dark-bg py-5">
-        <div className="auth-card glass-panel auth-card-dark fade-in-up">
-          <div className="auth-header text-center mb-4">
-            <Link to="/">
-              <img src={logoImg} alt="ORDERLY Mens Wear" className="auth-brand-logo mb-2" />
-            </Link>
-            <h3 className="auth-title text-white fw-bold mt-2 mb-1">Create Account</h3>
-            <p className="auth-subtitle text-muted">Join ORDERLY Privileges to unlock express checkout & tracking</p>
+
+      <div className="auth-master-page">
+        <div className="auth-split-container">
+          
+          {/* LEFT HERO SIDEBAR (Desktop & Tablet Layout) */}
+          <div className="auth-hero-sidebar register-hero">
+            <div className="auth-hero-bg register-bg" />
+            <div className="auth-hero-vignette" />
+            <div className="auth-hero-content">
+              <Link to="/" className="auth-hero-logo-link">
+                <img src={logoImg} alt="ORDERLY" className="auth-hero-logo" />
+              </Link>
+              
+              <div className="auth-hero-badge">JOIN THE CLUB</div>
+              <h1 className="auth-hero-heading">UNLOCK EXCLUSIVE PRIVILEGES.</h1>
+              <p className="auth-hero-text">
+                Create your ORDERLY account to experience bespoke menswear shopping with VIP benefits.
+              </p>
+
+              <div className="auth-benefits-list">
+                <div className="auth-benefit-item">
+                  <span className="auth-benefit-check"><FiCheck /></span>
+                  <span>₹500 Welcome Voucher on First Order</span>
+                </div>
+                <div className="auth-benefit-item">
+                  <span className="auth-benefit-check"><FiCheck /></span>
+                  <span>Instant Order Status & Tracking</span>
+                </div>
+                <div className="auth-benefit-item">
+                  <span className="auth-benefit-check"><FiCheck /></span>
+                  <span>Easy 7-Day Hassle-Free Returns</span>
+                </div>
+              </div>
+
+              <div className="auth-hero-footer">
+                <p className="auth-quote">"Modern elegance meets master craftsmanship."</p>
+                <span className="auth-quote-author">— ORDERLY Menswear Atelier</span>
+              </div>
+            </div>
           </div>
 
-          {error && <div className="auth-alert alert-danger mb-3">{error}</div>}
-
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group mb-3">
-              <label className="form-label text-muted small fw-bold mb-1">FULL NAME *</label>
-              <div className="input-group-custom">
-                <FiUser className="input-icon" />
-                <input 
-                  type="text" 
-                  className="auth-input dark-input" 
-                  placeholder="e.g. Lokesh Sharma" 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
+          {/* RIGHT FORM CONTAINER */}
+          <div className="auth-form-panel">
+            <div className="auth-form-inner">
+              
+              {/* Back to Home Link */}
+              <div className="auth-top-nav">
+                <Link to="/" className="auth-back-link">
+                  <FiChevronLeft /> Back to Store
+                </Link>
+                <div className="auth-brand-mobile-logo d-lg-none">
+                  <img src={logoImg} alt="ORDERLY" />
+                </div>
               </div>
-            </div>
 
-            <div className="form-group mb-3">
-              <label className="form-label text-muted small fw-bold mb-1">EMAIL ADDRESS *</label>
-              <div className="input-group-custom">
-                <FiMail className="input-icon" />
-                <input 
-                  type="email" 
-                  className="auth-input dark-input" 
-                  placeholder="name@example.com" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+              {/* Mode Switcher Tabs (Sign In / Register) */}
+              <div className="auth-mode-tabs">
+                <Link to="/login" className="auth-mode-tab inactive">
+                  SIGN IN
+                </Link>
+                <button type="button" className="auth-mode-tab active">
+                  CREATE ACCOUNT
+                </button>
               </div>
-            </div>
 
-            <div className="form-group mb-3">
-              <label className="form-label text-muted small fw-bold mb-1">PHONE NUMBER *</label>
-              <div className="input-group-custom">
-                <FiPhone className="input-icon" />
-                <input 
-                  type="tel" 
-                  className="auth-input dark-input" 
-                  placeholder="+91 98765 43210" 
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  required
-                />
+              {/* Header Titles */}
+              <div className="auth-form-header">
+                <h2 className="auth-form-title">Create Account</h2>
+                <p className="auth-form-subtitle">Fill in your details below to set up your ORDERLY account</p>
               </div>
-            </div>
 
-            <div className="form-group mb-4">
-              <label className="form-label text-muted small fw-bold mb-1">PASSWORD *</label>
-              <div className="input-group-custom">
-                <FiLock className="input-icon" />
-                <input 
-                  type="password" 
-                  className="auth-input dark-input" 
-                  placeholder="Minimum 6 characters" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
+              {error && (
+                <div className="auth-alert-error">
+                  <FiShield className="me-2" /> {error}
+                </div>
+              )}
+
+              {/* Form Fields */}
+              <form onSubmit={handleSubmit} className="auth-main-form">
+                
+                {/* Full Name */}
+                <div className="auth-field-group">
+                  <label className="auth-field-label">FULL NAME *</label>
+                  <div className="auth-input-wrapper">
+                    <FiUser className="auth-field-icon" />
+                    <input 
+                      type="text" 
+                      className="auth-text-input" 
+                      placeholder="e.g. Lokesh Sharma" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Email Address */}
+                <div className="auth-field-group">
+                  <label className="auth-field-label">EMAIL ADDRESS *</label>
+                  <div className="auth-input-wrapper">
+                    <FiMail className="auth-field-icon" />
+                    <input 
+                      type="email" 
+                      className="auth-text-input" 
+                      placeholder="name@example.com" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Phone Number */}
+                <div className="auth-field-group">
+                  <label className="auth-field-label">PHONE NUMBER *</label>
+                  <div className="auth-input-wrapper">
+                    <FiPhone className="auth-field-icon" />
+                    <input 
+                      type="tel" 
+                      className="auth-text-input" 
+                      placeholder="+91 98765 43210" 
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div className="auth-field-group">
+                  <label className="auth-field-label">PASSWORD *</label>
+                  <div className="auth-input-wrapper">
+                    <FiLock className="auth-field-icon" />
+                    <input 
+                      type={showPassword ? 'text' : 'password'} 
+                      className="auth-text-input" 
+                      placeholder="Minimum 6 characters" 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                    <button 
+                      type="button" 
+                      className="auth-eye-btn"
+                      onClick={() => setShowPassword(prev => !prev)}
+                      tabIndex="-1"
+                    >
+                      {showPassword ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Terms Agreement */}
+                <div className="auth-options-row">
+                  <label className="auth-checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      className="auth-checkbox-input"
+                    />
+                    <span>I agree to ORDERLY <a href="#terms" className="text-danger">Terms & Privacy Policy</a></span>
+                  </label>
+                </div>
+
+                {/* Submit Button */}
+                <button type="submit" className="auth-submit-btn" disabled={loading}>
+                  {loading ? (
+                    <span className="auth-spinner">Creating Account...</span>
+                  ) : (
+                    <>CREATE ACCOUNT NOW <FiArrowRight className="ms-2" /></>
+                  )}
+                </button>
+
+              </form>
+
+              {/* Bottom Footer Note */}
+              <div className="auth-form-footer">
+                <span className="text-muted">Already have an account? </span>
+                <Link to="/login" className="auth-switch-cta">Sign In Here</Link>
               </div>
+
             </div>
-
-            <button type="submit" className="btn-primary-orderly w-100 py-3 mb-3 fw-bold" disabled={loading}>
-              {loading ? 'Creating Account...' : <>Create Account <FiArrowRight className="ms-1" /></>}
-            </button>
-          </form>
-
-          <div className="auth-footer text-center mt-3 pt-3 border-top border-secondary">
-            <span className="text-muted small">Already have an account? </span>
-            <Link to="/login" className="auth-switch-link text-warning fw-bold ms-1">Sign In</Link>
           </div>
 
-          <div className="text-center mt-3">
-            <Link to="/" className="back-home-link text-muted extra-small">← Return to Storefront</Link>
-          </div>
         </div>
       </div>
     </>

@@ -156,8 +156,28 @@ const MobileShop = () => {
   const filteredProducts = useMemo(() => {
     let result = productsList.filter(product => {
       if (!product) return false;
-      if (product.type === 'combo' || product.is_combo || product.pieces_count || String(product.id).startsWith('combo-')) {
+      // Strict Single Product Check (Exclude all Combos/Bundles)
+      if (
+        product.type === 'combo' ||
+        product.is_combo ||
+        product.isCombo ||
+        product.pieces_count ||
+        (Array.isArray(product.items) && product.items.length > 0) ||
+        (product.badge && String(product.badge).toLowerCase().includes('combo')) ||
+        String(product.id).toLowerCase().includes('combo') ||
+        String(product.name).toLowerCase().includes('combo')
+      ) {
         return false;
+      }
+      if (searchParam && searchParam.trim() !== '') {
+        const q = searchParam.trim().toLowerCase();
+        const nameMatch = product.name?.toLowerCase().includes(q);
+        const catMatch = product.category?.toLowerCase().includes(q);
+        const brandMatch = product.brand?.toLowerCase().includes(q);
+        const descMatch = product.description?.toLowerCase().includes(q);
+        if (!nameMatch && !catMatch && !brandMatch && !descMatch) {
+          return false;
+        }
       }
       if (selectedCategory !== 'All' && !matchesCategoryAlias(product.category, selectedCategory)) {
         return false;
@@ -188,7 +208,7 @@ const MobileShop = () => {
       if (sortBy === 'newest') return b.id - a.id;
       return 0;
     });
-  }, [productsList, selectedCategory, selectedBrand, selectedColor, selectedSize, appliedMinPrice, appliedMaxPrice, sortBy, inStockOnly]);
+  }, [productsList, selectedCategory, selectedBrand, selectedColor, selectedSize, appliedMinPrice, appliedMaxPrice, sortBy, inStockOnly, searchParam]);
 
   const displayedProducts = useMemo(() => {
     return filteredProducts.slice(0, displayCount);
@@ -326,6 +346,11 @@ const MobileShop = () => {
           {/* Active Filter Chips */}
           {hasActiveFilters && (
             <div className="mobile-active-chips-scroll">
+              {searchParam && (
+                <span className="mobile-chip-tag">
+                  Search: "{searchParam}" <FiX onClick={() => setSearchParams({})} />
+                </span>
+              )}
               {selectedCategory !== 'All' && (
                 <span className="mobile-chip-tag">
                   {selectedCategory} <FiX onClick={() => { setSelectedCategory('All'); setSearchParams({}); }} />

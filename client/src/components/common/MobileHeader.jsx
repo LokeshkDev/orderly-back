@@ -1,17 +1,27 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiMenu, FiSearch, FiUser, FiHeart, FiShoppingBag, FiX } from 'react-icons/fi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import logoImg from '../../assets/logo/logo.jpeg';
 
 const MobileHeader = ({ onOpenMenu }) => {
+  const navigate = useNavigate();
   const { totalItems, setIsCartOpen } = useCart();
   const { wishlist } = useWishlist();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const wishlistCount = wishlist ? wishlist.length : 0;
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
 
   return (
     <>
@@ -35,7 +45,7 @@ const MobileHeader = ({ onOpenMenu }) => {
           </Link>
         </div>
 
-        {/* Right: Search, Account, Wishlist, Cart */}
+        {/* Right: Search and Account icon only */}
         <div className="mobile-header-right">
           <button 
             type="button" 
@@ -49,32 +59,13 @@ const MobileHeader = ({ onOpenMenu }) => {
           <Link to="/login" className="mobile-header-icon-btn" aria-label="Account">
             <FiUser />
           </Link>
-
-          <Link to="/wishlist" className="mobile-header-icon-btn" aria-label="Wishlist">
-            <FiHeart />
-            {wishlistCount > 0 && (
-              <span className="mobile-cart-badge">{wishlistCount}</span>
-            )}
-          </Link>
-
-          <button 
-            type="button" 
-            className="mobile-header-icon-btn"
-            onClick={() => setIsCartOpen(true)}
-            aria-label="Open Shopping Bag"
-          >
-            <FiShoppingBag />
-            {totalItems > 0 && (
-              <span className="mobile-cart-badge">{totalItems}</span>
-            )}
-          </button>
         </div>
       </header>
 
       {/* Expandable Search Input Bar */}
       {isSearchOpen && (
         <div className="p-2 bg-dark border-bottom border-secondary mobile-only position-relative z-3">
-          <div className="d-flex align-items-center gap-2 px-2">
+          <form onSubmit={handleSearchSubmit} className="d-flex align-items-center gap-2 px-2">
             <input 
               type="text" 
               className="form-control form-control-sm bg-black text-white border-secondary"
@@ -84,13 +75,20 @@ const MobileHeader = ({ onOpenMenu }) => {
               autoFocus
             />
             <button 
+              type="submit" 
+              className="btn btn-sm btn-danger px-3"
+              aria-label="Submit Search"
+            >
+              <FiSearch />
+            </button>
+            <button 
               type="button" 
               className="btn btn-sm btn-outline-light" 
               onClick={() => setIsSearchOpen(false)}
             >
               <FiX />
             </button>
-          </div>
+          </form>
         </div>
       )}
     </>

@@ -1,12 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiGrid, FiLayers, FiPackage, FiHeart, FiUser } from 'react-icons/fi';
-import { useWishlist } from '../../context/WishlistContext';
+import { FiHome, FiGrid, FiPackage, FiUser, FiShoppingBag } from 'react-icons/fi';
+import { useCart } from '../../context/CartContext';
 import './BottomNavbar.css';
 
 const BottomNavbar = () => {
-  const { wishlist } = useWishlist();
-  const wishlistCount = wishlist ? wishlist.length : 0;
+  const { totalItems, setIsCartOpen } = useCart();
 
   return (
     <nav className="orderly-bottom-navbar mobile-only" aria-label="Mobile App Bottom Navigation">
@@ -30,7 +29,21 @@ const BottomNavbar = () => {
           <span className="bottom-nav-label">Shop</span>
         </NavLink>
 
-        {/* 3. COMBOS */}
+        {/* 3. CENTER HIGHLIGHTED CART / BAG */}
+        <button
+          type="button"
+          className="bottom-nav-item center-cart-highlight"
+          onClick={() => setIsCartOpen(true)}
+          aria-label="Open Shopping Bag"
+        >
+          <div className="center-cart-circle">
+            <FiShoppingBag className="center-cart-icon" />
+            {totalItems > 0 && <span className="center-cart-badge">{totalItems}</span>}
+          </div>
+          <span className="bottom-nav-label center-cart-label">Cart</span>
+        </button>
+
+        {/* 4. COMBOS */}
         <NavLink 
           to="/combos" 
           className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}

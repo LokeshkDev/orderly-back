@@ -97,8 +97,70 @@ const ProductsList = () => {
     sizes: [],
     stock: 0,
     suggested_products: [],
+    pair_offers: {},
     inventory: {}
   });
+
+  const getPairBasePrice = (product) => Number(product?.originalPrice ?? product?.price ?? 0);
+
+  const buildPairOffer = (product, rawOffer = {}) => {
+    const discountPercent = Math.max(0, Math.min(90, Number(rawOffer.discount_percent ?? rawOffer.discountPercent ?? 0)));
+    const basePrice = getPairBasePrice(product);
+    const offerPrice = discountPercent > 0
+      ? Math.max(0, Math.round(basePrice * (100 - discountPercent) / 100))
+      : Number(rawOffer.offer_price ?? basePrice ?? 0);
+
+    return {
+      enabled: Boolean(rawOffer.enabled),
+      discount_percent: discountPercent,
+      offer_price: offerPrice,
+      badge: rawOffer.badge || (discountPercent > 0 ? `AVAIL ${discountPercent}% OFF` : ''),
+      note: rawOffer.note || ''
+    };
+  };
+
+  const cleanupPairOffers = (suggestedProducts = [], pairOffers = {}) => {
+    const selectedIds = suggestedProducts.map(String);
+    return selectedIds.reduce((acc, id) => {
+      const selectedProduct = products.find(prod => String(prod.id) === String(id));
+      if (pairOffers[id] || selectedProduct) {
+        acc[id] = buildPairOffer(selectedProduct, pairOffers[id] || {});
+      }
+      return acc;
+    }, {});
+  };
+
+  const updatePairOffer = (productId, patch) => {
+    const key = String(productId);
+    setFormData(prev => ({
+      ...prev,
+      pair_offers: {
+        ...(prev.pair_offers || {}),
+        [key]: {
+          enabled: false,
+          discount_percent: 0,
+          offer_price: 0,
+          badge: '',
+          note: '',
+          ...(prev.pair_offers?.[key] || {}),
+          ...patch
+        }
+      }
+    }));
+  };
+
+  const applyPairPercentageDeal = (product, pairId, percent) => {
+    const discountPct = Math.max(0, Math.min(90, Number(percent) || 0));
+    const basePrice = getPairBasePrice(product);
+    const offerPrice = Math.max(0, Math.round(basePrice * (100 - discountPct) / 100));
+    updatePairOffer(pairId, {
+      enabled: true,
+      discount_percent: discountPct,
+      offer_price: offerPrice,
+      badge: `AVAIL ${discountPct}% OFF`,
+      note: `Pair deal ${discountPct}% off when added from product page`
+    });
+  };
 
   const openAddModal = () => {
     setEditingProduct(null);
@@ -121,6 +183,7 @@ const ProductsList = () => {
       sizes: [],
       stock: 0,
       suggested_products: [],
+      pair_offers: {},
       inventory: {}
     });
     setIsModalOpen(true);
@@ -161,6 +224,10 @@ const ProductsList = () => {
       sizes: p.sizes || [],
       stock: p.stock !== undefined ? p.stock : calculatedStock,
       suggested_products: Array.isArray(p.suggested_products) ? p.suggested_products : [],
+      pair_offers: cleanupPairOffers(
+        Array.isArray(p.suggested_products) ? p.suggested_products : [],
+        p.pair_offers || {}
+      ),
       inventory: initialInventory
     });
     setIsModalOpen(true);
@@ -257,10 +324,12 @@ const ProductsList = () => {
     });
 
     const totalStock = Object.values(fullInventory).reduce((a, b) => a + Number(b || 0), 0);
+    const cleanPairOffers = cleanupPairOffers(formData.suggested_products, formData.pair_offers);
     const finalFormData = { 
       ...formData, 
       inventory: fullInventory, 
       stock: totalStock,
+      pair_offers: cleanPairOffers,
       slug: formData.slug || formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
     };
 
@@ -736,7 +805,7 @@ const ProductsList = () => {
                         <button
                           type="button"
                           className="btn-admin-outline py-1 text-nowrap"
-                          onClick={() => setFormData(prev => ({ ...prev, suggested_products: [] }))}
+                          onClick={() => setFormData(prev => ({ ...prev, suggested_products: [], pair_offers: {} }))}
                         >
                           Clear All
                         </button>
@@ -763,10 +832,13 @@ const ProductsList = () => {
                                 onChange={() => {
                                   setFormData(prev => {
                                     const current = prev.suggested_products.map(String);
+                                    const productId = String(p.id);
                                     const next = isChecked
-                                      ? current.filter(sp => sp !== String(p.id))
-                                      : [...current, String(p.id)];
-                                    return { ...prev, suggested_products: next };
+                                      ? current.filter(sp => sp !== productId)
+                                      : [...current, productId];
+                                    const nextPairOffers = { ...(prev.pair_offers || {}) };
+                                    if (isChecked) delete nextPairOffers[productId];
+                                    return { ...prev, suggested_products: next, pair_offers: cleanupPairOffers(next, nextPairOffers) };
                                   });
                                 }}
                               />
@@ -782,6 +854,96 @@ const ProductsList = () => {
                         </div>
                       )}
                     </div>
+                    {formData.suggested_products.length > 0 && (
+                      <div className="mt-3">
+                        <div className="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-2">
+                          <div>
+                            <div className="admin-form-label mb-1">PAIR OFFER SETUP</div>
+                            <div className="text-muted extra-small">
+                              Set a discount percent for each selected pair. The offer price and badge are calculated automatically from the product’s base price.
+                            </div>
+                          </div>
+                        </div>
+                        <div className="d-grid gap-2">
+                          {formData.suggested_products.map(pairId => {
+                            const selectedProduct = products.find(prod => String(prod.id) === String(pairId));
+                            if (!selectedProduct) return null;
+                            const offer = formData.pair_offers?.[String(pairId)] || {};
+                            return (
+                              <div key={pairId} className="p-3 border rounded bg-white">
+                                <div className="d-flex align-items-center justify-content-between gap-3 mb-2">
+                                  <div className="min-w-0">
+                                    <div className="fw-bold text-dark small line-clamp-1">{selectedProduct.name}</div>
+                                    <div className="text-muted extra-small">
+                                      Regular price: ₹{Number(selectedProduct.price || 0).toLocaleString()}
+                                    </div>
+                                  </div>
+                                  <label className="d-flex align-items-center gap-2 text-dark small mb-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(offer.enabled)}
+                                      onChange={(e) => updatePairOffer(pairId, {
+                                        enabled: e.target.checked,
+                                        offer_price: offer.offer_price || selectedProduct.price || 0
+                                      })}
+                                    />
+                                    Activate offer
+                                  </label>
+                                </div>
+                                <div className="d-flex flex-wrap gap-2 mb-3">
+                                  {[20, 30].map(pct => (
+                                    <button
+                                      key={pct}
+                                      type="button"
+                                      className="btn-admin-outline py-1 px-2 text-nowrap"
+                                      onClick={() => applyPairPercentageDeal(selectedProduct, pairId, pct)}
+                                    >
+                                      Set {pct}% off
+                                    </button>
+                                  ))}
+                                </div>
+                                {offer.enabled && (
+                                  <div className="row g-2">
+                                    <div className="col-md-4">
+                                      <label className="admin-form-label mb-1">Discount Percent</label>
+                                      <input
+                                        type="number"
+                                        className="admin-input py-1 px-2"
+                                        min="0"
+                                        max="90"
+                                        value={offer.discount_percent || ''}
+                                        onChange={(e) => applyPairPercentageDeal(selectedProduct, pairId, Number(e.target.value))}
+                                        placeholder="e.g. 20"
+                                      />
+                                    </div>
+                                    <div className="col-md-4">
+                                      <label className="admin-form-label mb-1">Badge Preview</label>
+                                      <input
+                                        type="text"
+                                        className="admin-input py-1 px-2"
+                                        value={offer.badge || ''}
+                                        readOnly
+                                        placeholder="Auto-generated from discount percent"
+                                      />
+                                    </div>
+                                    <div className="col-md-4">
+                                      <label className="admin-form-label mb-1">Promo Note</label>
+                                      <input
+                                        type="text"
+                                        className="admin-input py-1 px-2"
+                                        value={offer.note || ''}
+                                        onChange={(e) => updatePairOffer(pairId, { note: e.target.value })}
+                                        placeholder="e.g. Add this pair and save instantly"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

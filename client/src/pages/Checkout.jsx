@@ -1,31 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/common/SEO';
 import { useCart } from '../context/CartContext';
-import { createOrder } from '../services/api';
+import { createOrder, createRazorpayOrder, getPaymentConfig, getSettings, verifyRazorpayPayment } from '../services/api';
 import { formatPrice } from '../utils/formatters';
 import { 
-  FiLock, FiCheckCircle, FiCreditCard, FiSmartphone, FiTruck, FiUser, FiHome, FiBriefcase, FiMapPin, FiLogIn, FiBookmark 
+  FiLock, FiCheckCircle, FiCreditCard, FiSmartphone, FiTruck, FiHome, FiBriefcase, FiMapPin, FiShield, FiAlertCircle
 } from 'react-icons/fi';
 import './Checkout.css';
 
+let razorpayScriptPromise = null;
+
+const loadRazorpayScript = () => {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if (window.Razorpay) return Promise.resolve(true);
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }
+  return razorpayScriptPromise;
+};
+
 const Checkout = () => {
-  const { cart, total, subtotal, shippingCost, discountAmount, appliedCoupon, clearCart } = useCart();
+  const { cart, total, subtotal, originalSubtotal, pairOfferSavings, shippingCost, discountAmount, appliedCoupon, clearCart, pricingBreakdown } = useCart();
   const navigate = useNavigate();
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentMethod, setPaymentMethod] = useState('online');
   const [submitting, setSubmitting] = useState(false);
   const [orderError, setOrderError] = useState(null);
+  const [paymentConfig, setPaymentConfig] = useState({ razorpayKeyId: '', currency: 'INR', codAdvancePercentage: 10 });
+  const [siteSettings, setSiteSettings] = useState(null);
 
   // Address Type State (Home, Office, Other)
   const [addressType, setAddressType] = useState('Home');
-  const [saveAddressOption, setSaveAddressOption] = useState(true);
-  const [savedAddresses, setSavedAddresses] = useState([]);
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
     phone: '',
     address: '',
@@ -35,72 +51,48 @@ const Checkout = () => {
   });
 
   useEffect(() => {
-    // Check login state
-    const token = localStorage.getItem('orderly_customer_token');
-    const userStr = localStorage.getItem('orderly_logged_in_user');
-    const logged = Boolean(token || userStr);
-    setIsLoggedIn(logged);
-
-    if (userStr) {
-      try {
-        const parsed = JSON.parse(userStr);
-        setFormData(prev => ({
-          ...prev,
-          firstName: parsed.name ? parsed.name.split(' ')[0] : prev.firstName,
-          lastName: parsed.name ? parsed.name.split(' ').slice(1).join(' ') : prev.lastName,
-          email: parsed.email || prev.email,
-          phone: parsed.phone || prev.phone
-        }));
-      } catch (e) {}
-    }
-
-    // Load saved addresses
-    try {
-      const saved = localStorage.getItem('orderly_saved_addresses');
-      if (saved) {
-        const list = JSON.parse(saved);
-        if (Array.isArray(list)) setSavedAddresses(list);
-      }
-    } catch (e) {}
+    let active = true;
+    const loadConfig = async () => {
+      const [paymentRes, settingsRes] = await Promise.all([getPaymentConfig(), getSettings()]);
+      if (!active) return;
+      if (paymentRes?.success) setPaymentConfig({
+        razorpayKeyId: paymentRes.data?.razorpayKeyId || '',
+        currency: paymentRes.data?.currency || 'INR',
+        codAdvancePercentage: Number(paymentRes.data?.codAdvancePercentage) || 10
+      });
+      if (settingsRes?.success) setSiteSettings(settingsRes.data || {});
+    };
+    loadConfig();
+    window.addEventListener('orderly_settings_updated', loadConfig);
+    return () => {
+      active = false;
+      window.removeEventListener('orderly_settings_updated', loadConfig);
+    };
   }, []);
+
+  const codEnabled = String(siteSettings?.cod_enabled ?? 'true') !== 'false';
+  const codAdvancePercentage = Number(paymentConfig.codAdvancePercentage) || 10;
+  const codAdvanceAmount = Math.max(0, Math.round((Number(total) || 0) * (codAdvancePercentage / 100)));
+  const codBalanceDue = Math.max(0, Math.round((Number(total) || 0) - codAdvanceAmount));
+  const paymentDueNow = paymentMethod === 'cod' ? codAdvanceAmount : Number(total) || 0;
+  const paymentLabel = paymentMethod === 'cod' ? 'COD Advance' : 'Online Payment';
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSelectSavedAddress = (addr) => {
-    setFormData({
-      firstName: addr.firstName || '',
-      lastName: addr.lastName || '',
-      email: addr.email || formData.email,
-      phone: addr.phone || formData.phone,
-      address: addr.address || '',
-      city: addr.city || '',
-      state: addr.state || 'Karnataka',
-      pincode: addr.pincode || ''
-    });
-    if (addr.addressType) setAddressType(addr.addressType);
-  };
-
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
-    
-    // Mandatory Login Guard
-    if (!isLoggedIn) {
-      setOrderError('Account login is required before placing an order. Redirecting to login...');
-      setTimeout(() => {
-        navigate('/login', { state: { from: '/checkout' } });
-      }, 1200);
-      return;
-    }
 
     if (submitting) return;
     setSubmitting(true);
     setOrderError(null);
 
+    const nameParts = formData.fullName.trim().split(/\s+/);
     const shippingAddress = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+      firstName: formData.fullName.trim(),
+      lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '',
+      fullName: formData.fullName.trim(),
       email: formData.email,
       phone: formData.phone,
       address: formData.address,
@@ -110,19 +102,6 @@ const Checkout = () => {
       addressType: addressType
     };
 
-    // Save address for future 1-click checkout if requested
-    if (saveAddressOption) {
-      try {
-        const existing = localStorage.getItem('orderly_saved_addresses');
-        const list = existing ? JSON.parse(existing) : [];
-        const isDuplicate = list.some(a => a.address === shippingAddress.address && a.pincode === shippingAddress.pincode);
-        if (!isDuplicate) {
-          const updated = [{ ...shippingAddress, id: Date.now() }, ...list];
-          localStorage.setItem('orderly_saved_addresses', JSON.stringify(updated));
-        }
-      } catch (e) {}
-    }
-
     const orderData = {
       items: cart.map(item => ({
         id: item.id,
@@ -130,10 +109,13 @@ const Checkout = () => {
         isCombo: Boolean(item.isCombo),
         name: item.name,
         price: item.price,
+        originalPrice: item.originalPrice || item.original_price || item.price,
         quantity: item.quantity,
         selectedSize: item.selectedSize,
         selectedColor: item.selectedColor,
-        selectedPieces: item.selectedPieces || []
+        selectedPieces: item.selectedPieces || [],
+        pairOffer: item.pairOffer || null,
+        isPairOffer: Boolean(item.isPairOffer || item.pairOffer?.enabled)
       })),
       shippingAddress,
       subtotal,
@@ -142,23 +124,138 @@ const Checkout = () => {
       shipping_fee: shippingCost,
       total,
       paymentMethod,
-      couponCode: appliedCoupon?.code || ''
+      couponCode: appliedCoupon?.code || '',
+      pricingBreakdown
     };
 
-    const res = await createOrder(orderData);
-    if (res && res.success) {
-      clearCart();
-      navigate('/order-success', {
-        state: {
-          orderId: res.data?.order_number,
-          total: Number(res.data?.total) || total,
-          customerName: `${formData.firstName} ${formData.lastName}`,
+    try {
+      const res = await createOrder(orderData);
+      if (!res || !res.success) {
+        setOrderError(res?.message || 'Order failed. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      const createdOrder = res.data || {};
+      const paymentOrderRes = await createRazorpayOrder({
+        orderId: createdOrder.id,
+        orderNumber: createdOrder.order_number,
+        paymentMethod
+      });
+
+      if (!paymentOrderRes?.success) {
+        setOrderError(paymentOrderRes?.message || 'Unable to create payment session.');
+        setSubmitting(false);
+        return;
+      }
+
+      const amountDueNow = Number(paymentOrderRes.data?.amount || 0);
+      if (amountDueNow <= 0) {
+        clearCart();
+        navigate('/order-success', {
+          state: {
+            orderId: createdOrder.order_number,
+            total: Number(createdOrder.total) || total,
+            customerName: formData.fullName,
+            email: formData.email,
+            paymentMethod: paymentLabel,
+            amountPaid: 0,
+            balanceDue: Number(createdOrder.total) || total,
+            pricingBreakdown
+          }
+        });
+        return;
+      }
+
+      const scriptReady = await loadRazorpayScript();
+      if (!scriptReady || !window.Razorpay) {
+        setOrderError('Razorpay checkout script could not be loaded.');
+        setSubmitting(false);
+        return;
+      }
+
+      const paymentDescription = paymentMethod === 'cod'
+        ? `COD advance payment of ${formatPrice(paymentOrderRes.data?.amountRupees || paymentDueNow / 100)}`
+        : `Secure online payment for ${createdOrder.order_number}`;
+
+      let paymentHandled = false;
+      const finishSuccess = () => {
+        if (paymentHandled) return;
+        paymentHandled = true;
+        clearCart();
+        navigate('/order-success', {
+          state: {
+            orderId: createdOrder.order_number,
+            total: Number(createdOrder.total) || total,
+            customerName: formData.fullName,
+            email: formData.email,
+            paymentMethod: paymentLabel,
+            amountPaid: paymentMethod === 'cod' ? codAdvanceAmount : total,
+            balanceDue: paymentMethod === 'cod' ? codBalanceDue : 0,
+            pricingBreakdown
+          }
+        });
+      };
+
+      const finishFailure = (message = 'Payment failed or was cancelled. Your order remains pending.') => {
+        if (paymentHandled) return;
+        paymentHandled = true;
+        navigate('/order-failure', {
+          state: {
+            orderId: createdOrder.order_number,
+            message
+          }
+        });
+        setSubmitting(false);
+      };
+
+      const razorpay = new window.Razorpay({
+        key: paymentOrderRes.data?.keyId || paymentConfig.razorpayKeyId,
+        amount: amountDueNow,
+        currency: paymentOrderRes.data?.currency || paymentConfig.currency || 'INR',
+        name: 'ORDERLY Mens Wear',
+        description: paymentDescription,
+        order_id: paymentOrderRes.data?.razorpayOrderId,
+        prefill: {
+          name: formData.fullName,
           email: formData.email,
-          paymentMethod
+          contact: formData.phone
+        },
+        notes: {
+          order_number: createdOrder.order_number,
+          payment_method: paymentMethod
+        },
+        theme: {
+          color: '#c1121f'
+        },
+        modal: {
+          ondismiss: () => finishFailure('Payment was cancelled. You can retry the checkout or continue shopping.')
+        },
+        handler: async (response) => {
+          const verifyRes = await verifyRazorpayPayment({
+            orderId: createdOrder.id,
+            orderNumber: createdOrder.order_number,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          });
+
+          if (verifyRes?.success) {
+            finishSuccess();
+          } else {
+            finishFailure(verifyRes?.message || 'Payment verification failed. Please contact support.');
+          }
         }
       });
-    } else {
-      setOrderError(res?.message || 'Order failed. Please try again.');
+
+      razorpay.on('payment.failed', (failure) => {
+        const failureMessage = failure?.error?.description || 'Payment failed or was cancelled. Your order remains pending.';
+        finishFailure(failureMessage);
+      });
+
+      razorpay.open();
+    } catch (error) {
+      setOrderError(error?.message || 'Something went wrong during checkout.');
       setSubmitting(false);
     }
   };
@@ -182,21 +279,6 @@ const Checkout = () => {
             <span className="section-subtitle"><FiLock className="me-1" /> 256-Bit Encrypted Secure Checkout</span>
             <h1 className="section-title">ORDERLY Checkout</h1>
           </div>
-
-          {/* Mandatory Login Warning Banner */}
-          {!isLoggedIn && (
-            <div className="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-warning">
-              <div className="d-flex align-items-center gap-2">
-                <FiLock className="fs-4 text-warning" />
-                <span>
-                  <strong>Account Sign-In Required:</strong> You must be signed in to place your luxury order.
-                </span>
-              </div>
-              <Link to="/login" state={{ from: '/checkout' }} className="btn btn-warning btn-sm fw-bold px-3 py-2 text-dark">
-                <FiLogIn /> Sign In / Register
-              </Link>
-            </div>
-          )}
 
           {orderError && (
             <div className="alert alert-danger text-center mb-4">
@@ -240,48 +322,14 @@ const Checkout = () => {
                     </div>
                   </div>
 
-                  {/* Pre-fill Saved Address Quick Selector */}
-                  {savedAddresses.length > 0 && (
-                    <div className="mb-4 p-3 rounded-3 border border-secondary bg-dark shadow-sm">
-                      <span className="small text-warning fw-bold d-block mb-2">
-                        <FiBookmark className="me-1" /> 1-Click Pre-fill from Saved Addresses:
-                      </span>
-                      <div className="d-flex flex-wrap gap-2">
-                        {savedAddresses.map((addr, idx) => (
-                          <button
-                            key={addr.id || idx}
-                            type="button"
-                            className="saved-address-pill-btn"
-                            onClick={() => handleSelectSavedAddress(addr)}
-                          >
-                            <span className="badge bg-danger me-1">{addr.addressType || 'Saved'}</span>
-                            <span className="text-white fw-bold">{addr.firstName || 'Me'}:</span>{' '}
-                            <span className="text-light">{addr.address ? `${addr.address.slice(0, 22)}...` : 'Saved Address'} ({addr.city || 'City'})</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   <div className="row g-3">
-                    <div className="col-md-6">
+                    <div className="col-12">
                       <input
                         type="text"
-                        name="firstName"
-                        placeholder="First Name *"
+                        name="fullName"
+                        placeholder="Name *"
                         required
-                        value={formData.firstName}
-                        onChange={handleChange}
-                        className="checkout-input"
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <input
-                        type="text"
-                        name="lastName"
-                        placeholder="Last Name *"
-                        required
-                        value={formData.lastName}
+                        value={formData.fullName}
                         onChange={handleChange}
                         className="checkout-input"
                       />
@@ -353,17 +401,6 @@ const Checkout = () => {
                       />
                     </div>
 
-                    <div className="col-12 mt-3">
-                      <label className="d-flex align-items-center gap-2 text-muted small cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={saveAddressOption}
-                          onChange={(e) => setSaveAddressOption(e.target.checked)}
-                          className="form-check-input"
-                        />
-                        <span>Save this address ({addressType}) for future 1-click express checkout</span>
-                      </label>
-                    </div>
                   </div>
                 </div>
 
@@ -371,54 +408,53 @@ const Checkout = () => {
                 <div className="checkout-block glass-panel p-4">
                   <h5 className="block-title mb-4">2. Select Payment Method</h5>
 
+                  {codEnabled ? (
+                    <div className="payment-note mb-3">
+                      <FiShield className="me-2" />
+                      COD requires a {codAdvancePercentage}% advance payment. You will pay the balance on delivery.
+                    </div>
+                  ) : (
+                    <div className="payment-note mb-3 text-warning">
+                      <FiAlertCircle className="me-2" />
+                      Cash on Delivery is currently disabled by admin.
+                    </div>
+                  )}
+
                   <div className="payment-options-list">
-                    <label className={`payment-radio-card ${paymentMethod === 'card' ? 'active' : ''}`}>
+                    <label className={`payment-radio-card ${paymentMethod === 'online' ? 'active' : ''}`}>
                       <input
                         type="radio"
                         name="pay"
-                        checked={paymentMethod === 'card'}
-                        onChange={() => setPaymentMethod('card')}
+                        checked={paymentMethod === 'online'}
+                        onChange={() => setPaymentMethod('online')}
                       />
                       <div className="d-flex align-items-center gap-3">
                         <FiCreditCard className="pay-icon" />
                         <div>
-                          <strong>Credit / Debit Card</strong>
-                          <span className="d-block small text-muted">Visa, MasterCard, Amex, RuPay</span>
+                          <strong>Online Payment</strong>
+                          <span className="d-block small text-muted">Pay securely with Razorpay using card, UPI, wallet, or netbanking</span>
                         </div>
                       </div>
                     </label>
-
-                    <label className={`payment-radio-card ${paymentMethod === 'upi' ? 'active' : ''}`}>
-                      <input
-                        type="radio"
-                        name="pay"
-                        checked={paymentMethod === 'upi'}
-                        onChange={() => setPaymentMethod('upi')}
-                      />
-                      <div className="d-flex align-items-center gap-3">
-                        <FiSmartphone className="pay-icon" />
-                        <div>
-                          <strong>Instant UPI / QR</strong>
-                          <span className="d-block small text-muted">GPay, PhonePe, Paytm, BHIM</span>
+                    {codEnabled && (
+                      <label className={`payment-radio-card ${paymentMethod === 'cod' ? 'active' : ''}`}>
+                        <input
+                          type="radio"
+                          name="pay"
+                          checked={paymentMethod === 'cod'}
+                          onChange={() => setPaymentMethod('cod')}
+                        />
+                        <div className="d-flex align-items-center gap-3">
+                          <FiTruck className="pay-icon" />
+                          <div>
+                            <strong>Cash On Delivery (COD)</strong>
+                            <span className="d-block small text-muted">
+                              Pay {formatPrice(paymentDueNow)} now, then {formatPrice(codBalanceDue)} on delivery
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </label>
-
-                    <label className={`payment-radio-card ${paymentMethod === 'cod' ? 'active' : ''}`}>
-                      <input
-                        type="radio"
-                        name="pay"
-                        checked={paymentMethod === 'cod'}
-                        onChange={() => setPaymentMethod('cod')}
-                      />
-                      <div className="d-flex align-items-center gap-3">
-                        <FiTruck className="pay-icon" />
-                        <div>
-                          <strong>Cash On Delivery (COD)</strong>
-                          <span className="d-block small text-muted">Pay at doorstep upon inspection</span>
-                        </div>
-                      </div>
-                    </label>
+                      </label>
+                    )}
                   </div>
                 </div>
               </div>
@@ -461,13 +497,25 @@ const Checkout = () => {
                   </div>
 
                   <div className="checkout-price-calc pt-3 border-top border-secondary">
+                    {pairOfferSavings > 0 && (
+                      <div className="d-flex justify-content-between mb-2">
+                        <span>Items Total</span>
+                        <span>{formatPrice(originalSubtotal)}</span>
+                      </div>
+                    )}
+                    {pairOfferSavings > 0 && (
+                      <div className="d-flex justify-content-between mb-2 text-success">
+                        <span>Offer Savings</span>
+                        <span>-{formatPrice(pairOfferSavings)}</span>
+                      </div>
+                    )}
                     <div className="d-flex justify-content-between mb-2">
                       <span>Subtotal</span>
                       <span>{formatPrice(subtotal)}</span>
                     </div>
                     {discountAmount > 0 && (
                       <div className="d-flex justify-content-between mb-2 text-success">
-                        <span>Discount</span>
+                        <span>Coupon Discount</span>
                         <span>-{formatPrice(discountAmount)}</span>
                       </div>
                     )}
@@ -475,8 +523,18 @@ const Checkout = () => {
                       <span>Express Shipping</span>
                       <span>{shippingCost === 0 ? <strong className="text-success">FREE</strong> : formatPrice(shippingCost)}</span>
                     </div>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span>{paymentMethod === 'cod' ? 'COD Advance' : 'Payable Now'}</span>
+                      <span className="text-warning fw-bold">{formatPrice(paymentDueNow)}</span>
+                    </div>
+                    {paymentMethod === 'cod' && (
+                      <div className="d-flex justify-content-between mb-2">
+                        <span>Balance Due on Delivery</span>
+                        <span>{formatPrice(codBalanceDue)}</span>
+                      </div>
+                    )}
                     <div className="d-flex justify-content-between fs-4 font-weight-bold pt-3 border-top border-secondary text-white">
-                      <span>Total Payable</span>
+                      <span>{paymentMethod === 'cod' ? 'Order Total' : 'Total Payable'}</span>
                       <span className="text-accent-red">{formatPrice(total)}</span>
                     </div>
                   </div>
@@ -486,14 +544,10 @@ const Checkout = () => {
                     className="btn-primary-orderly w-100 py-3 mt-4 fs-6 fw-bold" 
                     disabled={submitting}
                   >
-                    <FiLock /> {submitting ? 'Placing Order...' : `Complete Order (${formatPrice(total)})`}
+                    <FiLock /> {submitting ? 'Starting Payment...' : (paymentMethod === 'cod' ? `Pay ${formatPrice(paymentDueNow)} & Place COD Order` : `Pay ${formatPrice(paymentDueNow)} Securely`)
+                    }
                   </button>
 
-                  {!isLoggedIn && (
-                    <span className="text-warning extra-small d-block text-center mt-2">
-                      * Login required to submit order
-                    </span>
-                  )}
                 </div>
               </div>
             </div>

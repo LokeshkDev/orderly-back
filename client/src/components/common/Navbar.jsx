@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { FiUser, FiShoppingBag, FiMenu, FiSearch, FiHeart, FiX } from 'react-icons/fi';
+import { FiShoppingBag, FiMenu, FiSearch, FiHeart, FiX } from 'react-icons/fi';
 import MobileMenu from './MobileMenu';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -17,32 +17,15 @@ const Navbar = () => {
   const { totalItems = 0, setIsCartOpen = () => {} } = useCart() || {};
   const { wishlistCount = 0 } = useWishlist() || {};
 
-  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(
-    localStorage.getItem('orderly_customer_token') ||
-    localStorage.getItem('orderly_logged_in_user')
-  ));
-
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 40);
     };
 
-    const checkAuth = () => {
-      const logged = Boolean(
-        localStorage.getItem('orderly_customer_token') ||
-        localStorage.getItem('orderly_logged_in_user')
-      );
-      setIsLoggedIn(logged);
-    };
-
     window.addEventListener('scroll', handleScroll);
-    window.addEventListener('storage', checkAuth);
-    window.addEventListener('orderly_auth_changed', checkAuth);
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('storage', checkAuth);
-      window.removeEventListener('orderly_auth_changed', checkAuth);
     };
   }, []);
 
@@ -107,17 +90,6 @@ const Navbar = () => {
             >
               <FiSearch />
             </button>
-
-            {/* Customer Account / Profile Icon */}
-            <Link 
-              to={isLoggedIn ? "/profile" : "/login"} 
-              className="nav-action-btn position-relative" 
-              aria-label="Customer Profile" 
-              title={isLoggedIn ? "My Profile" : "Account / Login"}
-            >
-              <FiUser />
-              {isLoggedIn && <span className="user-online-badge" />}
-            </Link>
 
             {/* Wishlist Link Icon */}
             <Link

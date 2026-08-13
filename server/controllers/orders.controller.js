@@ -1,4 +1,6 @@
 import db from '../models/index.js';
+import { Op } from 'sequelize';
+import { sendOrderEmail } from '../utils/emailService.js';
 
 const { Order, OrderItem, Customer } = db;
 import Product from '../models/Product.js';
@@ -19,54 +21,174 @@ export const addRuntimeOrder = (orderObj) => {
 
 const normalizeOrder = (o) => {
   const row = o && typeof o.toJSON === 'function' ? o.toJSON() : (o || {});
+  const orderItems = row.items || row.OrderItems || [];
   return {
     ...row,
+    items: Array.isArray(orderItems) ? orderItems.map(item => ({
+      ...item,
+      id: item.id || item.order_item_id || null,
+      name: item.name || item.product_name || item.productName || 'Product',
+      productId: item.productId || item.product_id || item.productId || null,
+      selectedSize: item.selectedSize || item.size || null,
+      selectedColor: item.selectedColor || item.color || null,
+      quantity: Number(item.quantity || 1),
+      price: Number(item.price ?? item.unit_price ?? item.amount ?? 0),
+      unit_price: Number(item.unit_price ?? item.price ?? item.amount ?? 0)
+    })) : [],
     shippingAddress: row.shippingAddress || row.shipping_address || null,
-    email: row.email || row.shipping_address?.email || row.Customer?.email || '',
-    phone: row.phone || row.shipping_address?.phone || row.Customer?.phone || '',
-    customer_name: row.customer_name || row.Customer?.name || 'Guest Customer'
+    billingAddress: row.billingAddress || row.billing_address || null,
+    pricingBreakdown: row.pricingBreakdown || row.pricing_breakdown || null,
+    paymentAmount: row.paymentAmount || row.payment_amount || null,
+    codAdvancePercentage: row.codAdvancePercentage || row.cod_advance_percentage || null,
+    codAdvanceAmount: row.codAdvanceAmount || row.cod_advance_amount || null,
+    codDueAmount: row.codDueAmount || row.cod_due_amount || null,
+    email: row.email || row.shipping_address?.email || row.shippingAddress?.email || row.Customer?.email || '',
+    phone: row.phone || row.shipping_address?.phone || row.shippingAddress?.phone || row.Customer?.phone || '',
+    customer_name: row.customer_name || row.Customer?.name || row.shippingAddress?.fullName || row.shipping_address?.fullName || 'Guest Customer'
+  };
+};
+
+export const normalizeOrderPayload = (payload = {}) => {
+  const {
+    items = [],
+    shippingAddress,
+    subtotal,
+    discount = 0,
+    shippingFee,
+    shipping_fee = 0,
+    total,
+    paymentMethod = payload.paymentMethod || payload.payment_method || 'online',
+    status = 'pending',
+    pricingBreakdown = null,
+    pricing_breakdown = null,
+    paymentAmount = null,
+    codAdvancePercentage = null,
+    codAdvanceAmount = null,
+    codDueAmount = null,
+    order_number,
+    customer_id = null,
+    payment_gateway = 'razorpay'
+  } = payload;
+
+  const normalizedPaymentMethod = ['cod', 'online', 'card', 'upi'].includes(String(paymentMethod).toLowerCase())
+    ? String(paymentMethod).toLowerCase()
+    : 'online';
+
+  const normalizedStatus = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'].includes(String(status).toLowerCase())
+    ? String(status).toLowerCase()
+    : 'pending';
+
+  const normalizedItems = Array.isArray(items) ? items.map((item, index) => {
+    const productItem = item || {};
+    return {
+      product_id: productItem.productId ?? productItem.product_id ?? null,
+      combo_id: productItem.comboId ?? productItem.combo_id ?? null,
+      product_name: productItem.name || productItem.product_name || productItem.productName || `Item ${index + 1}`,
+      size: productItem.selectedSize || productItem.size || null,
+      color: productItem.selectedColor || productItem.color || null,
+      quantity: Number(productItem.quantity || 1),
+      unit_price: Number(productItem.price ?? productItem.unit_price ?? 0),
+    };
+  }) : [];
+
+  return {
+    customer_id: customer_id ?? null,
+    order_number: order_number || `ORD-${Date.now().toString().slice(-8)}`,
+    status: normalizedStatus,
+    subtotal: Number(subtotal ?? total ?? 0),
+    discount: Number(discount || 0),
+    pricing_breakdown: pricingBreakdown || pricing_breakdown || null,
+    shipping_fee: Number(shipping_fee || shippingFee || 0),
+    total: Number(total || 0),
+    shipping_address: shippingAddress || {},
+    billing_address: shippingAddress || {},
+    payment_method: normalizedPaymentMethod,
+    payment_status: 'pending',
+    payment_gateway: payment_gateway || 'razorpay',
+    payment_amount: paymentAmount ?? null,
+    cod_advance_percentage: codAdvancePercentage ?? null,
+    cod_advance_amount: codAdvanceAmount ?? null,
+    cod_due_amount: codDueAmount ?? null,
+    orderItems: normalizedItems
   };
 };
 
 export const createOrder = async (req, res) => {
   try {
-    const { items = [], shippingAddress, subtotal, discount = 0, shipping_fee = 0, total, paymentMethod = 'cod', status = 'pending' } = req.body;
-    const orderNumber = req.body.order_number || `ORD-${Date.now().toString().slice(-8)}`;
+    const normalizedOrder = normalizeOrderPayload(req.body);
+    const { orderItems, ...orderFields } = normalizedOrder;
 
     let order;
     try {
-      order = await Order.create({
-        customer_id: req.customer?.id || null,
-        order_number: orderNumber,
-        status: status || 'pending',
-        subtotal: subtotal ?? total ?? 0,
-        discount: discount || 0,
-        shipping_fee: shipping_fee || 0,
-        total: total || 0,
-        shipping_address: shippingAddress || {},
-        billing_address: shippingAddress || {},
-        payment_method: paymentMethod,
-        payment_status: 'pending'
-      });
+      order = await Order.create(orderFields);
+      if (order?.id && orderItems.length) {
+        await OrderItem.bulkCreate(orderItems.map((item) => ({
+          ...item,
+          order_id: order.id
+        })));
+      }
     } catch (err) {
       console.warn('Order create note:', err.message);
     }
 
-    const createdRecord = order ? normalizeOrder(order) : {
-      id: Date.now(),
-      order_number: orderNumber,
-      customer_name: shippingAddress ? `${shippingAddress.firstName} ${shippingAddress.lastName}` : 'Customer',
-      email: shippingAddress?.email || '',
-      phone: shippingAddress?.phone || '',
-      total: total || 0,
-      status: status || 'Pending',
-      items,
-      shippingAddress,
-      payment_method: paymentMethod,
-      created_at: new Date().toISOString()
-    };
+    const createdRecord = order
+      ? normalizeOrder({
+          ...order.toJSON(),
+          items: orderItems.map((item) => ({
+            ...item,
+            name: item.product_name,
+            selectedSize: item.size,
+            selectedColor: item.color,
+            price: item.unit_price,
+            quantity: item.quantity,
+            productId: item.product_id,
+            product_id: item.product_id
+          }))
+        })
+      : {
+          id: Date.now(),
+          order_number: normalizedOrder.order_number,
+          customer_name: req.body.shippingAddress ? `${req.body.shippingAddress.firstName} ${req.body.shippingAddress.lastName}` : 'Customer',
+          email: req.body.shippingAddress?.email || '',
+          phone: req.body.shippingAddress?.phone || '',
+          total: Number(req.body.total || 0),
+          status: normalizedOrder.status || 'pending',
+          items: orderItems.map(item => ({
+            name: item.product_name,
+            selectedSize: item.size,
+            selectedColor: item.color,
+            quantity: item.quantity,
+            price: item.unit_price,
+            productId: item.product_id
+          })),
+          shippingAddress: req.body.shippingAddress || {},
+          pricingBreakdown: normalizedOrder.pricing_breakdown,
+          payment_method: normalizedOrder.payment_method,
+          payment_status: 'pending',
+          payment_gateway: normalizedOrder.payment_gateway,
+          payment_amount: normalizedOrder.payment_amount,
+          cod_advance_percentage: normalizedOrder.cod_advance_percentage,
+          cod_advance_amount: normalizedOrder.cod_advance_amount,
+          cod_due_amount: normalizedOrder.cod_due_amount,
+          created_at: new Date().toISOString()
+        };
 
     addRuntimeOrder(createdRecord);
+
+    try {
+      await sendOrderEmail({
+        orderNumber: createdRecord.order_number,
+        customerName: createdRecord.customer_name || (shippingAddress ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() : 'Customer'),
+        customerEmail: createdRecord.email || shippingAddress?.email || '',
+        adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+        status: 'pending',
+        type: 'order_placed',
+        paymentStatus: normalizedOrder.payment_method === 'cod' ? 'pending' : 'pending',
+        amount: Number(createdRecord.total || 0)
+      });
+    } catch (emailError) {
+      console.warn('Order placement email failed:', emailError.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -84,7 +206,7 @@ export const getMyOrders = async (req, res) => {
     try {
       orders = await Order.findAll({
         where: { customer_id: req.customer?.id || null },
-        include: [{ model: OrderItem, required: false }]
+        include: [{ model: OrderItem, as: 'items', required: false }]
       });
       if (Array.isArray(orders)) {
         orders = orders.map(normalizeOrder);
@@ -111,7 +233,7 @@ export const getAllOrders = async (req, res) => {
         order: [['createdAt', 'DESC']],
         include: [
           { model: Customer, attributes: ['name', 'email'], required: false },
-          { model: OrderItem, required: false }
+          { model: OrderItem, as: 'items', required: false }
         ]
       });
       if (Array.isArray(dbOrders)) {
@@ -142,8 +264,8 @@ export const getOrderById = async (req, res) => {
     let order;
     try {
       order = await Order.findOne({
-        where: { [db.Sequelize.Op.or]: [{ id }, { order_number: id }] },
-        include: [{ model: OrderItem, required: false }]
+        where: { [Op.or]: [{ id }, { order_number: id }] },
+        include: [{ model: OrderItem, as: 'items', required: false }]
       });
     } catch (err) {}
 
@@ -164,7 +286,7 @@ export const updateOrderStatus = async (req, res) => {
 
     try {
       const order = await Order.findOne({
-        where: { [db.Sequelize.Op.or]: [{ id: orderId }, { order_number: orderId }] }
+        where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] }
       });
       if (order) await order.update({ status: formattedStatus });
     } catch (err) {}
@@ -186,6 +308,22 @@ export const updateOrderStatus = async (req, res) => {
       RUNTIME_ORDERS.unshift(newRecord);
     }
 
+    try {
+      const targetOrder = runtimeItem || { order_number: String(orderId).startsWith('ORD-') ? orderId : `ORD-${orderId}`, total: 0, customer_name: 'Customer', email: '' };
+      await sendOrderEmail({
+        orderNumber: targetOrder.order_number || orderId,
+        customerName: targetOrder.customer_name || 'Customer',
+        customerEmail: targetOrder.email || '',
+        adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+        status: formattedStatus,
+        type: 'status_update',
+        paymentStatus: targetOrder.payment_status || 'pending',
+        amount: Number(targetOrder.total || 0)
+      });
+    } catch (emailError) {
+      console.warn('Order status email failed:', emailError.message);
+    }
+
     res.status(200).json({ success: true, message: 'Status updated', status: formattedStatus });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -198,7 +336,7 @@ export const updateTrackingNumber = async (req, res) => {
     const orderId = req.params.id;
     try {
       const order = await Order.findOne({
-        where: { [db.Sequelize.Op.or]: [{ id: orderId }, { order_number: orderId }] }
+        where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] }
       });
       if (order) await order.update({ tracking_number: tracking });
     } catch (err) {}
@@ -227,7 +365,7 @@ export const updateOrder = async (req, res) => {
     const orderId = req.params.id;
     try {
       const order = await Order.findOne({
-        where: { [db.Sequelize.Op.or]: [{ id: orderId }, { order_number: orderId }] }
+        where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] }
       });
       if (order) {
         await order.update({

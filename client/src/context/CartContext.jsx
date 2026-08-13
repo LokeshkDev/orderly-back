@@ -85,11 +85,31 @@ export const CartProvider = ({ children }) => {
     setDiscountAmount(0);
   };
 
-  const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const getLinePrice = (item, field) => Number(item?.[field] ?? 0) || 0;
+  const hasPairOffer = (item) => Boolean(item?.pairOffer?.enabled || item?.pairOffer || item?.isPairOffer);
+  const getLineBasePrice = (item) => {
+    const originalPrice = getLinePrice(item, 'originalPrice') || getLinePrice(item, 'original_price');
+    const salePrice = getLinePrice(item, 'price');
+    return hasPairOffer(item) && originalPrice > salePrice ? originalPrice : salePrice;
+  };
+
+  const subtotal = cart.reduce((acc, item) => acc + (getLinePrice(item, 'price') * item.quantity), 0);
+  const originalSubtotal = cart.reduce((acc, item) => acc + (getLineBasePrice(item) * item.quantity), 0);
+  const pairOfferSavings = Math.max(0, originalSubtotal - subtotal);
   const freeShippingThreshold = Number(settings?.free_shipping_threshold) || 0;
   const shippingFee = Number(settings?.shipping_fee) || 0;
   const shippingCost = subtotal === 0 || (freeShippingThreshold > 0 && subtotal >= freeShippingThreshold) ? 0 : shippingFee;
   const total = Math.max(0, subtotal + shippingCost - discountAmount);
+  const totalSavings = pairOfferSavings + discountAmount;
+  const pricingBreakdown = {
+    originalSubtotal,
+    subtotal,
+    pairOfferSavings,
+    couponDiscount: discountAmount,
+    shippingCost,
+    total,
+    totalSavings
+  };
 
   const applyCoupon = async (code) => {
     const cleanCode = code.trim().toUpperCase();
@@ -124,12 +144,15 @@ export const CartProvider = ({ children }) => {
         updateQuantity,
         clearCart,
         subtotal,
+        originalSubtotal,
+        pairOfferSavings,
         total,
         shippingCost,
         freeShippingThreshold,
         shippingFee,
         appliedCoupon,
         discountAmount,
+        pricingBreakdown,
         applyCoupon,
         removeCoupon,
         totalItems: cart.reduce((acc, item) => acc + item.quantity, 0)
@@ -152,12 +175,23 @@ export const useCart = () => {
       updateQuantity: () => {},
       clearCart: () => {},
       subtotal: 0,
+      originalSubtotal: 0,
+      pairOfferSavings: 0,
       total: 0,
       shippingCost: 0,
       freeShippingThreshold: 1499,
       shippingFee: 99,
       appliedCoupon: null,
       discountAmount: 0,
+      pricingBreakdown: {
+        originalSubtotal: 0,
+        subtotal: 0,
+        pairOfferSavings: 0,
+        couponDiscount: 0,
+        shippingCost: 0,
+        total: 0,
+        totalSavings: 0
+      },
       applyCoupon: () => {},
       removeCoupon: () => {},
       totalItems: 0

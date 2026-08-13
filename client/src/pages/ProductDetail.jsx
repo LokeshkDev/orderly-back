@@ -84,6 +84,33 @@ const getSafeProductImage = (item) => {
   return '';
 };
 
+const mergePairOffer = (productItem, pairOffers = {}) => {
+  if (!productItem) return null;
+  const productId = String(productItem.id);
+  const offer = pairOffers?.[productId];
+  const enabled = Boolean(offer?.enabled);
+  const basePrice = Number(productItem.originalPrice ?? productItem.original_price ?? productItem.price ?? 0);
+  const discountPercent = Math.max(0, Math.min(90, Number(offer?.discount_percent ?? offer?.discountPercent ?? 0)));
+  const offerPrice = discountPercent > 0
+    ? Math.max(0, Math.round(basePrice * (100 - discountPercent) / 100))
+    : Number(offer?.offer_price ?? productItem.price ?? 0);
+
+  return {
+    ...productItem,
+    price: enabled ? offerPrice : Number(productItem.price ?? 0),
+    originalPrice: basePrice,
+    pairOffer: enabled
+      ? {
+          enabled: true,
+          discount_percent: discountPercent,
+          offer_price: offerPrice,
+          badge: offer?.badge || (discountPercent > 0 ? `AVAIL ${discountPercent}% OFF` : ''),
+          note: offer?.note || ''
+        }
+      : null
+  };
+};
+
 /* ── Star rating renderer ──────────────────────────────────────── */
 const renderStars = (rating = 5) => {
   const r = Number(rating) || 0;
@@ -145,9 +172,11 @@ const ProductDetail = () => {
         const relRes = await getProducts();
         if (relRes && relRes.success && Array.isArray(relRes.data)) {
           const catalog = relRes.data.filter(p => p && String(p.id) !== String(item.id));
-          const chosenIds = Array.isArray(item.suggested_products) ? item.suggested_products : [];
+          const chosenIds = Array.isArray(item.suggested_products) ? item.suggested_products.map(String) : [];
+          const pairOffers = item.pair_offers || {};
           const chosen = chosenIds
             .map(sid => catalog.find(p => String(p.id) === String(sid)))
+            .map(prod => mergePairOffer(prod, pairOffers))
             .filter(Boolean);
           setSuggestedProducts(chosen.length > 0 ? chosen.slice(0, 4) : []);
 
@@ -266,6 +295,7 @@ const ProductDetail = () => {
           quantity={quantity}
           handleQuantityChange={handleQuantityChange}
           handleAddToCart={handleAddToCart}
+          addToCart={addToCart}
           toggleWishlist={toggleWishlist}
           isWishlisted={isWishlisted}
           openQuickView={openQuickView}
@@ -624,13 +654,31 @@ const ProductDetail = () => {
                               <span>No Image</span>
                             </div>
                           )}
+                          {item.pairOffer?.badge && (
+                            <span className="pdp-pair-badge">{item.pairOffer.badge}</span>
+                          )}
                         </div>
                         <div className="pdp-pair-info">
                           <h5 className="pdp-pair-name">{item.name}</h5>
                           <div className="pdp-pair-price">
-                            <span className="pdp-pair-from">from </span>
-                            <strong>{formatPrice(item.price)}</strong>
+                            {item.pairOffer ? (
+                              <>
+                                <span className="pdp-pair-from">offer </span>
+                                <strong>{formatPrice(item.price)}</strong>
+                                {Number(item.originalPrice || 0) > Number(item.price || 0) && (
+                                  <span className="pdp-pair-old">{formatPrice(item.originalPrice)}</span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span className="pdp-pair-from">from </span>
+                                <strong>{formatPrice(item.price)}</strong>
+                              </>
+                            )}
                           </div>
+                          {item.pairOffer?.note && (
+                            <div className="pdp-pair-note">{item.pairOffer.note}</div>
+                          )}
                           {item.rating && (
                             <div className="pdp-pair-rating">
                               <span className="pdp-pair-stars">{renderStars(item.rating)}</span>
@@ -654,11 +702,17 @@ const ProductDetail = () => {
                                 if (item.colors?.length > 1 || item.sizes?.length > 1) {
                                   openQuickView(item);
                                 } else {
+                                  const offerPrice = item.pairOffer?.enabled ? Number(item.pairOffer.offer_price || item.price || 0) : Number(item.price || 0);
+                                  const originalPrice = item.pairOffer?.enabled
+                                    ? Number(item.originalPrice || item.original_price || item.price || 0)
+                                    : Number(item.originalPrice || item.original_price || 0);
                                   addToCart({
                                     id: item.id,
                                     name: item.name,
-                                    price: item.price,
-                                    originalPrice: item.originalPrice || item.original_price,
+                                    price: offerPrice,
+                                    originalPrice,
+                                    pairOffer: item.pairOffer || null,
+                                    isPairOffer: Boolean(item.pairOffer?.enabled),
                                     image: getSafeProductImage(item),
                                     quantity: 1,
                                     selectedColor: item.colors?.[0]?.name || 'Standard',

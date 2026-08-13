@@ -81,6 +81,10 @@ const Product = sequelize.define('Product', {
     type: DataTypes.JSON,
     comment: 'Array of product IDs shown in the PDP "Pairs Well With" section (admin-managed)'
   },
+  pair_offers: {
+    type: DataTypes.JSON,
+    comment: 'Offer setup keyed by paired product ID for PDP "Pairs Well With" products'
+  },
   deleted: {
     type: DataTypes.BOOLEAN,
     defaultValue: false

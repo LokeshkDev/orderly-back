@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiMenu, FiSearch, FiUser, FiHeart, FiShoppingBag, FiX } from 'react-icons/fi';
-import { useCart } from '../../context/CartContext';
-import { useWishlist } from '../../context/WishlistContext';
+import { FiMenu, FiSearch, FiX } from 'react-icons/fi';
 import logoImg from '../../assets/logo/logo.jpeg';
 
 const MobileHeader = ({ onOpenMenu }) => {
   const navigate = useNavigate();
-  const { totalItems, setIsCartOpen } = useCart();
-  const { wishlist } = useWishlist();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const wishlistCount = wishlist ? wishlist.length : 0;
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -45,7 +39,7 @@ const MobileHeader = ({ onOpenMenu }) => {
           </Link>
         </div>
 
-        {/* Right: Search and Account icon only */}
+        {/* Right: Search */}
         <div className="mobile-header-right">
           <button 
             type="button" 
@@ -55,10 +49,6 @@ const MobileHeader = ({ onOpenMenu }) => {
           >
             <FiSearch />
           </button>
-
-          <Link to="/login" className="mobile-header-icon-btn" aria-label="Account">
-            <FiUser />
-          </Link>
         </div>
       </header>
 

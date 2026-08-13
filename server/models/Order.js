@@ -29,6 +29,10 @@ const Order = sequelize.define('Order', {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,
   },
+  pricing_breakdown: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
   shipping_fee: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,
@@ -46,14 +50,50 @@ const Order = sequelize.define('Order', {
     allowNull: false,
   },
   payment_method: {
-    type: DataTypes.ENUM('cod', 'card', 'upi'),
+    type: DataTypes.ENUM('cod', 'online', 'card', 'upi'),
     allowNull: false,
-    defaultValue: 'cod',
+    defaultValue: 'online',
   },
   payment_status: {
-    type: DataTypes.ENUM('pending', 'paid', 'failed', 'refunded'),
+    type: DataTypes.ENUM('pending', 'paid', 'partially_paid', 'failed', 'refunded'),
     allowNull: false,
     defaultValue: 'pending',
+  },
+  payment_gateway: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  payment_amount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  cod_advance_percentage: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+  },
+  cod_advance_amount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  cod_due_amount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  razorpay_order_id: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  razorpay_payment_id: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  razorpay_signature: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  paid_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
   },
   tracking_number: {
     type: DataTypes.STRING,

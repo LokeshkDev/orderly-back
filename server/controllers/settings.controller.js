@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS = {
   newsletter_discount_code: 'ORDERLY10',
   free_shipping_threshold: '2500',
   shipping_fee: '199',
+  cod_advance_percentage: '10',
   delivery_estimate_text: 'Within 2-3 Business Days',
   facebook_url: 'https://facebook.com',
   instagram_url: 'https://instagram.com',

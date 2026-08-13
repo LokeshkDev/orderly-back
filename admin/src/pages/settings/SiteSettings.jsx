@@ -41,6 +41,7 @@ const DEFAULT_SETTINGS = {
   footer_bio: 'ORDERLY represents the pinnacle of handcrafted menswear, luxury selvedge denim, and Italian tailoring.',
   footer_copyright: '© 2026 ORDERLY Mens Wear. All Rights Reserved.',
   cod_enabled: 'true',
+  cod_advance_percentage: '10',
   free_shipping_threshold: '1999',
   shipping_fee: '99'
 };
@@ -416,6 +417,18 @@ const SiteSettings = () => {
                   <option value="true">Enabled (Accept COD Orders)</option>
                   <option value="false">Disabled (Card & UPI Only)</option>
                 </select>
+              </div>
+
+              <div className="col-md-4">
+                <label className="admin-form-label">COD Advance Percentage (%)</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  max="100"
+                  className="admin-input fw-bold" 
+                  value={settings.cod_advance_percentage}
+                  onChange={(e) => handleChange('cod_advance_percentage', e.target.value)}
+                />
               </div>
             </div>
           </div>

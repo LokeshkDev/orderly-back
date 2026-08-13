@@ -13,6 +13,8 @@ const CartDrawer = () => {
     removeFromCart,
     updateQuantity,
     subtotal,
+    originalSubtotal,
+    pairOfferSavings,
     total,
     shippingCost,
     freeShippingThreshold,
@@ -44,15 +46,7 @@ const CartDrawer = () => {
 
   const handleCheckout = () => {
     setIsCartOpen(false);
-    const isLoggedIn = Boolean(
-      localStorage.getItem('orderly_customer_token') ||
-      localStorage.getItem('orderly_logged_in_user')
-    );
-    if (!isLoggedIn) {
-      navigate('/login', { state: { from: '/checkout' } });
-    } else {
-      navigate('/checkout');
-    }
+    navigate('/checkout');
   };
 
   return (
@@ -199,6 +193,20 @@ const CartDrawer = () => {
 
             {/* Price Breakdown */}
             <div className="price-summary">
+              {pairOfferSavings > 0 && (
+                <div className="summary-row">
+                  <span>Items Total</span>
+                  <span>{formatPrice(originalSubtotal)}</span>
+                </div>
+              )}
+
+              {pairOfferSavings > 0 && (
+                <div className="summary-row text-success">
+                  <span>Offer Savings</span>
+                  <span>-{formatPrice(pairOfferSavings)}</span>
+                </div>
+              )}
+
               <div className="summary-row">
                 <span>Subtotal</span>
                 <span>{formatPrice(subtotal)}</span>
@@ -206,7 +214,7 @@ const CartDrawer = () => {
 
               {discountAmount > 0 && (
                 <div className="summary-row text-success">
-                  <span>Discount</span>
+                  <span>Coupon Discount</span>
                   <span>-{formatPrice(discountAmount)}</span>
                 </div>
               )}

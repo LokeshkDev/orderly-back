@@ -22,7 +22,7 @@ const emptyOrderForm = {
   selectedColor: 'Pristine White',
   quantity: 1,
   price: 5499,
-  payment_method: 'COD',
+  payment_method: 'cod',
   status: 'Pending'
 };
 
@@ -47,6 +47,15 @@ const OrdersList = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [orderForm, setOrderForm] = useState(emptyOrderForm);
   const [editingOrderId, setEditingOrderId] = useState(null);
+
+  const getPaymentLabel = (method = '') => {
+    const value = String(method || '').toLowerCase();
+    if (value === 'cod') return 'COD';
+    if (value === 'online') return 'ONLINE';
+    if (value === 'upi') return 'UPI';
+    if (value === 'card') return 'CARD';
+    return value.toUpperCase() || 'COD';
+  };
 
   const loadOrders = async () => {
     setLoading(true);
@@ -221,7 +230,7 @@ const OrdersList = () => {
       selectedColor: item.selectedColor || 'Pristine White',
       quantity: item.quantity || 1,
       price: item.price || order.total || 0,
-      payment_method: order.payment_method || 'COD',
+      payment_method: order.payment_method || 'cod',
       status: order.status || 'Pending'
     });
     setShowEditModal(true);
@@ -431,18 +440,17 @@ const OrdersList = () => {
             </select>
           </div>
 
-          <div className="col-6 col-md-3 col-lg-3">
-            <select 
-              className="order-select-filter w-100"
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value)}
-            >
-              <option value="All">All Payment Methods</option>
-              <option value="cod">Cash on Delivery (COD)</option>
-              <option value="card">Credit/Debit Card</option>
-              <option value="upi">UPI / NetBanking</option>
-            </select>
-          </div>
+              <div className="col-6 col-md-3 col-lg-3">
+                <select 
+                  className="order-select-filter w-100"
+                  value={paymentFilter}
+                  onChange={(e) => setPaymentFilter(e.target.value)}
+                >
+                  <option value="All">All Payment Methods</option>
+                  <option value="cod">Cash on Delivery (COD)</option>
+                  <option value="online">Online Payment</option>
+                </select>
+              </div>
         </div>
       </div>
 
@@ -490,7 +498,7 @@ const OrdersList = () => {
                       </td>
                       <td>
                         <span className={`payment-method-pill ${order.payment_method?.toLowerCase() === 'cod' ? 'cod' : 'card'}`}>
-                          {order.payment_method?.toUpperCase() || 'COD'}
+                          {getPaymentLabel(order.payment_method)}
                         </span>
                       </td>
                       <td>
@@ -709,18 +717,17 @@ const OrdersList = () => {
                   />
                 </div>
 
-                <div className="col-md-6">
-                  <label className="form-label extra-small fw-bold text-muted">PAYMENT METHOD</label>
-                  <select 
-                    className="form-select"
-                    value={orderForm.payment_method}
-                    onChange={(e) => setOrderForm({ ...orderForm, payment_method: e.target.value })}
-                  >
-                    <option value="COD">Cash on Delivery (COD)</option>
-                    <option value="Card">Credit / Debit Card</option>
-                    <option value="UPI">UPI / NetBanking</option>
-                  </select>
-                </div>
+                  <div className="col-md-6">
+                    <label className="form-label extra-small fw-bold text-muted">PAYMENT METHOD</label>
+                    <select 
+                      className="form-select"
+                      value={orderForm.payment_method}
+                      onChange={(e) => setOrderForm({ ...orderForm, payment_method: e.target.value })}
+                    >
+                    <option value="cod">Cash on Delivery (COD)</option>
+                    <option value="online">Online Payment</option>
+                    </select>
+                  </div>
 
                 <div className="col-12">
                   <label className="form-label extra-small fw-bold text-muted">APPAREL ITEM NAME *</label>
@@ -829,18 +836,17 @@ const OrdersList = () => {
                   </select>
                 </div>
 
-                <div className="col-md-6">
-                  <label className="form-label extra-small fw-bold text-muted">PAYMENT METHOD</label>
-                  <select 
-                    className="form-select"
-                    value={orderForm.payment_method}
-                    onChange={(e) => setOrderForm({ ...orderForm, payment_method: e.target.value })}
-                  >
-                    <option value="COD">Cash on Delivery (COD)</option>
-                    <option value="Card">Credit / Debit Card</option>
-                    <option value="UPI">UPI / NetBanking</option>
-                  </select>
-                </div>
+                  <div className="col-md-6">
+                    <label className="form-label extra-small fw-bold text-muted">PAYMENT METHOD</label>
+                    <select 
+                      className="form-select"
+                      value={orderForm.payment_method}
+                      onChange={(e) => setOrderForm({ ...orderForm, payment_method: e.target.value })}
+                    >
+                    <option value="cod">Cash on Delivery (COD)</option>
+                    <option value="online">Online Payment</option>
+                    </select>
+                  </div>
 
                 <div className="col-12">
                   <label className="form-label extra-small fw-bold text-muted">ITEM NAME</label>

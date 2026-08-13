@@ -56,6 +56,7 @@ const MobileProductDetail = ({
   quantity,
   handleQuantityChange,
   handleAddToCart,
+  addToCart,
   toggleWishlist,
   isWishlisted,
   openQuickView,
@@ -615,6 +616,9 @@ const MobileProductDetail = ({
                     ) : (
                       <div className="m-pdp-pair-placeholder">No Image</div>
                     )}
+                    {item.pairOffer?.badge && (
+                      <span className="m-pdp-pair-badge">{item.pairOffer.badge}</span>
+                    )}
                     <button
                       type="button"
                       className="m-pdp-pair-wish-btn"
@@ -627,9 +631,24 @@ const MobileProductDetail = ({
                   <div className="m-pdp-pair-content">
                     <h5 className="m-pdp-pair-title">{item.name}</h5>
                     <div className="m-pdp-pair-price-row">
-                      <span>from </span>
-                      <strong>{formatPrice(item.price)}</strong>
+                      {item.pairOffer ? (
+                        <>
+                          <span>offer </span>
+                          <strong>{formatPrice(item.price)}</strong>
+                          {Number(item.originalPrice || 0) > Number(item.price || 0) && (
+                            <span className="m-pdp-pair-old">{formatPrice(item.originalPrice)}</span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <span>from </span>
+                          <strong>{formatPrice(item.price)}</strong>
+                        </>
+                      )}
                     </div>
+                    {item.pairOffer?.note && (
+                      <div className="m-pdp-pair-note">{item.pairOffer.note}</div>
+                    )}
                     <div className="m-pdp-pair-stars-row">
                       <span className="m-pdp-stars-sm">{renderStars(item.rating || 4.8)}</span>
                       <span className="m-pdp-count-sm">({item.reviewsCount || 64})</span>
@@ -645,7 +664,33 @@ const MobileProductDetail = ({
                       <button
                         type="button"
                         className="m-pdp-pair-cart-icon-btn"
-                        onClick={() => openQuickView(item)}
+                        onClick={() => {
+                          if (item.colors?.length > 1 || item.sizes?.length > 1) {
+                            openQuickView(item);
+                            return;
+                          }
+                          const offerPrice = item.pairOffer?.enabled ? Number(item.pairOffer.offer_price || item.price || 0) : Number(item.price || 0);
+                          const originalPrice = item.pairOffer?.enabled
+                            ? Number(item.originalPrice || item.original_price || item.price || 0)
+                            : Number(item.originalPrice || item.original_price || 0);
+                          const cartItem = {
+                            id: item.id,
+                            name: item.name,
+                            price: offerPrice,
+                            originalPrice,
+                            pairOffer: item.pairOffer || null,
+                            isPairOffer: Boolean(item.pairOffer?.enabled),
+                            image: getSafeProductImage(item),
+                            quantity: 1,
+                            selectedColor: item.colors?.[0]?.name || 'Standard',
+                            selectedSize: item.sizes?.[0] || 'M'
+                          };
+                          if (typeof addToCart === 'function') {
+                            addToCart(cartItem, cartItem.selectedSize, cartItem.selectedColor, 1);
+                          } else {
+                            openQuickView(item);
+                          }
+                        }}
                         aria-label="Quick Add"
                       >
                         <FiShoppingBag />

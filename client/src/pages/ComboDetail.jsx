@@ -241,7 +241,9 @@ const ComboDetail = () => {
   const currentMainImg = comboImages[activeImgIndex] || comboImages[0] || '';
   const discountPercent = calculateDiscount(combo.original_price, combo.offer_price);
   const isWishlisted = wishlist.some(item => item && String(item.id) === String(combo.id));
-  const relatedCombos = allCombos.slice(0, 4);
+  const relatedCombos = allCombos
+    .filter(rel => String(rel.id) !== String(combo.id) && String(rel.slug || '') !== String(combo.slug || ''))
+    .slice(0, 8);
 
   const tabs = [
     { key: 'description', label: 'DESCRIPTION' },

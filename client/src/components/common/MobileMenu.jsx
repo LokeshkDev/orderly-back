@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiX, FiChevronRight, FiUser, FiHeart, FiShoppingBag, FiPhoneCall } from 'react-icons/fi';
+import { FiChevronRight, FiHeart, FiShoppingBag } from 'react-icons/fi';
 import logoImg from '../../assets/logo/logo.jpeg';
 import { useCart } from '../../context/CartContext';
 import './MobileMenu.css';
@@ -42,8 +42,8 @@ const MobileMenu = ({ isOpen, onClose }) => {
 
         {/* Quick Action Footer */}
         <div className="pt-3 border-top border-secondary mt-auto">
-          <NavLink to="/login" onClick={onClose} className="btn btn-outline-light btn-sm w-100 mb-2 d-flex align-items-center justify-content-center gap-2">
-            <FiUser /> Account / Login
+          <NavLink to="/wishlist" onClick={onClose} className="btn btn-outline-light btn-sm w-100 mb-2 d-flex align-items-center justify-content-center gap-2">
+            <FiHeart /> Wishlist
           </NavLink>
           
           <button 

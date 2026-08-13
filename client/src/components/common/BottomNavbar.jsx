@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiGrid, FiPackage, FiUser, FiShoppingBag } from 'react-icons/fi';
+import { FiHome, FiGrid, FiPackage, FiHeart, FiShoppingBag } from 'react-icons/fi';
 import { useCart } from '../../context/CartContext';
 import './BottomNavbar.css';
 
@@ -52,13 +52,13 @@ const BottomNavbar = () => {
           <span className="bottom-nav-label">Combos</span>
         </NavLink>
 
-        {/* 5. ACCOUNT */}
+        {/* 5. WISHLIST */}
         <NavLink 
-          to="/login" 
+          to="/wishlist" 
           className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}
         >
-          <FiUser className="bottom-nav-icon" />
-          <span className="bottom-nav-label">Account</span>
+          <FiHeart className="bottom-nav-icon" />
+          <span className="bottom-nav-label">Wishlist</span>
         </NavLink>
       </div>
     </nav>

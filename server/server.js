@@ -16,6 +16,7 @@ import brandsRoutes from './routes/brands.routes.js';
 import heroRoutes from './routes/hero.routes.js';
 import homepageRoutes from './routes/homepage.routes.js';
 import ordersRoutes from './routes/orders.routes.js';
+import paymentsRoutes from './routes/payments.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import couponsRoutes from './routes/coupons.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
@@ -33,14 +34,33 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.ADMIN_URL,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174'
+].filter(Boolean);
 
 // Middlewares
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('CORS blocked for this origin'));
+  },
   credentials: true
 }));
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({
+  limit: '50mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve static uploaded media files
@@ -61,6 +81,7 @@ app.use('/api/brands', brandsRoutes);
 app.use('/api/hero-slides', heroRoutes);
 app.use('/api/homepage', homepageRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/payments', paymentsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/coupons', couponsRoutes);
 app.use('/api/upload', uploadRoutes);

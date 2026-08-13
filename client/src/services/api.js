@@ -11,7 +11,7 @@ const api = axios.create({
 
 // Interceptor for Admin authentication token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('orderly_admin_token') || localStorage.getItem('orderly_customer_token');
+  const token = localStorage.getItem('orderly_admin_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -120,146 +120,6 @@ export const matchesCategoryAlias = (category, target) => {
 };
 
 // ----------------------------------------------------
-// AUTH & CUSTOMERS API ENDPOINTS (Dual Server & Client Fallback)
-// ----------------------------------------------------
-export const customerLogin = async (credentials) => {
-  try {
-    const res = await api.post('/customers/login', credentials);
-    if (res.data && res.data.success) return res.data;
-  } catch (error) {
-    if (error.response?.data) return error.response.data;
-  }
-
-  // Fallback login check against registered list
-  try {
-    const saved = localStorage.getItem('orderly_registered_customers');
-    const list = saved ? JSON.parse(saved) : [];
-    const found = list.find(c => c.email?.toLowerCase() === credentials.email?.toLowerCase());
-    if (found) {
-      const token = `token-${Date.now()}`;
-      localStorage.setItem('orderly_customer_token', token);
-      localStorage.setItem('orderly_logged_in_user', JSON.stringify(found));
-      return { success: true, token, customer: found };
-    }
-  } catch (e) {}
-
-  return { success: false, message: 'Invalid email or password' };
-};
-
-export const customerRegister = async (custData) => {
-  try {
-    const res = await api.post('/customers/register', custData);
-    if (res.data && res.data.success) return res.data;
-  } catch (error) {
-    if (error.response?.data) return error.response.data;
-  }
-
-  // Fallback registration
-  return createCustomer(custData);
-};
-
-export const getCustomers = async () => {
-  try {
-    const res = await api.get('/customers');
-    if (res.data && res.data.success && Array.isArray(res.data.data)) {
-      return res.data;
-    }
-  } catch (error) {
-    console.warn('API Error getCustomers, utilizing fallback directory:', error.message);
-  }
-
-  try {
-    const saved = localStorage.getItem('orderly_registered_customers');
-    const customers = saved ? JSON.parse(saved) : [];
-    return { success: true, data: customers };
-  } catch (e) {
-    return { success: true, data: [] };
-  }
-};
-
-export const createCustomer = async (custData) => {
-  try {
-    const res = await api.post('/customers', custData);
-    if (res.data && res.data.success) {
-      try {
-        const saved = localStorage.getItem('orderly_registered_customers');
-        const list = saved ? JSON.parse(saved) : [];
-        const existingIdx = list.findIndex(c => c.email?.toLowerCase() === custData.email?.toLowerCase());
-        const record = res.data.data || { id: Date.now(), ...custData, created_at: new Date().toISOString() };
-        if (existingIdx >= 0) {
-          list[existingIdx] = { ...list[existingIdx], ...record };
-        } else {
-          list.unshift(record);
-        }
-        localStorage.setItem('orderly_registered_customers', JSON.stringify(list));
-      } catch (e) {}
-      return res.data;
-    }
-  } catch (error) {
-    console.warn('API Error createCustomer, utilizing fallback registration:', error.message);
-  }
-
-  const newRecord = {
-    id: custData.id || Date.now(),
-    name: custData.name || 'Registered Customer',
-    email: custData.email,
-    phone: custData.phone || '',
-    totalSpent: custData.totalSpent || 0,
-    ordersCount: custData.ordersCount || 0,
-    status: custData.status || 'Active',
-    created_at: new Date().toISOString()
-  };
-
-  try {
-    const saved = localStorage.getItem('orderly_registered_customers');
-    const list = saved ? JSON.parse(saved) : [];
-    const existingIdx = list.findIndex(c => c.email?.toLowerCase() === custData.email?.toLowerCase());
-    if (existingIdx >= 0) {
-      list[existingIdx] = { ...list[existingIdx], ...newRecord };
-    } else {
-      list.unshift(newRecord);
-    }
-    localStorage.setItem('orderly_registered_customers', JSON.stringify(list));
-  } catch (e) {}
-
-  return { success: true, data: newRecord };
-};
-
-export const updateCustomer = async (id, custData) => {
-  try {
-    const res = await api.put(`/customers/${id}`, custData);
-    if (res.data && res.data.success) return res.data;
-  } catch (error) {}
-
-  try {
-    const saved = localStorage.getItem('orderly_registered_customers');
-    const list = saved ? JSON.parse(saved) : [];
-    const updated = list.map(c => String(c.id) === String(id) ? { ...c, ...custData } : c);
-    localStorage.setItem('orderly_registered_customers', JSON.stringify(updated));
-    return { success: true, data: custData };
-  } catch (e) {
-    return { success: false, message: 'Update failed' };
-  }
-};
-
-export const deleteCustomer = async (id) => {
-  try {
-    const res = await api.delete(`/customers/${id}`);
-    if (res.data && res.data.success) return res.data;
-  } catch (error) {}
-
-  try {
-    const saved = localStorage.getItem('orderly_registered_customers');
-    const list = saved ? JSON.parse(saved) : [];
-    const updated = list.filter(c => String(c.id) !== String(id));
-    localStorage.setItem('orderly_registered_customers', JSON.stringify(updated));
-    return { success: true, message: 'Customer removed' };
-  } catch (e) {
-    return { success: false, message: 'Delete failed' };
-  }
-};
-
-// ----------------------------------------------------
 // ORDERS API ENDPOINTS (Dual Server & Client Sync)
 // ----------------------------------------------------
 
@@ -283,6 +143,41 @@ export const getSettings = async () => {
   return { success: false, data: {} };
 };
 
+export const getPaymentConfig = async () => {
+  try {
+    const res = await api.get('/payments/config');
+    if (res.data && res.data.success) return res.data;
+  } catch (error) {}
+  return {
+    success: true,
+    data: {
+      razorpayKeyId: '',
+      currency: 'INR',
+      codAdvancePercentage: 10
+    }
+  };
+};
+
+export const createRazorpayOrder = async (payload) => {
+  try {
+    const res = await api.post('/payments/razorpay/order', payload);
+    if (res.data && res.data.success) return res.data;
+  } catch (error) {
+    return { success: false, message: error.response?.data?.message || error.message };
+  }
+  return { success: false, message: 'Unable to create Razorpay order.' };
+};
+
+export const verifyRazorpayPayment = async (payload) => {
+  try {
+    const res = await api.post('/payments/razorpay/verify', payload);
+    if (res.data && res.data.success) return res.data;
+  } catch (error) {
+    return { success: false, message: error.response?.data?.message || error.message };
+  }
+  return { success: false, message: 'Unable to verify Razorpay payment.' };
+};
+
 export const createOrder = async (orderData) => {
   const newOrderNumber = `ORD-${Date.now().toString().slice(-6)}`;
   let createdOrderObj = null;
@@ -301,6 +196,7 @@ export const createOrder = async (orderData) => {
         items: orderData.items,
         shippingAddress: orderData.shippingAddress,
         payment_method: orderData.paymentMethod || 'COD',
+        pricingBreakdown: orderData.pricingBreakdown || orderData.pricing_breakdown || null,
         created_at: res.data.data?.createdAt || new Date().toISOString()
       };
 
@@ -344,6 +240,7 @@ export const createOrder = async (orderData) => {
     items: orderData.items,
     shippingAddress: orderData.shippingAddress,
     payment_method: orderData.paymentMethod || 'COD',
+    pricingBreakdown: orderData.pricingBreakdown || orderData.pricing_breakdown || null,
     created_at: new Date().toISOString()
   };
 

@@ -26,6 +26,12 @@ const OrderSuccess = () => {
   const customerName = state.customerName || 'Valued Customer';
   const email = state.email || '';
   const paymentMethod = state.paymentMethod || 'COD';
+  const amountPaid = state.amountPaid ?? liveOrder?.payment_amount ?? total;
+  const balanceDue = state.balanceDue ?? liveOrder?.cod_due_amount ?? 0;
+  const pricingBreakdown = state.pricingBreakdown
+    || liveOrder?.pricingBreakdown
+    || liveOrder?.pricing_breakdown
+    || null;
 
   useEffect(() => {
     let active = true;
@@ -121,8 +127,10 @@ const OrderSuccess = () => {
 
               <div className="row g-4">
                 <div className="col-12 col-sm-6 col-md-3">
-                  <span className="text-muted extra-small d-block fw-bold mb-1">TOTAL PAID</span>
-                  <strong className="text-danger fs-5">{formatPrice(total)}</strong>
+                  <span className="text-muted extra-small d-block fw-bold mb-1">
+                    {String(paymentMethod).toLowerCase().includes('cod') ? 'PAID NOW' : 'TOTAL PAID'}
+                  </span>
+                  <strong className="text-danger fs-5">{formatPrice(amountPaid)}</strong>
                 </div>
 
                 <div className="col-12 col-sm-6 col-md-3">
@@ -131,6 +139,13 @@ const OrderSuccess = () => {
                     <FiCreditCard className="me-1" /> {paymentMethod}
                   </span>
                 </div>
+
+                {String(paymentMethod).toLowerCase().includes('cod') && (
+                  <div className="col-12 col-sm-6 col-md-3">
+                    <span className="text-muted extra-small d-block fw-bold mb-1">BALANCE ON DELIVERY</span>
+                    <strong className="text-white fs-5">{formatPrice(balanceDue)}</strong>
+                  </div>
+                )}
 
                 <div className="col-12 col-sm-6 col-md-3">
                   <span className="text-muted extra-small d-block fw-bold mb-1">ESTIMATED DELIVERY</span>
@@ -144,6 +159,41 @@ const OrderSuccess = () => {
                   <span className="text-white small fw-bold text-break d-block"><FiMail className="me-1 text-muted" /> {email || 'On File'}</span>
                 </div>
               </div>
+
+              {pricingBreakdown && (
+                <div className="order-breakdown-panel mt-4 pt-3 border-top border-secondary">
+                  <div className="d-flex justify-content-between mb-2 text-muted small">
+                    <span>Items Total</span>
+                    <span>{formatPrice(pricingBreakdown.originalSubtotal ?? pricingBreakdown.subtotal ?? total)}</span>
+                  </div>
+                  {Number(pricingBreakdown.pairOfferSavings || 0) > 0 && (
+                    <div className="d-flex justify-content-between mb-2 text-success small">
+                      <span>Offer Savings</span>
+                      <span>-{formatPrice(pricingBreakdown.pairOfferSavings)}</span>
+                    </div>
+                  )}
+                  {Number(pricingBreakdown.couponDiscount || 0) > 0 && (
+                    <div className="d-flex justify-content-between mb-2 text-success small">
+                      <span>Coupon Discount</span>
+                      <span>-{formatPrice(pricingBreakdown.couponDiscount)}</span>
+                    </div>
+                  )}
+                  <div className="d-flex justify-content-between mb-2 small">
+                    <span>Shipping</span>
+                    <span>{Number(pricingBreakdown.shippingCost || 0) === 0 ? <strong className="text-success">FREE</strong> : formatPrice(pricingBreakdown.shippingCost)}</span>
+                  </div>
+                  <div className="d-flex justify-content-between pt-2 border-top border-secondary fw-bold text-white">
+                    <span>Grand Total</span>
+                    <span className="text-accent-red">{formatPrice(pricingBreakdown.total ?? total)}</span>
+                  </div>
+                  {String(paymentMethod).toLowerCase().includes('cod') && (
+                    <div className="d-flex justify-content-between pt-2 fw-bold text-white">
+                      <span>Paid Now</span>
+                      <span className="text-warning">{formatPrice(amountPaid)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Dual Action Buttons with 20px Explicit Gap */}

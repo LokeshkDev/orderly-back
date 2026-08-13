@@ -72,7 +72,7 @@ const Footer = () => {
           <div className="col-lg-2 col-md-6 col-6">
             <h6 className="footer-heading">CUSTOMER CARE</h6>
             <ul className="footer-links">
-              <li><Link to="/profile">Track Order</Link></li>
+              <li><Link to="/contact">Track Order</Link></li>
               <li><Link to="/returns-policy">Returns & Refunds</Link></li>
               <li><Link to="/shipping-policy">Shipping Policy</Link></li>
               <li><Link to="/about">Size Guide</Link></li>

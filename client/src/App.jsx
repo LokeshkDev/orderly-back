@@ -24,9 +24,6 @@ import ProductDetail from './pages/ProductDetail';
 import ComboDetail from './pages/ComboDetail';
 import CombosPage from './pages/CombosPage';
 import Wishlist from './pages/Wishlist';
-import CustomerLogin from './pages/CustomerLogin';
-import CustomerRegister from './pages/CustomerRegister';
-import CustomerProfile from './pages/CustomerProfile';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
 import OrderFailure from './pages/OrderFailure';
@@ -47,7 +44,7 @@ const ScrollToTop = () => {
 // Main Layout Wrapper conditional on route
 const AppLayout = () => {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isAuthPage = false;
 
   return (
     <div className="orderly-app-wrapper">
@@ -61,9 +58,6 @@ const AppLayout = () => {
         <Route path="/combo/:id" element={<ComboDetail />} />
         <Route path="/combos" element={<CombosPage />} />
         <Route path="/wishlist" element={<Wishlist />} />
-        <Route path="/login" element={<CustomerLogin />} />
-        <Route path="/register" element={<CustomerRegister />} />
-        <Route path="/profile" element={<CustomerProfile />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order-success" element={<OrderSuccess />} />
         <Route path="/order-failure" element={<OrderFailure />} />

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getSettings, validateCoupon } from '../services/api';
+import { calculateDeliveryCharge, DEFAULT_DELIVERY_SETTINGS } from '../utils/deliveryCalculator';
 
 const CartContext = createContext();
 
@@ -13,6 +14,7 @@ export const CartProvider = ({ children }) => {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [settings, setSettings] = useState(null);
+  const [pincode, setPincode] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -96,11 +98,26 @@ export const CartProvider = ({ children }) => {
   const subtotal = cart.reduce((acc, item) => acc + (getLinePrice(item, 'price') * item.quantity), 0);
   const originalSubtotal = cart.reduce((acc, item) => acc + (getLineBasePrice(item) * item.quantity), 0);
   const pairOfferSavings = Math.max(0, originalSubtotal - subtotal);
-  const freeShippingThreshold = Number(settings?.free_shipping_threshold) || 0;
-  const shippingFee = Number(settings?.shipping_fee) || 0;
-  const shippingCost = subtotal === 0 || (freeShippingThreshold > 0 && subtotal >= freeShippingThreshold) ? 0 : shippingFee;
+
+  // Delivery Calculation Engine Integration
+  const deliverySettings = settings?.delivery_settings || DEFAULT_DELIVERY_SETTINGS;
+  const deliveryResult = calculateDeliveryCharge({
+    cartItems: cart,
+    subtotal,
+    pincode,
+    deliverySettings,
+    legacySettings: settings
+  });
+
+  const shippingCost = cart.length === 0 ? 0 : Number(deliveryResult.shippingFee || 0);
   const total = Math.max(0, subtotal + shippingCost - discountAmount);
   const totalSavings = pairOfferSavings + discountAmount;
+
+  // Free shipping threshold for cart progress bar (from price based or legacy)
+  const priceRanges = deliverySettings?.price_based?.ranges || [];
+  const freeTier = priceRanges.find(r => Number(r.charge) === 0);
+  const freeShippingThreshold = freeTier ? Number(freeTier.min) : (Number(settings?.free_shipping_threshold) || 2000);
+
   const pricingBreakdown = {
     originalSubtotal,
     subtotal,
@@ -108,7 +125,12 @@ export const CartProvider = ({ children }) => {
     couponDiscount: discountAmount,
     shippingCost,
     total,
-    totalSavings
+    totalSavings,
+    deliveryMethod: deliveryResult.method,
+    deliveryLocation: deliveryResult.locationLabel,
+    deliveryExplanation: deliveryResult.explanation,
+    isBelowMinOrder: deliveryResult.isBelowMinOrder,
+    minOrderAmount: deliveryResult.minOrderAmount
   };
 
   const applyCoupon = async (code) => {
@@ -149,7 +171,11 @@ export const CartProvider = ({ children }) => {
         total,
         shippingCost,
         freeShippingThreshold,
-        shippingFee,
+        deliveryResult,
+        deliverySettings,
+        pincode,
+        setPincode,
+        shippingFee: shippingCost,
         appliedCoupon,
         discountAmount,
         pricingBreakdown,
@@ -166,36 +192,7 @@ export const CartProvider = ({ children }) => {
 export const useCart = () => {
   const context = useContext(CartContext);
   if (!context) {
-    return {
-      cart: [],
-      isCartOpen: false,
-      setIsCartOpen: () => {},
-      addToCart: () => {},
-      removeFromCart: () => {},
-      updateQuantity: () => {},
-      clearCart: () => {},
-      subtotal: 0,
-      originalSubtotal: 0,
-      pairOfferSavings: 0,
-      total: 0,
-      shippingCost: 0,
-      freeShippingThreshold: 1499,
-      shippingFee: 99,
-      appliedCoupon: null,
-      discountAmount: 0,
-      pricingBreakdown: {
-        originalSubtotal: 0,
-        subtotal: 0,
-        pairOfferSavings: 0,
-        couponDiscount: 0,
-        shippingCost: 0,
-        total: 0,
-        totalSavings: 0
-      },
-      applyCoupon: () => {},
-      removeCoupon: () => {},
-      totalItems: 0
-    };
+    throw new Error('useCart must be used within a CartProvider');
   }
   return context;
 };

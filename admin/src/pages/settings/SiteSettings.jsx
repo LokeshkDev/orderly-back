@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   FiMapPin, FiPhone, FiMail, FiGlobe, FiClock, FiPlus, FiTrash2, FiEdit, 
   FiCheck, FiSave, FiSettings, FiShoppingBag, FiTruck, FiDollarSign, FiShield, FiX
@@ -181,9 +182,14 @@ const SiteSettings = () => {
           <p className="text-muted mb-0 small">Manage contact details, multi-branch store locations, Google Maps embeds, and footer CMS live across the website.</p>
         </div>
 
-        <button type="button" className="btn-admin-red" onClick={handleSaveAll} disabled={saving}>
-          <FiSave /> {saving ? 'Saving...' : 'Save All Settings'}
-        </button>
+        <div className="d-flex align-items-center gap-2">
+          <Link to="/settings/delivery" className="btn-admin-outline d-flex align-items-center gap-2">
+            <FiTruck className="text-danger" /> Delivery Settings
+          </Link>
+          <button type="button" className="btn-admin-red" onClick={handleSaveAll} disabled={saving}>
+            <FiSave /> {saving ? 'Saving...' : 'Save All Settings'}
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSaveAll} className="row g-4">

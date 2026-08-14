@@ -5,7 +5,10 @@ import {
   FiPrinter, FiSave, FiPackage, FiMapPin, FiMail, FiPlus, FiTrash2, FiEdit, FiPhone
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import api, { createOrder as createOrderApi, updateOrder as updateOrderApi, deleteOrder as deleteOrderApi } from '../../services/api.js';
+import { 
+  DEFAULT_COURIER_SETTINGS, 
+  buildCourierTrackingUrl 
+} from '../../utils/deliveryCalculator.js';
 import StatusBadge from '../../components/common/StatusBadge';
 import './Orders.css';
 
@@ -29,6 +32,7 @@ const emptyOrderForm = {
 const OrdersList = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [availableCouriers, setAvailableCouriers] = useState(DEFAULT_COURIER_SETTINGS);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +43,7 @@ const OrdersList = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStatus, setEditingStatus] = useState('pending');
+  const [courierName, setCourierName] = useState('DTDC');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
 
@@ -62,9 +67,24 @@ const OrdersList = () => {
     try {
       let fetchedOrders = [];
       try {
-        const res = await api.get('/orders');
-        if (res.data && res.data.success && Array.isArray(res.data.data)) {
-          fetchedOrders = res.data.data;
+        const [ordersRes, settingsRes] = await Promise.all([
+          api.get('/orders'),
+          api.get('/settings').catch(() => null)
+        ]);
+
+        if (ordersRes.data && ordersRes.data.success && Array.isArray(ordersRes.data.data)) {
+          fetchedOrders = ordersRes.data.data;
+        }
+
+        if (settingsRes?.data?.data?.courier_settings) {
+          try {
+            const parsedC = typeof settingsRes.data.data.courier_settings === 'string'
+              ? JSON.parse(settingsRes.data.data.courier_settings)
+              : settingsRes.data.data.courier_settings;
+            if (Array.isArray(parsedC) && parsedC.length > 0) {
+              setAvailableCouriers(parsedC);
+            }
+          } catch (e) {}
         }
       } catch (err) {}
 
@@ -119,6 +139,7 @@ const OrdersList = () => {
   const openOrderModal = (order) => {
     setSelectedOrder(order);
     setEditingStatus(order.status || 'pending');
+    setCourierName(order.courier_name || availableCouriers[0]?.name || 'DTDC');
     setTrackingNumber(order.tracking_number || '');
     setIsModalOpen(true);
   };
@@ -127,31 +148,59 @@ const OrdersList = () => {
   const handleUpdateStatus = async (e) => {
     e.preventDefault();
     if (!selectedOrder) return;
+
+    const formattedStatus = editingStatus ? editingStatus.charAt(0).toUpperCase() + editingStatus.slice(1).toLowerCase() : 'Pending';
+
+    // Validate that tracking number is provided when marked as Shipped
+    if (formattedStatus.toLowerCase() === 'shipped' && !trackingNumber.trim()) {
+      toast.error('Please enter the Tracking / AWB number before setting status to Shipped.');
+      return;
+    }
+
     setSavingStatus(true);
     const targetKey = selectedOrder.id || selectedOrder.order_number;
-    const formattedStatus = editingStatus ? editingStatus.charAt(0).toUpperCase() + editingStatus.slice(1).toLowerCase() : 'Pending';
+    const dynamicTrackingUrl = buildCourierTrackingUrl(courierName, trackingNumber, availableCouriers);
 
     try {
       try {
-        await api.patch(`/orders/${targetKey}/status`, { status: formattedStatus });
+        await api.patch(`/orders/${targetKey}/status`, { 
+          status: formattedStatus,
+          courier_name: courierName,
+          tracking_number: trackingNumber,
+          tracking_url: dynamicTrackingUrl
+        });
         if (selectedOrder.order_number && selectedOrder.order_number !== targetKey) {
-          await api.patch(`/orders/${selectedOrder.order_number}/status`, { status: formattedStatus });
-        }
-        if (trackingNumber) {
-          await api.patch(`/orders/${targetKey}/tracking`, { tracking: trackingNumber });
+          await api.patch(`/orders/${selectedOrder.order_number}/status`, { 
+            status: formattedStatus,
+            courier_name: courierName,
+            tracking_number: trackingNumber,
+            tracking_url: dynamicTrackingUrl
+          });
         }
       } catch (e) {}
 
       const updatedOrders = orders.map(o => 
         (String(o.id) === String(selectedOrder.id) || o.order_number === selectedOrder.order_number)
-          ? { ...o, status: formattedStatus, tracking_number: trackingNumber || o.tracking_number }
+          ? { 
+              ...o, 
+              status: formattedStatus, 
+              courier_name: courierName,
+              tracking_number: trackingNumber || o.tracking_number,
+              tracking_url: dynamicTrackingUrl || o.tracking_url
+            }
           : o
       );
 
       setOrders(updatedOrders);
       syncOrdersToLocalStorage(updatedOrders);
       toast.success(`Order status updated to "${formattedStatus.toUpperCase()}"!`);
-      setSelectedOrder(prev => prev ? { ...prev, status: formattedStatus, tracking_number: trackingNumber } : null);
+      setSelectedOrder(prev => prev ? { 
+        ...prev, 
+        status: formattedStatus, 
+        courier_name: courierName,
+        tracking_number: trackingNumber,
+        tracking_url: dynamicTrackingUrl 
+      } : null);
       loadOrders();
     } catch (err) {
       toast.error('Failed to update order status');
@@ -630,7 +679,7 @@ const OrdersList = () => {
                       <FiTruck className="text-danger" /> Update Fulfillment Status
                     </h6>
                     
-                    <div className="admin-modal-field-group">
+                    <div className="admin-modal-field-group mb-3">
                       <label className="admin-modal-label">ORDER STATUS</label>
                       <select 
                         className="admin-modal-select"
@@ -645,15 +694,67 @@ const OrdersList = () => {
                       </select>
                     </div>
 
-                    <div className="admin-modal-field-group">
-                      <label className="admin-modal-label">COURIER TRACKING AWB NUMBER</label>
+                    {/* Show courier & tracking options */}
+                    <div className="admin-modal-field-group mb-3">
+                      <label className="admin-modal-label">COURIER PARTNER {editingStatus.toLowerCase() === 'shipped' ? '*' : ''}</label>
+                      <select
+                        className="admin-modal-select"
+                        value={courierName}
+                        onChange={(e) => setCourierName(e.target.value)}
+                      >
+                        {availableCouriers.map(c => (
+                          <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="admin-modal-field-group mb-3">
+                      <label className="admin-modal-label">TRACKING / AWB NUMBER {editingStatus.toLowerCase() === 'shipped' ? '*' : ''}</label>
                       <input 
                         type="text"
                         className="admin-modal-input"
-                        placeholder="e.g. DELHIVERY-894123"
+                        placeholder="e.g. DTDC123456789 or ST882910"
                         value={trackingNumber}
                         onChange={(e) => setTrackingNumber(e.target.value)}
+                        required={editingStatus.toLowerCase() === 'shipped'}
                       />
+                    </div>
+
+                    {trackingNumber && (
+                      <div className="mb-3">
+                        <a
+                          href={buildCourierTrackingUrl(courierName, trackingNumber, availableCouriers)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-sm btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-1 py-1.5"
+                        >
+                          <FiTruck /> Open Live Tracking ({courierName}) →
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Order Pricing Breakdown in Modal */}
+                    <div className="p-2 bg-light rounded border mb-3 small text-muted">
+                      <div className="d-flex justify-content-between py-0.5">
+                        <span>Subtotal:</span>
+                        <strong className="text-dark">₹{Number(selectedOrder.subtotal || selectedOrder.total || 0).toLocaleString()}</strong>
+                      </div>
+                      {Number(selectedOrder.discount || 0) > 0 && (
+                        <div className="d-flex justify-content-between py-0.5 text-success">
+                          <span>Discount:</span>
+                          <span>-₹{Number(selectedOrder.discount).toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="d-flex justify-content-between py-0.5">
+                        <span>Delivery Fee:</span>
+                        <span className={Number(selectedOrder.shipping_fee || selectedOrder.shippingFee || 0) === 0 ? 'text-success fw-bold' : 'text-dark fw-bold'}>
+                          {Number(selectedOrder.shipping_fee || selectedOrder.shippingFee || 0) === 0 ? 'FREE' : `₹${selectedOrder.shipping_fee || selectedOrder.shippingFee}`}
+                        </span>
+                      </div>
+                      <div className="d-flex justify-content-between py-1 border-top mt-1 fw-bold text-dark fs-6">
+                        <span>Grand Total:</span>
+                        <span className="text-danger">₹{Number(selectedOrder.total || 0).toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
 

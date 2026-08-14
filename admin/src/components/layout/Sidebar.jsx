@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
-  FiGrid, FiTag, FiPackage, FiLayers, FiShoppingCart, FiSettings, FiSliders, FiCalendar, FiUsers 
+  FiGrid, FiTag, FiPackage, FiLayers, FiShoppingCart, FiSettings, FiSliders, FiCalendar, FiUsers, FiTruck 
 } from 'react-icons/fi';
 import './Sidebar.css';
 
@@ -13,6 +13,7 @@ const Sidebar = () => {
     { path: '/products', icon: <FiPackage />, label: 'Products', exact: false },
     { path: '/combos', icon: <FiLayers />, label: 'Combos', exact: false },
     { path: '/orders', icon: <FiShoppingCart />, label: 'Orders', exact: false },
+    { path: '/settings/delivery', icon: <FiTruck />, label: 'Delivery Settings', exact: false },
     { path: '/coupons', icon: <FiTag />, label: 'Promo Coupons', exact: false },
     { path: '/customers', icon: <FiUsers />, label: 'Customers', exact: false },
   ];

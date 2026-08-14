@@ -20,6 +20,7 @@ import Brands from './pages/brands/Brands';
 import HeroSlides from './pages/hero/HeroSlides';
 import HomepageSettings from './pages/settings/HomepageSettings';
 import SiteSettings from './pages/settings/SiteSettings';
+import DeliverySettings from './pages/settings/DeliverySettings';
 
 import OrdersList from './pages/orders/OrdersList';
 import OrderDetail from './pages/orders/OrderDetail';
@@ -55,6 +56,7 @@ const AppRoutes = () => {
         <Route path="homepage-settings" element={<HomepageSettings />} />
         <Route path="hero-slides" element={<HomepageSettings defaultTab="carousel" />} />
         <Route path="settings" element={<SiteSettings />} />
+        <Route path="settings/delivery" element={<DeliverySettings />} />
         
         <Route path="orders" element={<OrdersList />} />
         <Route path="orders/:id" element={<OrderDetail />} />

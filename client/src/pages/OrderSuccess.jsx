@@ -4,6 +4,7 @@ import SEO from '../components/common/SEO';
 import { formatPrice } from '../utils/formatters';
 import { FiCheckCircle, FiHome, FiArrowRight, FiShoppingBag, FiTruck, FiMail, FiCreditCard, FiExternalLink } from 'react-icons/fi';
 import { getSettings, getOrderByNumber } from '../services/api';
+import { buildCourierTrackingUrl } from '../utils/deliveryCalculator';
 import './OrderSuccess.css';
 
 const getStatusBadgeClass = (status = '') => {
@@ -69,6 +70,7 @@ const OrderSuccess = () => {
   const currentStatus = liveOrder?.status || (liveLoaded ? '' : 'pending');
   const trackingNumber = liveOrder?.tracking_number || '';
   const courierName = liveOrder?.courier_name || '';
+  const trackingUrl = liveOrder?.tracking_url || buildCourierTrackingUrl(courierName, trackingNumber);
   const isShippedOrAfter = ['shipped', 'delivered'].includes(String(currentStatus).toLowerCase());
 
   return (
@@ -114,12 +116,12 @@ const OrderSuccess = () => {
                   </div>
                   {trackingNumber && (
                     <a
-                      href={`https://www.google.com/search?q=${encodeURIComponent(trackingNumber)}`}
+                      href={trackingUrl || `https://www.google.com/search?q=${encodeURIComponent(`${courierName} tracking ${trackingNumber}`)}`}
                       target="_blank"
                       rel="noreferrer"
                       className="btn btn-sm btn-outline-warning text-white fw-bold px-3 py-1.5"
                     >
-                      Track Package <FiExternalLink className="ms-1" />
+                      Track Shipment <FiExternalLink className="ms-1" />
                     </a>
                   )}
                 </div>

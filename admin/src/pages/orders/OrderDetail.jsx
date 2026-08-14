@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   FiArrowLeft, FiShoppingCart, FiUser, FiMapPin, FiTruck, 
-  FiDollarSign, FiCheck, FiPrinter, FiSave, FiCreditCard, FiPackage 
+  FiDollarSign, FiCheck, FiPrinter, FiSave, FiCreditCard, FiPackage, FiExternalLink 
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
+import { 
+  DEFAULT_COURIER_SETTINGS, 
+  buildCourierTrackingUrl 
+} from '../../utils/deliveryCalculator.js';
 import StatusBadge from '../../components/common/StatusBadge';
 import './Orders.css';
 
@@ -15,19 +19,37 @@ const OrderDetail = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('pending');
+  const [courierName, setCourierName] = useState('DTDC');
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [couriersList, setCouriersList] = useState(DEFAULT_COURIER_SETTINGS);
   const [savingStatus, setSavingStatus] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
       setLoading(true);
       try {
-        const res = await api.get(`/orders/${id}`);
+        const [res, settingsRes] = await Promise.all([
+          api.get(`/orders/${id}`),
+          api.get('/settings').catch(() => null)
+        ]);
+
         if (res.data && res.data.success && res.data.data) {
           const o = res.data.data;
           setOrder(o);
           setStatus(o.status || 'pending');
+          setCourierName(o.courier_name || 'DTDC');
           setTrackingNumber(o.tracking_number || '');
+        }
+
+        if (settingsRes?.data?.data?.courier_settings) {
+          try {
+            const parsedC = typeof settingsRes.data.data.courier_settings === 'string'
+              ? JSON.parse(settingsRes.data.data.courier_settings)
+              : settingsRes.data.data.courier_settings;
+            if (Array.isArray(parsedC) && parsedC.length > 0) {
+              setCouriersList(parsedC);
+            }
+          } catch (e) {}
         }
       } catch (err) {
         toast.error('Failed to load order details');
@@ -40,16 +62,31 @@ const OrderDetail = () => {
 
   const handleStatusUpdate = async (e) => {
     e.preventDefault();
+
+    if (status.toLowerCase() === 'shipped' && !trackingNumber.trim()) {
+      toast.error('Please enter the Tracking / AWB number before setting status to Shipped.');
+      return;
+    }
+
     setSavingStatus(true);
+    const dynamicTrackingUrl = buildCourierTrackingUrl(courierName, trackingNumber, couriersList);
+
     try {
-      const res = await api.patch(`/orders/${id}/status`, { status });
+      const res = await api.patch(`/orders/${id}/status`, { 
+        status,
+        courier_name: courierName,
+        tracking_number: trackingNumber,
+        tracking_url: dynamicTrackingUrl
+      });
       if (res.data && res.data.success) {
         toast.success(`Order status updated to "${status.toUpperCase()}"!`);
-        if (trackingNumber) {
-          try {
-            await api.patch(`/orders/${id}/tracking`, { tracking: trackingNumber });
-          } catch (e) {}
-        }
+        setOrder(prev => prev ? {
+          ...prev,
+          status,
+          courier_name: courierName,
+          tracking_number: trackingNumber,
+          tracking_url: dynamicTrackingUrl
+        } : null);
       }
     } catch (err) {
       toast.error('Failed to update order status');
@@ -186,16 +223,43 @@ const OrderDetail = () => {
                 </select>
               </div>
 
-              <div className="mb-4">
-                <label className="admin-form-label">Tracking Number / AWB</label>
+              <div className="mb-3">
+                <label className="admin-form-label">Courier Service Partner {status.toLowerCase() === 'shipped' ? '*' : ''}</label>
+                <select
+                  className="admin-select"
+                  value={courierName}
+                  onChange={(e) => setCourierName(e.target.value)}
+                >
+                  {couriersList.map(c => (
+                    <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mb-3">
+                <label className="admin-form-label">Tracking Number / AWB {status.toLowerCase() === 'shipped' ? '*' : ''}</label>
                 <input 
                   type="text" 
                   className="admin-input"
-                  placeholder="e.g. TRK-88219402"
+                  placeholder="e.g. DTDC123456789 or ST-88219402"
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
+                  required={status.toLowerCase() === 'shipped'}
                 />
               </div>
+
+              {trackingNumber && (
+                <div className="mb-3">
+                  <a 
+                    href={order.tracking_url || buildCourierTrackingUrl(courierName, trackingNumber, couriersList)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-sm btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-1 py-2 fw-bold"
+                  >
+                    <FiTruck /> Open Live Tracking ({courierName}) <FiExternalLink className="ms-1" />
+                  </a>
+                </div>
+              )}
 
               <button 
                 type="submit" 
@@ -263,11 +327,22 @@ const OrderDetail = () => {
           <div className="col-md-5 col-lg-4">
             <div className="d-flex justify-content-between py-1">
               <span className="text-muted small">Subtotal:</span>
-              <strong className="text-dark">₹{Number(order.subtotal || order.total).toLocaleString()}</strong>
+              <strong className="text-dark">₹{Number(order.subtotal || order.total || 0).toLocaleString()}</strong>
             </div>
+            {Number(order.discount || 0) > 0 && (
+              <div className="d-flex justify-content-between py-1 text-success">
+                <span className="small">Coupon Discount:</span>
+                <span className="small font-weight-bold">-₹{Number(order.discount).toLocaleString()}</span>
+              </div>
+            )}
             <div className="d-flex justify-content-between py-1">
-              <span className="text-muted small">Shipping:</span>
-              <span className="text-success small fw-bold">FREE</span>
+              <span className="text-muted small">
+                Shipping Fee:
+                {order.delivery_location_label ? ` (${order.delivery_location_label})` : ''}
+              </span>
+              <span className={Number(order.shipping_fee || order.shippingFee || 0) === 0 ? 'text-success small fw-bold' : 'text-dark small fw-bold'}>
+                {Number(order.shipping_fee || order.shippingFee || 0) === 0 ? 'FREE' : `₹${order.shipping_fee || order.shippingFee}`}
+              </span>
             </div>
             <div className="d-flex justify-content-between py-2 border-top mt-2 fs-5">
               <strong className="text-dark">Grand Total:</strong>

@@ -1,6 +1,25 @@
 import db from '../models/index.js';
+import { DEFAULT_DELIVERY_SETTINGS, DEFAULT_COURIER_SETTINGS } from '../utils/deliveryCalculator.js';
 
 const { SiteSetting } = db;
+
+export const DEFAULT_EMAIL_SETTINGS = {
+  new_order: {
+    enabled: true,
+    subject: 'ORDERLY | Order Confirmed | #{{orderNumber}}',
+    custom_message: ''
+  },
+  order_shipped: {
+    enabled: true,
+    subject: 'ORDERLY | Your Order Has Been Shipped! | #{{orderNumber}}',
+    custom_message: ''
+  },
+  order_delivered: {
+    enabled: true,
+    subject: 'ORDERLY | Your Order Has Been Delivered! | #{{orderNumber}}',
+    custom_message: ''
+  }
+};
 
 // Server-side default content — the MySQL database (managed via the Admin
 // panel) is the single source of truth for the website. These defaults only
@@ -43,7 +62,10 @@ const DEFAULT_SETTINGS = {
   delivery_estimate_text: 'Within 2-3 Business Days',
   facebook_url: 'https://facebook.com',
   instagram_url: 'https://instagram.com',
-  youtube_url: 'https://youtube.com'
+  youtube_url: 'https://youtube.com',
+  delivery_settings: DEFAULT_DELIVERY_SETTINGS,
+  courier_settings: DEFAULT_COURIER_SETTINGS,
+  email_settings: DEFAULT_EMAIL_SETTINGS
 };
 
 const parseValue = (row) => {

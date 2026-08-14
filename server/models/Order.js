@@ -99,6 +99,42 @@ const Order = sequelize.define('Order', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  courier_name: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  tracking_url: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  shipped_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  delivered_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  delivery_method: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  delivery_location_label: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  new_order_email_sent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  shipped_email_sent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  delivered_email_sent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true,

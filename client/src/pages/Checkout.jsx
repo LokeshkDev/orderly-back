@@ -28,7 +28,21 @@ const loadRazorpayScript = () => {
 };
 
 const Checkout = () => {
-  const { cart, total, subtotal, originalSubtotal, pairOfferSavings, shippingCost, discountAmount, appliedCoupon, clearCart, pricingBreakdown } = useCart();
+  const { 
+    cart, 
+    total, 
+    subtotal, 
+    originalSubtotal, 
+    pairOfferSavings, 
+    shippingCost, 
+    discountAmount, 
+    appliedCoupon, 
+    clearCart, 
+    pricingBreakdown,
+    deliveryResult,
+    pincode,
+    setPincode
+  } = useCart();
   const navigate = useNavigate();
 
   const [paymentMethod, setPaymentMethod] = useState('online');
@@ -46,8 +60,8 @@ const Checkout = () => {
     phone: '',
     address: '',
     city: '',
-    state: 'Karnataka',
-    pincode: ''
+    state: 'Tamil Nadu',
+    pincode: pincode || ''
   });
 
   useEffect(() => {
@@ -78,13 +92,25 @@ const Checkout = () => {
   const paymentLabel = paymentMethod === 'cod' ? 'COD Advance' : 'Online Payment';
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'pincode') {
+      const cleanPin = value.replace(/\D/g, '').slice(0, 6);
+      setFormData(prev => ({ ...prev, pincode: cleanPin }));
+      setPincode(cleanPin);
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
 
     if (submitting) return;
+    if (deliveryResult?.isBelowMinOrder) {
+      setOrderError(`Minimum order value of ₹${deliveryResult.minOrderAmount} is required for delivery.`);
+      return;
+    }
+
     setSubmitting(true);
     setOrderError(null);
 
@@ -122,6 +148,8 @@ const Checkout = () => {
       discount: discountAmount,
       shippingFee: shippingCost,
       shipping_fee: shippingCost,
+      delivery_method: deliveryResult?.method,
+      delivery_location_label: deliveryResult?.locationLabel,
       total,
       paymentMethod,
       couponCode: appliedCoupon?.code || '',
@@ -393,13 +421,41 @@ const Checkout = () => {
                       <input
                         type="text"
                         name="pincode"
-                        placeholder="Pincode *"
+                        placeholder="Pincode (6-digit) *"
                         required
                         value={formData.pincode}
                         onChange={handleChange}
                         className="checkout-input"
+                        maxLength={6}
                       />
                     </div>
+
+                    {/* Live Pincode Location Resolution Badge */}
+                    {formData.pincode && formData.pincode.length === 6 && (
+                      <div className="col-12 mt-2">
+                        <div className="p-2 px-3 rounded-2 d-flex align-items-center justify-content-between" style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <span className="small text-white d-flex align-items-center gap-1">
+                            <FiMapPin className="text-danger" />
+                            <span>Delivery Destination: <strong>{deliveryResult?.locationLabel || (deliveryResult?.method === 'pincode_based' ? 'Standard Location' : 'All India')}</strong></span>
+                          </span>
+                          <span className="badge bg-danger fs-7">
+                            {shippingCost === 0 ? 'FREE DELIVERY' : `Delivery Charge: ${formatPrice(shippingCost)}`}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Minimum Order Value Alert */}
+                    {deliveryResult?.isBelowMinOrder && (
+                      <div className="col-12 mt-2">
+                        <div className="alert alert-warning p-2 small mb-0 d-flex align-items-center gap-2">
+                          <FiAlertCircle className="text-warning flex-shrink-0" style={{ fontSize: '1.2rem' }} />
+                          <div>
+                            <strong>Minimum Order Required:</strong> A minimum order value of <strong>{formatPrice(deliveryResult.minOrderAmount)}</strong> is required for delivery (Current cart: <strong>{formatPrice(subtotal)}</strong>).
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                   </div>
                 </div>
@@ -520,7 +576,9 @@ const Checkout = () => {
                       </div>
                     )}
                     <div className="d-flex justify-content-between mb-2">
-                      <span>Express Shipping</span>
+                      <span>
+                        {deliveryResult?.methodLabel || 'Express Shipping'}
+                      </span>
                       <span>{shippingCost === 0 ? <strong className="text-success">FREE</strong> : formatPrice(shippingCost)}</span>
                     </div>
                     <div className="d-flex justify-content-between mb-2">
@@ -542,10 +600,13 @@ const Checkout = () => {
                   <button 
                     type="submit" 
                     className="btn-primary-orderly w-100 py-3 mt-4 fs-6 fw-bold" 
-                    disabled={submitting}
+                    disabled={submitting || deliveryResult?.isBelowMinOrder}
                   >
-                    <FiLock /> {submitting ? 'Starting Payment...' : (paymentMethod === 'cod' ? `Pay ${formatPrice(paymentDueNow)} & Place COD Order` : `Pay ${formatPrice(paymentDueNow)} Securely`)
-                    }
+                    <FiLock /> {submitting ? 'Starting Payment...' : (
+                      deliveryResult?.isBelowMinOrder
+                        ? `Min Order ₹${deliveryResult.minOrderAmount} Required`
+                        : (paymentMethod === 'cod' ? `Pay ${formatPrice(paymentDueNow)} & Place COD Order` : `Pay ${formatPrice(paymentDueNow)} Securely`)
+                    )}
                   </button>
 
                 </div>

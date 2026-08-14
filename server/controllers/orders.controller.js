@@ -1,9 +1,16 @@
 import db from '../models/index.js';
 import { Op } from 'sequelize';
 import { sendOrderEmail } from '../utils/emailService.js';
-
-const { Order, OrderItem, Customer } = db;
+import { 
+  calculateDeliveryCharge, 
+  buildCourierTrackingUrl, 
+  DEFAULT_DELIVERY_SETTINGS, 
+  DEFAULT_COURIER_SETTINGS 
+} from '../utils/deliveryCalculator.js';
+import { DEFAULT_EMAIL_SETTINGS } from './settings.controller.js';
 import Product from '../models/Product.js';
+
+const { Order, OrderItem, Customer, SiteSetting } = db;
 
 export let RUNTIME_ORDERS = [];
 
@@ -19,23 +26,77 @@ export const addRuntimeOrder = (orderObj) => {
   }
 };
 
+const getParsedSettings = async () => {
+  try {
+    const rows = await SiteSetting.findAll();
+    const settings = {};
+    rows.forEach(r => {
+      if (r.setting_type === 'json' && typeof r.setting_value === 'string') {
+        try { settings[r.setting_key] = JSON.parse(r.setting_value); } catch (e) { settings[r.setting_key] = r.setting_value; }
+      } else if (r.setting_type === 'boolean') {
+        settings[r.setting_key] = r.setting_value === 'true' || r.setting_value === true;
+      } else {
+        settings[r.setting_key] = r.setting_value;
+      }
+    });
+    return {
+      delivery_settings: settings.delivery_settings || DEFAULT_DELIVERY_SETTINGS,
+      courier_settings: settings.courier_settings || DEFAULT_COURIER_SETTINGS,
+      email_settings: settings.email_settings || DEFAULT_EMAIL_SETTINGS,
+      raw: settings
+    };
+  } catch (err) {
+    return {
+      delivery_settings: DEFAULT_DELIVERY_SETTINGS,
+      courier_settings: DEFAULT_COURIER_SETTINGS,
+      email_settings: DEFAULT_EMAIL_SETTINGS,
+      raw: {}
+    };
+  }
+};
+
 const normalizeOrder = (o) => {
   const row = o && typeof o.toJSON === 'function' ? o.toJSON() : (o || {});
   const orderItems = row.items || row.OrderItems || [];
   return {
     ...row,
+    id: row.id,
+    order_number: row.order_number,
+    status: row.status || 'pending',
+    subtotal: Number(row.subtotal ?? row.total ?? 0),
+    discount: Number(row.discount || 0),
+    shipping_fee: Number(row.shipping_fee || row.shippingFee || 0),
+    shippingFee: Number(row.shipping_fee || row.shippingFee || 0),
+    total: Number(row.total || 0),
+    delivery_method: row.delivery_method || null,
+    delivery_location_label: row.delivery_location_label || null,
+    courier_name: row.courier_name || null,
+    tracking_number: row.tracking_number || null,
+    tracking_url: row.tracking_url || null,
+    shipped_at: row.shipped_at || null,
+    delivered_at: row.delivered_at || null,
+    new_order_email_sent: Boolean(row.new_order_email_sent),
+    shipped_email_sent: Boolean(row.shipped_email_sent),
+    delivered_email_sent: Boolean(row.delivered_email_sent),
     items: Array.isArray(orderItems) ? orderItems.map(item => ({
       ...item,
       id: item.id || item.order_item_id || null,
       name: item.name || item.product_name || item.productName || 'Product',
-      productId: item.productId || item.product_id || item.productId || null,
+      productId: item.productId || item.product_id || null,
+      product_id: item.productId || item.product_id || null,
       selectedSize: item.selectedSize || item.size || null,
+      size: item.selectedSize || item.size || null,
       selectedColor: item.selectedColor || item.color || null,
+      color: item.selectedColor || item.color || null,
       quantity: Number(item.quantity || 1),
       price: Number(item.price ?? item.unit_price ?? item.amount ?? 0),
-      unit_price: Number(item.unit_price ?? item.price ?? item.amount ?? 0)
+      unit_price: Number(item.unit_price ?? item.price ?? item.amount ?? 0),
+      originalPrice: Number(item.originalPrice ?? item.original_price ?? item.price ?? item.unit_price ?? 0),
+      pairOffer: item.pairOffer || null,
+      isPairOffer: Boolean(item.isPairOffer || item.pairOffer?.enabled)
     })) : [],
     shippingAddress: row.shippingAddress || row.shipping_address || null,
+    shipping_address: row.shippingAddress || row.shipping_address || null,
     billingAddress: row.billingAddress || row.billing_address || null,
     pricingBreakdown: row.pricingBreakdown || row.pricing_breakdown || null,
     paymentAmount: row.paymentAmount || row.payment_amount || null,
@@ -48,15 +109,15 @@ const normalizeOrder = (o) => {
   };
 };
 
-export const normalizeOrderPayload = (payload = {}) => {
+export const normalizeOrderPayload = async (payload = {}) => {
   const {
     items = [],
-    shippingAddress,
-    subtotal,
+    shippingAddress = {},
+    subtotal: clientSubtotal,
     discount = 0,
-    shippingFee,
-    shipping_fee = 0,
-    total,
+    shippingFee: clientShippingFee,
+    shipping_fee: clientShipping_fee,
+    total: clientTotal,
     paymentMethod = payload.paymentMethod || payload.payment_method || 'online',
     status = 'pending',
     pricingBreakdown = null,
@@ -70,6 +131,8 @@ export const normalizeOrderPayload = (payload = {}) => {
     payment_gateway = 'razorpay'
   } = payload;
 
+  const { delivery_settings, raw } = await getParsedSettings();
+
   const normalizedPaymentMethod = ['cod', 'online', 'card', 'upi'].includes(String(paymentMethod).toLowerCase())
     ? String(paymentMethod).toLowerCase()
     : 'online';
@@ -78,28 +141,69 @@ export const normalizeOrderPayload = (payload = {}) => {
     ? String(status).toLowerCase()
     : 'pending';
 
+  // Authoritatively compute and validate item pricing & pair offers from MRP
+  let computedSubtotal = 0;
   const normalizedItems = Array.isArray(items) ? items.map((item, index) => {
     const productItem = item || {};
+    const mrp = Number(productItem.originalPrice ?? productItem.original_price ?? productItem.price ?? 0);
+    let unitPrice = Number(productItem.price ?? productItem.unit_price ?? 0);
+
+    // If pair offer is enabled, enforce calculation: MRP * (100 - discountPercent) / 100
+    if (productItem.pairOffer?.enabled || productItem.isPairOffer) {
+      const discountPct = Math.max(0, Math.min(90, Number(productItem.pairOffer?.discount_percent ?? productItem.pairOffer?.discountPercent ?? 0)));
+      if (discountPct > 0 && mrp > 0) {
+        unitPrice = Math.round(mrp * (100 - discountPct) / 100);
+      }
+    }
+
+    const qty = Math.max(1, Number(productItem.quantity || 1));
+    computedSubtotal += unitPrice * qty;
+
     return {
       product_id: productItem.productId ?? productItem.product_id ?? null,
       combo_id: productItem.comboId ?? productItem.combo_id ?? null,
       product_name: productItem.name || productItem.product_name || productItem.productName || `Item ${index + 1}`,
       size: productItem.selectedSize || productItem.size || null,
       color: productItem.selectedColor || productItem.color || null,
-      quantity: Number(productItem.quantity || 1),
-      unit_price: Number(productItem.price ?? productItem.unit_price ?? 0),
+      quantity: qty,
+      unit_price: unitPrice,
+      original_price: mrp
     };
   }) : [];
+
+  const effectiveSubtotal = computedSubtotal > 0 ? computedSubtotal : Number(clientSubtotal || 0);
+
+  // Authoritative Backend Delivery Calculation
+  const deliveryResult = calculateDeliveryCharge({
+    cartItems: normalizedItems,
+    subtotal: effectiveSubtotal,
+    pincode: shippingAddress?.pincode || '',
+    deliverySettings: delivery_settings,
+    legacySettings: raw
+  });
+
+  const numericDiscount = Math.max(0, Number(discount || 0));
+  const authoritativeShippingFee = Number(deliveryResult.shippingFee || 0);
+  const computedGrandTotal = Math.max(0, effectiveSubtotal + authoritativeShippingFee - numericDiscount);
 
   return {
     customer_id: customer_id ?? null,
     order_number: order_number || `ORD-${Date.now().toString().slice(-8)}`,
     status: normalizedStatus,
-    subtotal: Number(subtotal ?? total ?? 0),
-    discount: Number(discount || 0),
-    pricing_breakdown: pricingBreakdown || pricing_breakdown || null,
-    shipping_fee: Number(shipping_fee || shippingFee || 0),
-    total: Number(total || 0),
+    subtotal: effectiveSubtotal,
+    discount: numericDiscount,
+    pricing_breakdown: pricingBreakdown || pricing_breakdown || {
+      subtotal: effectiveSubtotal,
+      discount: numericDiscount,
+      shippingCost: authoritativeShippingFee,
+      total: computedGrandTotal,
+      deliveryMethod: deliveryResult.method,
+      deliveryExplanation: deliveryResult.explanation
+    },
+    shipping_fee: authoritativeShippingFee,
+    delivery_method: deliveryResult.method,
+    delivery_location_label: deliveryResult.locationLabel || null,
+    total: computedGrandTotal,
     shipping_address: shippingAddress || {},
     billing_address: shippingAddress || {},
     payment_method: normalizedPaymentMethod,
@@ -109,14 +213,25 @@ export const normalizeOrderPayload = (payload = {}) => {
     cod_advance_percentage: codAdvancePercentage ?? null,
     cod_advance_amount: codAdvanceAmount ?? null,
     cod_due_amount: codDueAmount ?? null,
-    orderItems: normalizedItems
+    orderItems: normalizedItems,
+    deliveryResult
   };
 };
 
 export const createOrder = async (req, res) => {
   try {
-    const normalizedOrder = normalizeOrderPayload(req.body);
-    const { orderItems, ...orderFields } = normalizedOrder;
+    const normalizedOrder = await normalizeOrderPayload(req.body);
+    const { orderItems, deliveryResult, ...orderFields } = normalizedOrder;
+
+    // Validate minimum order requirement if price-based is active
+    if (deliveryResult?.isBelowMinOrder) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum order value of ₹${deliveryResult.minOrderAmount} is required for delivery.`
+      });
+    }
+
+    const { email_settings, courier_settings } = await getParsedSettings();
 
     let order;
     try {
@@ -130,6 +245,9 @@ export const createOrder = async (req, res) => {
     } catch (err) {
       console.warn('Order create note:', err.message);
     }
+
+    const shippingAddress = req.body.shippingAddress || {};
+    const customerFullName = shippingAddress.fullName || `${shippingAddress.firstName || ''} ${shippingAddress.lastName || ''}`.trim() || 'Valued Customer';
 
     const createdRecord = order
       ? normalizeOrder({
@@ -148,10 +266,15 @@ export const createOrder = async (req, res) => {
       : {
           id: Date.now(),
           order_number: normalizedOrder.order_number,
-          customer_name: req.body.shippingAddress ? `${req.body.shippingAddress.firstName} ${req.body.shippingAddress.lastName}` : 'Customer',
-          email: req.body.shippingAddress?.email || '',
-          phone: req.body.shippingAddress?.phone || '',
-          total: Number(req.body.total || 0),
+          customer_name: customerFullName,
+          email: shippingAddress.email || '',
+          phone: shippingAddress.phone || '',
+          subtotal: normalizedOrder.subtotal,
+          discount: normalizedOrder.discount,
+          shipping_fee: normalizedOrder.shipping_fee,
+          total: normalizedOrder.total,
+          delivery_method: normalizedOrder.delivery_method,
+          delivery_location_label: normalizedOrder.delivery_location_label,
           status: normalizedOrder.status || 'pending',
           items: orderItems.map(item => ({
             name: item.product_name,
@@ -161,7 +284,7 @@ export const createOrder = async (req, res) => {
             price: item.unit_price,
             productId: item.product_id
           })),
-          shippingAddress: req.body.shippingAddress || {},
+          shippingAddress: shippingAddress,
           pricingBreakdown: normalizedOrder.pricing_breakdown,
           payment_method: normalizedOrder.payment_method,
           payment_status: 'pending',
@@ -175,19 +298,35 @@ export const createOrder = async (req, res) => {
 
     addRuntimeOrder(createdRecord);
 
+    // Send New Order Confirmation Email
     try {
-      await sendOrderEmail({
-        orderNumber: createdRecord.order_number,
-        customerName: createdRecord.customer_name || (shippingAddress ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() : 'Customer'),
-        customerEmail: createdRecord.email || shippingAddress?.email || '',
-        adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
-        status: 'pending',
-        type: 'order_placed',
-        paymentStatus: normalizedOrder.payment_method === 'cod' ? 'pending' : 'pending',
-        amount: Number(createdRecord.total || 0)
-      });
+      if (email_settings?.new_order?.enabled !== false) {
+        await sendOrderEmail({
+          orderNumber: createdRecord.order_number,
+          customerName: customerFullName,
+          customerEmail: createdRecord.email || shippingAddress.email || '',
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+          status: 'pending',
+          type: 'order_placed',
+          paymentStatus: normalizedOrder.payment_method === 'cod' ? 'pending' : 'pending',
+          paymentMethod: normalizedOrder.payment_method,
+          subtotal: Number(createdRecord.subtotal || 0),
+          discount: Number(createdRecord.discount || 0),
+          deliveryCharge: Number(createdRecord.shipping_fee || 0),
+          amount: Number(createdRecord.total || 0),
+          items: createdRecord.items,
+          shippingAddress: shippingAddress,
+          emailSettings: email_settings,
+          courierSettings: courier_settings
+        });
+
+        if (order) {
+          try { await order.update({ new_order_email_sent: true }); } catch (e) {}
+        }
+        createdRecord.new_order_email_sent = true;
+      }
     } catch (emailError) {
-      console.warn('Order placement email failed:', emailError.message);
+      console.warn('Order placement email note:', emailError.message);
     }
 
     res.status(201).json({
@@ -277,18 +416,21 @@ export const getOrderById = async (req, res) => {
 
 export const updateOrderStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, courier_name, tracking_number } = req.body;
     const orderId = req.params.id;
     if (!status) return res.status(400).json({ success: false, message: 'Status required' });
 
-    // Standardize status format (Title Case e.g. "Confirmed", "Shipped", "Delivered")
     const formattedStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+    const lowerStatus = status.toLowerCase();
 
+    const { courier_settings, email_settings } = await getParsedSettings();
+
+    let dbOrder = null;
     try {
-      const order = await Order.findOne({
-        where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] }
+      dbOrder = await Order.findOne({
+        where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] },
+        include: [{ model: OrderItem, as: 'items', required: false }]
       });
-      if (order) await order.update({ status: formattedStatus });
     } catch (err) {}
 
     let runtimeItem = RUNTIME_ORDERS.find(o => 
@@ -296,35 +438,118 @@ export const updateOrderStatus = async (req, res) => {
       (o.order_number && String(o.order_number).toLowerCase() === String(orderId).toLowerCase())
     );
 
+    const effectiveCourier = courier_name || dbOrder?.courier_name || runtimeItem?.courier_name || '';
+    const effectiveTracking = tracking_number !== undefined ? tracking_number : (dbOrder?.tracking_number || runtimeItem?.tracking_number || '');
+    const dynamicTrackingUrl = buildCourierTrackingUrl(effectiveCourier, effectiveTracking, courier_settings);
+
+    const updateFields = {
+      status: formattedStatus
+    };
+
+    if (effectiveCourier) updateFields.courier_name = effectiveCourier;
+    if (effectiveTracking) updateFields.tracking_number = effectiveTracking;
+    if (dynamicTrackingUrl) updateFields.tracking_url = dynamicTrackingUrl;
+
+    if (lowerStatus === 'shipped') {
+      updateFields.shipped_at = new Date();
+    } else if (lowerStatus === 'delivered') {
+      updateFields.delivered_at = new Date();
+    }
+
+    if (dbOrder) {
+      try { await dbOrder.update(updateFields); } catch (e) {}
+    }
+
     if (runtimeItem) {
-      runtimeItem.status = formattedStatus;
+      Object.assign(runtimeItem, updateFields);
     } else {
-      const newRecord = {
+      runtimeItem = {
         id: orderId,
         order_number: String(orderId).startsWith('ORD-') ? orderId : `ORD-${orderId}`,
-        status: formattedStatus,
+        ...updateFields,
         created_at: new Date().toISOString()
       };
-      RUNTIME_ORDERS.unshift(newRecord);
+      RUNTIME_ORDERS.unshift(runtimeItem);
     }
 
-    try {
-      const targetOrder = runtimeItem || { order_number: String(orderId).startsWith('ORD-') ? orderId : `ORD-${orderId}`, total: 0, customer_name: 'Customer', email: '' };
-      await sendOrderEmail({
-        orderNumber: targetOrder.order_number || orderId,
-        customerName: targetOrder.customer_name || 'Customer',
-        customerEmail: targetOrder.email || '',
-        adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
-        status: formattedStatus,
-        type: 'status_update',
-        paymentStatus: targetOrder.payment_status || 'pending',
-        amount: Number(targetOrder.total || 0)
-      });
-    } catch (emailError) {
-      console.warn('Order status email failed:', emailError.message);
+    const orderRecord = dbOrder ? normalizeOrder(dbOrder) : normalizeOrder(runtimeItem);
+
+    // Check status-specific email trigger (deduplicated)
+    if (lowerStatus === 'shipped') {
+      const alreadySent = dbOrder ? dbOrder.shipped_email_sent : runtimeItem.shipped_email_sent;
+      if (!alreadySent && email_settings?.order_shipped?.enabled !== false) {
+        try {
+          await sendOrderEmail({
+            orderNumber: orderRecord.order_number,
+            customerName: orderRecord.customer_name || 'Customer',
+            customerEmail: orderRecord.email,
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+            status: 'Shipped',
+            type: 'order_shipped',
+            paymentStatus: orderRecord.payment_status || 'pending',
+            paymentMethod: orderRecord.payment_method,
+            subtotal: orderRecord.subtotal,
+            discount: orderRecord.discount,
+            deliveryCharge: orderRecord.shipping_fee,
+            amount: orderRecord.total,
+            items: orderRecord.items,
+            shippingAddress: orderRecord.shippingAddress,
+            courierName: effectiveCourier,
+            trackingNumber: effectiveTracking,
+            trackingUrl: dynamicTrackingUrl,
+            shippedDate: new Date().toLocaleDateString('en-IN', { dateStyle: 'medium' }),
+            emailSettings: email_settings,
+            courierSettings: courier_settings
+          });
+
+          if (dbOrder) {
+            try { await dbOrder.update({ shipped_email_sent: true }); } catch (e) {}
+          }
+          runtimeItem.shipped_email_sent = true;
+        } catch (emailError) {
+          console.warn('Shipped email notification note:', emailError.message);
+        }
+      }
+    } else if (lowerStatus === 'delivered') {
+      const alreadySent = dbOrder ? dbOrder.delivered_email_sent : runtimeItem.delivered_email_sent;
+      if (!alreadySent && email_settings?.order_delivered?.enabled !== false) {
+        try {
+          await sendOrderEmail({
+            orderNumber: orderRecord.order_number,
+            customerName: orderRecord.customer_name || 'Customer',
+            customerEmail: orderRecord.email,
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+            status: 'Delivered',
+            type: 'order_delivered',
+            paymentStatus: orderRecord.payment_status || 'pending',
+            paymentMethod: orderRecord.payment_method,
+            subtotal: orderRecord.subtotal,
+            discount: orderRecord.discount,
+            deliveryCharge: orderRecord.shipping_fee,
+            amount: orderRecord.total,
+            items: orderRecord.items,
+            shippingAddress: orderRecord.shippingAddress,
+            deliveredDate: new Date().toLocaleDateString('en-IN', { dateStyle: 'medium' }),
+            emailSettings: email_settings,
+            courierSettings: courier_settings
+          });
+
+          if (dbOrder) {
+            try { await dbOrder.update({ delivered_email_sent: true }); } catch (e) {}
+          }
+          runtimeItem.delivered_email_sent = true;
+        } catch (emailError) {
+          console.warn('Delivered email notification note:', emailError.message);
+        }
+      }
     }
 
-    res.status(200).json({ success: true, message: 'Status updated', status: formattedStatus });
+    res.status(200).json({
+      success: true,
+      message: 'Status updated',
+      status: formattedStatus,
+      tracking_url: dynamicTrackingUrl
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -332,13 +557,24 @@ export const updateOrderStatus = async (req, res) => {
 
 export const updateTrackingNumber = async (req, res) => {
   try {
-    const { tracking, courier_name = 'Delhivery Express' } = req.body;
+    const { tracking, tracking_number, courier_name } = req.body;
+    const finalTracking = tracking_number !== undefined ? tracking_number : tracking;
     const orderId = req.params.id;
+
+    const { courier_settings } = await getParsedSettings();
+    const dynamicTrackingUrl = buildCourierTrackingUrl(courier_name, finalTracking, courier_settings);
+
     try {
       const order = await Order.findOne({
         where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] }
       });
-      if (order) await order.update({ tracking_number: tracking });
+      if (order) {
+        await order.update({
+          tracking_number: finalTracking,
+          courier_name: courier_name || order.courier_name,
+          tracking_url: dynamicTrackingUrl
+        });
+      }
     } catch (err) {}
 
     let runtimeItem = RUNTIME_ORDERS.find(o => 
@@ -347,11 +583,16 @@ export const updateTrackingNumber = async (req, res) => {
     );
 
     if (runtimeItem) {
-      runtimeItem.tracking_number = tracking;
-      runtimeItem.courier_name = courier_name;
+      runtimeItem.tracking_number = finalTracking;
+      if (courier_name) runtimeItem.courier_name = courier_name;
+      runtimeItem.tracking_url = dynamicTrackingUrl;
     }
 
-    res.status(200).json({ success: true, message: 'Tracking updated' });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Tracking updated', 
+      tracking_url: dynamicTrackingUrl 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -361,18 +602,37 @@ export const updateTracking = updateTrackingNumber;
 
 export const updateOrder = async (req, res) => {
   try {
-    const { status, total, tracking_number, courier_name, shippingAddress, customer_name, email } = req.body;
+    const { 
+      status, 
+      total, 
+      tracking_number, 
+      courier_name, 
+      shippingAddress, 
+      customer_name, 
+      email,
+      shipping_fee,
+      delivery_method 
+    } = req.body;
     const orderId = req.params.id;
+
+    const { courier_settings } = await getParsedSettings();
+    const dynamicTrackingUrl = tracking_number ? buildCourierTrackingUrl(courier_name, tracking_number, courier_settings) : null;
+
     try {
       const order = await Order.findOne({
         where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] }
       });
       if (order) {
-        await order.update({
-          status: status || order.status,
-          total: total !== undefined ? total : order.total,
-          shipping_address: shippingAddress || order.shipping_address
-        });
+        const updates = {};
+        if (status) updates.status = status;
+        if (total !== undefined) updates.total = total;
+        if (shipping_fee !== undefined) updates.shipping_fee = shipping_fee;
+        if (delivery_method) updates.delivery_method = delivery_method;
+        if (tracking_number !== undefined) updates.tracking_number = tracking_number;
+        if (courier_name !== undefined) updates.courier_name = courier_name;
+        if (dynamicTrackingUrl) updates.tracking_url = dynamicTrackingUrl;
+        if (shippingAddress) updates.shipping_address = shippingAddress;
+        await order.update(updates);
       }
     } catch (err) {}
 
@@ -380,9 +640,14 @@ export const updateOrder = async (req, res) => {
     if (runtimeItem) {
       if (status) runtimeItem.status = status;
       if (total !== undefined) runtimeItem.total = total;
-      if (tracking_number) runtimeItem.tracking_number = tracking_number;
-      if (courier_name) runtimeItem.courier_name = courier_name;
+      if (shipping_fee !== undefined) runtimeItem.shipping_fee = shipping_fee;
+      if (delivery_method) runtimeItem.delivery_method = delivery_method;
+      if (tracking_number !== undefined) runtimeItem.tracking_number = tracking_number;
+      if (courier_name !== undefined) runtimeItem.courier_name = courier_name;
+      if (dynamicTrackingUrl) runtimeItem.tracking_url = dynamicTrackingUrl;
       if (shippingAddress) runtimeItem.shippingAddress = shippingAddress;
+      if (customer_name) runtimeItem.customer_name = customer_name;
+      if (email) runtimeItem.email = email;
     }
 
     res.status(200).json({ success: true, message: 'Order updated successfully' });

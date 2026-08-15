@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SEO from '../components/common/SEO';
-import { FiAward, FiShield, FiTrendingUp, FiCheckCircle, FiUsers, FiClock, FiMapPin } from 'react-icons/fi';
+import { FiAward, FiShield, FiTrendingUp } from 'react-icons/fi';
 import { getSettings } from '../services/api';
 import './AboutUs.css';
 

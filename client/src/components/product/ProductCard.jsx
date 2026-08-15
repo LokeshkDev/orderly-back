@@ -59,18 +59,13 @@ const ProductCard = ({ product }) => {
       {/* Media Container */}
       <div className="product-card-media">
         <Link to={`/product/${p.slug || p.id}`} className="product-image-link">
-          {primaryImg ? (
-            <img
-              src={isHovered ? secondaryImg : primaryImg}
-              alt={p.name}
-              className="product-card-img"
-              style={isOutOfStock ? { filter: 'grayscale(0.5)', opacity: 0.7 } : {}}
-            />
-          ) : (
-            <div className="product-card-img product-card-img-placeholder d-flex align-items-center justify-content-center bg-dark">
-              <span className="text-muted small">No Image</span>
-            </div>
-          )}
+          <img
+            src={isHovered ? (secondaryImg || '/logo.png') : (primaryImg || '/logo.png')}
+            alt={p.name}
+            className="product-card-img"
+            style={isOutOfStock ? { filter: 'grayscale(0.5)', opacity: 0.7 } : {}}
+            onError={(e) => { e.target.src = '/logo.png'; }}
+          />
         </Link>
 
         {/* Top-Right Heart Wishlist Button */}

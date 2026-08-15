@@ -10,6 +10,7 @@ import MobileComboDetail from '../components/product/MobileComboDetail';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { getComboById, getCombos, getProducts } from '../services/api';
+import { ComboDetailSkeleton } from '../components/common/Skeleton';
 import { getVariantStock } from './ProductDetail';
 import { formatPrice, calculateDiscount } from '../utils/formatters';
 import './ComboDetail.css';
@@ -280,9 +281,8 @@ const ComboDetail = () => {
 
   if (loading) {
     return (
-      <div className="text-center py-5 my-5 text-white">
-        <span className="spinner-border text-danger" role="status" />
-        <p className="mt-2 text-muted">Loading luxury combo deal...</p>
+      <div className="pt-5 pb-5">
+        <ComboDetailSkeleton />
       </div>
     );
   }

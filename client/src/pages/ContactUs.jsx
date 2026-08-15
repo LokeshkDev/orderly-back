@@ -21,7 +21,7 @@ const ContactUs = () => {
               ? JSON.parse(res.data.store_branches)
               : res.data.store_branches;
             if (Array.isArray(parsed)) setBranches(parsed);
-          } catch (e) {}
+          } catch {}
         }
       }
     };

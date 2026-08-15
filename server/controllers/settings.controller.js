@@ -22,6 +22,61 @@ export const DEFAULT_EMAIL_SETTINGS = {
   }
 };
 
+export const DEFAULT_FOOTER_SETTINGS = {
+  bio: "Orderly is your destination for premium men's wear. Crafted for style, built for comfort, made for you.",
+  copyright: "© 2026 Orderly. All Rights Reserved.",
+  social_links: [
+    { id: 'soc-1', platform: 'facebook', name: 'Facebook', url: 'https://facebook.com', enabled: true },
+    { id: 'soc-2', platform: 'instagram', name: 'Instagram', url: 'https://instagram.com', enabled: true },
+    { id: 'soc-3', platform: 'twitter', name: 'Twitter / X', url: 'https://twitter.com', enabled: true },
+    { id: 'soc-4', platform: 'youtube', name: 'YouTube', url: 'https://youtube.com', enabled: true }
+  ],
+  columns: [
+    {
+      id: 'col-1',
+      title: 'SHOP',
+      links: [
+        { id: 'link-1-1', label: 'All Products', url: '/shop' },
+        { id: 'link-1-2', label: 'Shirts', url: '/shop?category=Shirts' },
+        { id: 'link-1-3', label: 'T-Shirts', url: '/shop?category=Tees' },
+        { id: 'link-1-4', label: 'Pants', url: '/shop?category=Pants' },
+        { id: 'link-1-5', label: 'Jackets', url: '/shop?category=Jackets' },
+        { id: 'link-1-6', label: 'Accessories', url: '/shop?category=Accessories' }
+      ]
+    },
+    {
+      id: 'col-2',
+      title: 'CUSTOMER CARE',
+      links: [
+        { id: 'link-2-1', label: 'Track Order', url: '/contact' },
+        { id: 'link-2-2', label: 'Returns & Refunds', url: '/returns-policy' },
+        { id: 'link-2-3', label: 'Shipping Policy', url: '/shipping-policy' },
+        { id: 'link-2-4', label: 'Size Guide', url: '/about' },
+        { id: 'link-2-5', label: 'FAQs', url: '/contact' },
+        { id: 'link-2-6', label: 'Contact Us', url: '/contact' }
+      ]
+    },
+    {
+      id: 'col-3',
+      title: 'COMPANY',
+      links: [
+        { id: 'link-3-1', label: 'About Us', url: '/about' },
+        { id: 'link-3-2', label: 'Our Story', url: '/about' },
+        { id: 'link-3-3', label: 'Careers', url: '/about' },
+        { id: 'link-3-4', label: 'Privacy Policy', url: '/returns-policy' },
+        { id: 'link-3-5', label: 'Terms & Conditions', url: '/shipping-policy' }
+      ]
+    }
+  ],
+  payment_methods: [
+    { id: 'pay-1', label: 'VISA', enabled: true },
+    { id: 'pay-2', label: 'MASTERCARD', enabled: true },
+    { id: 'pay-3', label: 'UPI', enabled: true },
+    { id: 'pay-4', label: 'PAYTM', enabled: true }
+  ],
+  security_badge_text: '100% Secure Payments'
+};
+
 // Server-side default content — the MySQL database (managed via the Admin
 // panel) is the single source of truth for the website. These defaults only
 // apply until an admin saves their own values.
@@ -67,6 +122,7 @@ const DEFAULT_SETTINGS = {
   delivery_settings: DEFAULT_DELIVERY_SETTINGS,
   courier_settings: DEFAULT_COURIER_SETTINGS,
   email_settings: DEFAULT_EMAIL_SETTINGS,
+  footer_settings: DEFAULT_FOOTER_SETTINGS,
   pair_offer_enabled: 'true',
   pair_offer_discount_percent: '25',
   pair_offer_min_products: '2',

@@ -7,7 +7,6 @@ import { ThemeProvider } from './context/ThemeContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { QuickViewProvider } from './context/QuickViewContext';
-import { HomepageSectionsProvider } from './context/HomepageSectionsContext';
 
 // Common Components
 import AnnouncementBar from './components/common/AnnouncementBar';
@@ -44,7 +43,6 @@ const ScrollToTop = () => {
 
 // Main Layout Wrapper conditional on route
 const AppLayout = () => {
-  const location = useLocation();
   const isAuthPage = false;
 
   return (

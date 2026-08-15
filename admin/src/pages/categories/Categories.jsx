@@ -233,17 +233,12 @@ const Categories = () => {
               ) : filteredCategories.map(cat => (
                 <tr key={cat.id}>
                   <td>
-                    {cat.image ? (
-                      <img
-                        src={cat.image}
-                        alt={cat.name}
-                        style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px' }}
-                      />
-                    ) : (
-                      <div style={{ width: '42px', height: '42px', borderRadius: '6px', background: '#eef2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: '#94a3b8' }}>
-                        N/A
-                      </div>
-                    )}
+                    <img
+                      src={cat.image || '/logo.png'}
+                      alt={cat.name}
+                      style={{ width: '42px', height: '42px', objectFit: cat.image ? 'cover' : 'contain', background: '#050505', borderRadius: '6px' }}
+                      onError={(e) => { e.target.src = '/logo.png'; }}
+                    />
                   </td>
                   <td>
                     <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>{cat.name}</strong>

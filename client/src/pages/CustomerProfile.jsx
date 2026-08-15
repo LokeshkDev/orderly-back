@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/common/SEO';
 import { 
-  FiUser, FiShoppingBag, FiMapPin, FiHeart, FiSettings, FiLogOut, 
-  FiCheckCircle, FiClock, FiChevronRight, FiHome, FiBriefcase, FiPlus, FiTrash2, FiEdit2, 
-  FiLock, FiStar, FiX, FiTruck, FiPackage, FiExternalLink, FiMail, FiPhone, FiCreditCard
+  FiShoppingBag, FiMapPin, FiSettings, FiLogOut, 
+  FiCheckCircle, FiChevronRight, FiHome, FiBriefcase, FiPlus, FiTrash2, 
+  FiStar, FiX, FiTruck, FiPackage, FiExternalLink
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import { getSettings, getOrders } from '../services/api';
+import { getOrders } from '../services/api';
 import './CustomerProfile.css';
 
 const CustomerProfile = () => {
@@ -47,7 +47,7 @@ const CustomerProfile = () => {
       try {
         const u = JSON.parse(userStr);
         currentEmail = (u.email || '').toLowerCase().trim();
-      } catch (e) {}
+      } catch {}
     }
 
     let allOrders = [];
@@ -58,7 +58,7 @@ const CustomerProfile = () => {
       if (res?.success && Array.isArray(res.data)) {
         allOrders = res.data;
       }
-    } catch (e) {}
+    } catch {}
 
     // 2. Fetch from LocalStorage
     try {
@@ -75,7 +75,7 @@ const CustomerProfile = () => {
           allOrders = Array.from(mergedMap.values());
         }
       }
-    } catch (e) {}
+    } catch {}
 
     // 3. Filter orders specifically for the logged-in customer's email
     if (currentEmail) {
@@ -110,7 +110,7 @@ const CustomerProfile = () => {
           email: parsed.email || 'customer@orderly.com',
           phone: parsed.phone || '+91 98765 43210'
         }));
-      } catch (e) {}
+      } catch {}
     } else {
       setUser({ name: 'Valued Customer', email: 'customer@orderly.com', phone: '+91 98765 43210' });
     }
@@ -124,44 +124,6 @@ const CustomerProfile = () => {
 
     return () => {
       clearInterval(syncTimer);
-      window.removeEventListener('orderly_orders_updated', loadCustomerOrders);
-      window.removeEventListener('storage', loadCustomerOrders);
-    };
-
-    // Load customer's saved addresses
-    try {
-      const addrs = localStorage.getItem('orderly_saved_addresses');
-      if (addrs) {
-        setSavedAddresses(JSON.parse(addrs));
-      } else {
-        setSavedAddresses([
-          {
-            id: 1,
-            addressType: 'Home',
-            firstName: 'Lokesh',
-            lastName: 'Sharma',
-            phone: '+91 7010558149',
-            address: 'Plot 14, Luxury Fashion Boulevard, Bandra West',
-            city: 'Mumbai',
-            state: 'Maharashtra',
-            pincode: '400050'
-          },
-          {
-            id: 2,
-            addressType: 'Office',
-            firstName: 'Lokesh',
-            lastName: 'Sharma',
-            phone: '+91 7010558149',
-            address: 'Suite 204, Regent Fashion Galleria, MG Road',
-            city: 'Bengaluru',
-            state: 'Karnataka',
-            pincode: '560001'
-          }
-        ]);
-      }
-    } catch (e) {}
-
-    return () => {
       window.removeEventListener('orderly_orders_updated', loadCustomerOrders);
       window.removeEventListener('storage', loadCustomerOrders);
     };

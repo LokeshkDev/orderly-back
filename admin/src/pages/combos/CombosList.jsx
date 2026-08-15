@@ -458,9 +458,10 @@ const CombosList = () => {
                     <td className="ps-4 py-3 text-start">
                       <div className="d-flex align-items-center gap-3">
                         <img 
-                          src={combo.images?.[0] || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop'} 
+                          src={combo.images?.[0] || '/logo.png'} 
                           alt={combo.name} 
                           className="combo-tbl-thumb flex-shrink-0"
+                          onError={(e) => { e.target.src = '/logo.png'; }}
                         />
                         <div className="min-w-0">
                           <div className="combo-title-text text-truncate" style={{ maxWidth: '240px' }} title={combo.name}>{combo.name}</div>

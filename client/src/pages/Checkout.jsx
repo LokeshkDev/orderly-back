@@ -5,7 +5,7 @@ import { useCart } from '../context/CartContext';
 import { createOrder, createRazorpayOrder, getPaymentConfig, getSettings, verifyRazorpayPayment, getActiveCoupons } from '../services/api';
 import { formatPrice } from '../utils/formatters';
 import { 
-  FiLock, FiCheckCircle, FiCreditCard, FiSmartphone, FiTruck, FiHome, FiBriefcase, FiMapPin, FiShield, FiAlertCircle, FiTag, FiCopy, FiCheck
+  FiLock, FiCheckCircle, FiCreditCard, FiTruck, FiHome, FiBriefcase, FiMapPin, FiShield, FiAlertCircle, FiTag, FiCopy, FiCheck
 } from 'react-icons/fi';
 import './Checkout.css';
 
@@ -32,16 +32,9 @@ const Checkout = () => {
     cart, 
     total, 
     subtotal, 
-    originalSubtotal, 
-    mainProductsSubtotal,
-    pairWellWithSubtotal,
     pairWellWithDiscount,
-    pairWellWithTotal,
-    pairOfferSavings, 
     isMultiPairOfferActive,
-    distinctPairProductCount,
     totalSavings,
-    pairSettings,
     shippingCost, 
     discountAmount, 
     appliedCoupon, 

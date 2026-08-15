@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { 
-  FiHeart, FiArrowRight, FiArrowLeft, FiSliders, FiX, FiCheck, 
-  FiLayers, FiTag, FiGrid, FiChevronRight 
+  FiHeart, FiArrowRight, FiArrowLeft, FiLayers 
 } from 'react-icons/fi';
 import SEO from '../components/common/SEO';
-import { getCombos, getProducts, getComboCategories } from '../services/api';
+import { getCombos, getComboCategories } from '../services/api';
 import { useWishlist } from '../context/WishlistContext';
+import { ComboCategoryCardSkeleton, ComboCardSkeleton } from '../components/common/Skeleton';
 import MobileCombos from './MobileCombos';
 import './CombosPage.css';
 
@@ -21,7 +21,6 @@ const CombosPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [combos, setCombos] = useState([]);
   const [comboCategories, setComboCategories] = useState(DEFAULT_COMBO_CATEGORIES);
-  const [productsCatalog, setProductsCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const { wishlist, toggleWishlist } = useWishlist();
 
@@ -50,17 +49,13 @@ const CombosPage = () => {
     const fetchCombosAndCategories = async () => {
       setLoading(true);
       try {
-        const [combosRes, productsRes, catsRes] = await Promise.all([
+        const [combosRes, catsRes] = await Promise.all([
           getCombos(),
-          getProducts(),
           getComboCategories()
         ]);
 
         if (combosRes && combosRes.success && Array.isArray(combosRes.data)) {
           setCombos(combosRes.data.filter(c => c.status !== 'Inactive'));
-        }
-        if (productsRes && productsRes.success && Array.isArray(productsRes.data)) {
-          setProductsCatalog(productsRes.data);
         }
         if (catsRes && catsRes.success && Array.isArray(catsRes.data) && catsRes.data.length > 0) {
           setComboCategories(catsRes.data.filter(c => c.is_active !== false));
@@ -200,9 +195,10 @@ const CombosPage = () => {
                 </div>
 
                 {loading ? (
-                  <div className="text-center py-5">
-                    <div className="spinner-border text-danger" role="status" />
-                    <p className="text-muted small mt-2">Loading combo categories...</p>
+                  <div className="combo-category-cards-grid">
+                    {[1, 2, 3, 4].map((i) => (
+                      <ComboCategoryCardSkeleton key={i} />
+                    ))}
                   </div>
                 ) : (
                   <div className="combo-category-cards-grid">
@@ -218,15 +214,12 @@ const CombosPage = () => {
                           tabIndex={0}
                         >
                           <div className="combo-cat-img-wrapper">
-                            {cat.image ? (
-                              <img 
-                                src={cat.image} 
-                                alt={cat.name} 
-                                className="combo-cat-img" 
-                              />
-                            ) : (
-                              <div className="combo-cat-img orderly-img-fallback">ORDERLY</div>
-                            )}
+                            <img 
+                              src={cat.image || '/logo.png'} 
+                              alt={cat.name} 
+                              className="combo-cat-img" 
+                              onError={(e) => { e.target.src = '/logo.png'; }}
+                            />
                             <div className="combo-cat-overlay" />
                             <span className="combo-cat-count-badge">
                               {count > 0 ? `${count} Combos` : 'Curated Set'}
@@ -325,9 +318,10 @@ const CombosPage = () => {
 
               {/* RESPECTIVE COMBO PRODUCTS GRID */}
               {loading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-danger" role="status" />
-                  <p className="text-muted small mt-2">Loading combos...</p>
+                <div className="desktop-combos-grid">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <ComboCardSkeleton key={i} />
+                  ))}
                 </div>
               ) : categoryCombos.length > 0 ? (
                 <div className="desktop-combos-grid">
@@ -336,8 +330,8 @@ const CombosPage = () => {
                       ? Math.round(((combo.original_price - combo.offer_price) / combo.original_price) * 100)
                       : 30;
 
-                    const img1 = combo.items?.[0]?.image || combo.images?.[0] || '';
-                    const img2 = combo.items?.[1]?.image || combo.images?.[1] || combo.images?.[0] || '';
+                    const img1 = combo.items?.[0]?.image || combo.images?.[0] || '/logo.png';
+                    const img2 = combo.items?.[1]?.image || combo.images?.[1] || combo.images?.[0] || '/logo.png';
                     
                     const itemSummary = combo.items_summary || (
                       combo.items && combo.items.length > 0
@@ -369,22 +363,24 @@ const CombosPage = () => {
                         {/* Multi-Product Split Image Box with Central Plus Circle */}
                         <Link to={`/combo/${combo.id}`} className="combo-split-photo-box">
                           <div className="combo-photo-col">
-                            {img1 ? (
-                              <img src={img1} alt={combo.name} className="combo-item-photo" />
-                            ) : (
-                              <div className="combo-item-photo orderly-img-fallback">ORDERLY</div>
-                            )}
+                            <img 
+                              src={img1} 
+                              alt={combo.name} 
+                              className="combo-item-photo" 
+                              onError={(e) => { e.target.src = '/logo.png'; }}
+                            />
                           </div>
                           
                           {/* Plus Circle Indicator */}
                           <div className="combo-plus-circle-badge">+</div>
 
                           <div className="combo-photo-col">
-                            {img2 ? (
-                              <img src={img2} alt={combo.name} className="combo-item-photo" />
-                            ) : (
-                              <div className="combo-item-photo orderly-img-fallback">ORDERLY</div>
-                            )}
+                            <img 
+                              src={img2} 
+                              alt={combo.name} 
+                              className="combo-item-photo" 
+                              onError={(e) => { e.target.src = '/logo.png'; }}
+                            />
                           </div>
                         </Link>
 

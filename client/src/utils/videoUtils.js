@@ -20,7 +20,7 @@ export const getYouTubeVideoId = (url) => {
       const match = parsed.pathname.match(/^\/(?:embed|shorts|live)\/([A-Za-z0-9_-]{11})/);
       return match ? match[1] : null;
     }
-  } catch (e) {
+  } catch {
     return null;
   }
 

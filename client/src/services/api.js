@@ -28,13 +28,13 @@ export const getHomepageSections = async () => {
       localStorage.setItem('orderly_homepage_sections', JSON.stringify(res.data.data));
       return res.data;
     }
-  } catch (error) {}
+  } catch {}
 
   const cached = localStorage.getItem('orderly_homepage_sections');
   if (cached) {
     try {
       return { success: true, data: JSON.parse(cached) };
-    } catch(e) {}
+    } catch {}
   }
   return { success: true, data: [] };
 };
@@ -43,7 +43,7 @@ export const getHeroSlides = async () => {
   try {
     const res = await api.get('/hero-slides');
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: true, data: [] };
 };
 
@@ -51,7 +51,7 @@ export const getCategories = async (type = 'product') => {
   try {
     const res = await api.get(`/categories${type ? `?type=${type}` : ''}`);
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: true, data: [] };
 };
 
@@ -59,7 +59,7 @@ export const getComboCategories = async () => {
   try {
     const res = await api.get('/categories?type=combo');
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: true, data: [] };
 };
 
@@ -67,7 +67,7 @@ export const getBrands = async () => {
   try {
     const res = await api.get('/brands');
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: true, data: [] };
 };
 
@@ -75,7 +75,7 @@ export const getOccasions = async () => {
   try {
     const res = await api.get('/occasions');
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: true, data: [] };
 };
 
@@ -83,7 +83,7 @@ export const getVideoFilms = async () => {
   try {
     const res = await api.get('/homepage/video-films');
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: true, data: [] };
 };
 
@@ -94,7 +94,7 @@ export const getProducts = async (params = {}) => {
   try {
     const res = await api.get('/products', { params });
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: true, data: [] };
 };
 
@@ -102,7 +102,7 @@ export const getProductById = async (id) => {
   try {
     const res = await api.get(`/products/${id}`);
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: false, data: null };
 };
 
@@ -110,7 +110,7 @@ export const getCombos = async () => {
   try {
     const res = await api.get('/combos');
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: true, data: [] };
 };
 
@@ -118,7 +118,7 @@ export const getComboById = async (id) => {
   try {
     const res = await api.get(`/combos/${id}`);
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: false, data: null };
 };
 
@@ -140,13 +140,13 @@ export const getSettings = async () => {
       }
       return res.data;
     }
-  } catch (error) {}
+  } catch {}
 
   const cached = localStorage.getItem('orderly_site_settings');
   if (cached) {
     try {
       return { success: true, data: JSON.parse(cached) };
-    } catch(e) {}
+    } catch {}
   }
   return { success: false, data: {} };
 };
@@ -155,7 +155,7 @@ export const getPaymentConfig = async () => {
   try {
     const res = await api.get('/payments/config');
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return {
     success: true,
     data: {
@@ -292,7 +292,7 @@ export const getOrders = async () => {
     const saved = localStorage.getItem('orderly_orders');
     const orders = saved ? JSON.parse(saved) : [];
     return { success: true, data: orders };
-  } catch (e) {
+  } catch {
     return { success: true, data: [] };
   }
 };
@@ -301,7 +301,7 @@ export const getActiveCoupons = async () => {
   try {
     const res = await api.get('/coupons/active');
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
   return { success: true, data: [] };
 };
 
@@ -309,7 +309,7 @@ export const validateCoupon = async (code, cartTotal = 0) => {
   try {
     const res = await api.post('/coupons/validate', { code, total: cartTotal });
     if (res.data && res.data.success) return res.data;
-  } catch (error) {}
+  } catch {}
 
   const c = String(code).toUpperCase().trim();
   if (c === 'ORDERLY20') {

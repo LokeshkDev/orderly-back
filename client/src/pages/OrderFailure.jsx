@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import SEO from '../components/common/SEO';
-import { FiXCircle, FiHome, FiRefreshCw, FiShoppingBag, FiHelpCircle } from 'react-icons/fi';
+import { FiXCircle, FiHome, FiRefreshCw, FiHelpCircle } from 'react-icons/fi';
 import './OrderSuccess.css';
 
 const OrderFailure = () => {

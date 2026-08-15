@@ -6,7 +6,6 @@ import {
   FiPlus, 
   FiMinus, 
   FiShoppingBag, 
-  FiTruck, 
   FiArrowRight, 
   FiTag, 
   FiCheckCircle, 
@@ -29,7 +28,6 @@ const CartDrawer = () => {
     originalSubtotal,
     pairWellWithDiscount,
     isMultiPairOfferActive,
-    distinctPairProductCount,
     totalSavings,
     pairSettings,
     cartTotal,
@@ -50,9 +48,6 @@ const CartDrawer = () => {
   if (!isCartOpen) return null;
 
   const totalItemsCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
-  const hasFreeShippingPromo = freeShippingThreshold > 0;
-  const freeShippingProgress = hasFreeShippingPromo ? Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100)) : 0;
-  const amountNeededForFreeShipping = hasFreeShippingPromo ? Math.max(0, freeShippingThreshold - subtotal) : 0;
 
   const handleCouponSubmit = async (e) => {
     e.preventDefault();
@@ -108,7 +103,12 @@ const CartDrawer = () => {
             <div className="cart-items-list">
               {cart.map((item) => (
                 <div key={item.cartItemId} className="cart-item-card">
-                  <img src={item.images?.[0] || item.image} alt={item.name} className="cart-item-img" />
+                  <img 
+                    src={item.images?.[0] || item.image || '/logo.png'} 
+                    alt={item.name} 
+                    className="cart-item-img"
+                    onError={(e) => { e.target.src = '/logo.png'; }}
+                  />
                   
                   <div className="cart-item-details">
                     <div className="d-flex align-items-center gap-1 flex-wrap mb-1">
@@ -185,6 +185,42 @@ const CartDrawer = () => {
         {/* Footer & Compact Collapsible Tariff Accordion */}
         {cart.length > 0 && (
           <div className="cart-drawer-footer">
+            {/* Standalone Coupon Apply Box (Outside Price Accordion) */}
+            <div className="coupon-box mb-2">
+              {appliedCoupon ? (
+                <div className="coupon-applied-alert">
+                  <span><FiCheckCircle /> Coupon <strong>{appliedCoupon.code}</strong> applied! You save {formatPrice(discountAmount)}</span>
+                  <button 
+                    type="button"
+                    className="remove-coupon-btn"
+                    onClick={() => { removeCoupon(); setCouponMsg(null); }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <form className="coupon-form" onSubmit={handleCouponSubmit}>
+                  <input
+                    type="text"
+                    className="coupon-input"
+                    placeholder="Enter coupon code (e.g. FESTIVE500)"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                    disabled={couponLoading}
+                  />
+                  <button type="submit" className="coupon-btn" disabled={couponLoading || !couponInput.trim()}>
+                    {couponLoading ? '...' : 'Apply'}
+                  </button>
+                </form>
+              )}
+
+              {couponMsg && !appliedCoupon && (
+                <span className={`coupon-feedback ${couponMsg.success ? 'text-success' : 'text-danger'}`}>
+                  {couponMsg.message}
+                </span>
+              )}
+            </div>
+
             {/* Collapsible Tariff / Price Breakdown Accordion */}
             <div className="cart-tariff-accordion">
               {/* Accordion Toggle Header */}
@@ -196,7 +232,7 @@ const CartDrawer = () => {
               >
                 <span className="tariff-toggle-left">
                   <FiPercent className="text-accent-red" />
-                  <span>Price Details & Offers</span>
+                  <span>Price Details</span>
                   {totalSavings > 0 && (
                     <span className="tariff-savings-tag">Save {formatPrice(totalSavings)}</span>
                   )}
@@ -207,45 +243,9 @@ const CartDrawer = () => {
                 </span>
               </button>
 
-              {/* Accordion Collapsible Content */}
+              {/* Accordion Collapsible Content (Strictly Price Breakdown) */}
               {isTariffOpen && (
                 <div className="cart-tariff-breakdown-content">
-                  {/* Coupon Apply Box */}
-                  <div className="coupon-box">
-                    {appliedCoupon ? (
-                      <div className="coupon-applied-alert">
-                        <span><FiCheckCircle /> Coupon {appliedCoupon.code} applied! You save {formatPrice(discountAmount)}</span>
-                        <button 
-                          type="button"
-                          className="remove-coupon-btn"
-                          onClick={() => { removeCoupon(); setCouponMsg(null); }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ) : (
-                      <form className="coupon-form" onSubmit={handleCouponSubmit}>
-                        <input
-                          type="text"
-                          className="coupon-input"
-                          placeholder="Enter coupon code"
-                          value={couponInput}
-                          onChange={(e) => setCouponInput(e.target.value)}
-                          disabled={couponLoading}
-                        />
-                        <button type="submit" className="coupon-btn" disabled={couponLoading || !couponInput.trim()}>
-                          {couponLoading ? '...' : 'Apply'}
-                        </button>
-                      </form>
-                    )}
-
-                    {couponMsg && !appliedCoupon && (
-                      <span className={`coupon-feedback ${couponMsg.success ? 'text-success' : 'text-danger'}`}>
-                        {couponMsg.message}
-                      </span>
-                    )}
-                  </div>
-
                   {pricingBreakdown.isPairOfferActive && pricingBreakdown.totalMrp > 0 ? (
                     <div className="summary-row">
                       <span>Total MRP ({totalItemsCount} items)</span>
@@ -272,10 +272,17 @@ const CartDrawer = () => {
 
                   {discountAmount > 0 && (
                     <div className="summary-row text-accent-red fw-bold">
-                      <span>Coupon Discount</span>
+                      <span>Coupon Discount ({appliedCoupon?.code})</span>
                       <span>-{formatPrice(discountAmount)}</span>
                     </div>
                   )}
+
+                  <div className="summary-row">
+                    <span>Estimated Delivery</span>
+                    <span className={subtotal >= freeShippingThreshold ? 'text-success fw-bold' : ''}>
+                      {subtotal >= freeShippingThreshold ? 'FREE' : 'Calculated at Checkout'}
+                    </span>
+                  </div>
                 </div>
               )}
 

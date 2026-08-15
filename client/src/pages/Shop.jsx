@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { FiX, FiSliders, FiGrid, FiList, FiChevronRight, FiChevronLeft, FiHeart, FiShoppingBag } from 'react-icons/fi';
+import { FiX, FiSliders, FiChevronRight, FiChevronLeft, FiHeart, FiShoppingBag } from 'react-icons/fi';
 import SEO from '../components/common/SEO';
 import ProductCard from '../components/product/ProductCard';
 import { ProductCardSkeleton } from '../components/common/Skeleton';
@@ -34,7 +34,6 @@ const Shop = () => {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [gridCols, setGridCols] = useState(4); // 1 (single), 3, 4, or 5
   const [currentPage, setCurrentPage] = useState(1);
-  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const [productsList, setProductsList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -114,12 +113,6 @@ const Shop = () => {
       counts[b] = (counts[b] || 0) + 1;
     });
     return counts;
-  }, [productsList]);
-
-  const sizesList = useMemo(() => {
-    const all = Array.from(new Set(productsList.flatMap(p => p.sizes || []).filter(Boolean)));
-    const priority = ['S', 'M', 'L', 'XL', 'XXL'];
-    return priority.filter(sz => all.includes(sz) || true);
   }, [productsList]);
 
   // Filtered & Sorted products calculation

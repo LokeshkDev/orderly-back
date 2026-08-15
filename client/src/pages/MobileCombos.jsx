@@ -5,22 +5,18 @@ import {
   FiSliders, 
   FiHeart, 
   FiChevronDown, 
-  FiChevronUp, 
   FiArrowLeft,
   FiArrowRight,
-  FiLayers,
-  FiRotateCcw, 
-  FiShield, 
-  FiTruck, 
-  FiGift 
+  FiLayers
 } from 'react-icons/fi';
 import SEO from '../components/common/SEO';
 import MobileHeader from '../components/common/MobileHeader';
 import MobileMenu from '../components/common/MobileMenu';
 import MobileFooterAccordion from '../components/common/MobileFooterAccordion';
 import BottomNavbar from '../components/common/BottomNavbar';
-import { getCombos, getProducts, getComboCategories } from '../services/api';
+import { getCombos, getComboCategories } from '../services/api';
 import { useWishlist } from '../context/WishlistContext';
+import { MobileComboCategorySkeleton, MobileComboCardSkeleton } from '../components/common/Skeleton';
 import '../styles/MobileHomepage.css';
 import './MobileCombos.css';
 
@@ -35,7 +31,6 @@ const MobileCombos = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [combos, setCombos] = useState([]);
   const [comboCategories, setComboCategories] = useState(DEFAULT_COMBO_CATEGORIES);
-  const [productsCatalog, setProductsCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -69,16 +64,12 @@ const MobileCombos = () => {
     const fetchCombosAndCategories = async () => {
       setLoading(true);
       try {
-        const [combosRes, productsRes, catsRes] = await Promise.all([
+        const [combosRes, catsRes] = await Promise.all([
           getCombos(), 
-          getProducts(),
           getComboCategories()
         ]);
         if (combosRes && combosRes.success && Array.isArray(combosRes.data)) {
           setCombos(combosRes.data.filter(c => c.status !== 'Inactive'));
-        }
-        if (productsRes && productsRes.success && Array.isArray(productsRes.data)) {
-          setProductsCatalog(productsRes.data);
         }
         if (catsRes && catsRes.success && Array.isArray(catsRes.data) && catsRes.data.length > 0) {
           setComboCategories(catsRes.data.filter(c => c.is_active !== false));
@@ -220,9 +211,10 @@ const MobileCombos = () => {
               </div>
 
               {loading ? (
-                <div className="text-center py-5">
-                  <span className="spinner-border text-danger" role="status" />
-                  <p className="text-white-50 small mt-2">Loading combo categories...</p>
+                <div className="mobile-combo-categories-single-cards-list">
+                  {[1, 2, 3, 4].map((i) => (
+                    <MobileComboCategorySkeleton key={i} />
+                  ))}
                 </div>
               ) : (
                 <div className="mobile-combo-categories-single-cards-list">
@@ -335,9 +327,10 @@ const MobileCombos = () => {
             {/* SINGLE-COLUMN RESPECTIVE COMBOS GRID */}
             <section className="px-3 py-3">
               {loading ? (
-                <div className="text-center py-5">
-                  <span className="spinner-border text-danger" role="status" />
-                  <p className="text-white-50 small mt-2">Loading combos...</p>
+                <div className="mobile-combos-single-col-grid">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <MobileComboCardSkeleton key={i} />
+                  ))}
                 </div>
               ) : displayedCombos.length > 0 ? (
                 <div className="mobile-combos-single-col-grid">

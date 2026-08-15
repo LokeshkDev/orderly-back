@@ -10,6 +10,7 @@ import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
 import SEO from '../components/common/SEO';
 import ProductCard from '../components/product/ProductCard';
 import MobileProductDetail from '../components/product/MobileProductDetail';
+import { PdpSkeleton } from '../components/common/Skeleton';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useQuickView } from '../context/QuickViewContext';
@@ -361,9 +362,8 @@ const ProductDetail = () => {
   /* ── Loading state ─────────────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="text-center py-5 my-5 text-white">
-        <span className="spinner-border text-danger" role="status" />
-        <p className="mt-2 text-muted">Loading product details...</p>
+      <div className="pt-5 pb-5">
+        <PdpSkeleton />
       </div>
     );
   }

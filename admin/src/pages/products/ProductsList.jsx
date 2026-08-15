@@ -479,9 +479,10 @@ const ProductsList = () => {
                   <tr key={p.id}>
                     <td>
                       <img 
-                        src={p.images?.[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=400&auto=format&fit=crop'} 
+                        src={p.images?.[0] || '/logo.png'} 
                         alt={p.name} 
-                        style={{ width: '40px', height: '48px', objectFit: 'cover', borderRadius: '4px' }} 
+                        style={{ width: '40px', height: '48px', objectFit: p.images?.[0] ? 'cover' : 'contain', background: '#050505', borderRadius: '4px' }} 
+                        onError={(e) => { e.target.src = '/logo.png'; }}
                       />
                     </td>
                     <td>

@@ -4,7 +4,6 @@ import {
   FiX, 
   FiSliders, 
   FiGrid, 
-  FiList, 
   FiChevronDown, 
   FiChevronUp, 
   FiRotateCcw, 

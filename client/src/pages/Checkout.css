@@ -147,3 +147,124 @@
   font-weight: 700;
   font-size: 0.9rem;
 }
+
+/* ── Coupon Apply Box ────────────────────────────────────────────── */
+.checkout-coupon-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.checkout-coupon-form {
+  display: flex;
+  gap: 8px;
+}
+
+.checkout-coupon-input {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  color: var(--text-white);
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.checkout-coupon-input:focus {
+  border-color: var(--accent-red);
+}
+
+.checkout-coupon-apply {
+  background: var(--accent-red);
+  border: none;
+  color: var(--text-white);
+  padding: 0 18px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.checkout-coupon-apply:hover {
+  opacity: 0.9;
+}
+
+.checkout-coupon-apply:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkout-coupon-applied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-size: 0.82rem;
+}
+
+.checkout-coupon-remove {
+  background: transparent;
+  border: none;
+  color: #ff6b6b;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.checkout-coupon-feedback {
+  display: block;
+  font-size: 0.75rem;
+  margin-top: 6px;
+}
+
+.checkout-coupon-offers {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.checkout-coupon-offers-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 2px;
+}
+
+.checkout-coupon-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-white);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.checkout-coupon-chip:hover {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+.checkout-coupon-chip-icon {
+  display: inline-flex;
+  color: var(--accent-red);
+  font-size: 0.7rem;
+}

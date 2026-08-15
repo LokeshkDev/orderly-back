@@ -376,9 +376,19 @@
 }
 
 .c-pdp-includes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 14px;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.c-pdp-includes-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .c-pdp-includes-title {
@@ -420,6 +430,7 @@
 }
 
 .c-pdp-item-thumb {
+  position: relative;
   width: 48px;
   height: 58px;
   border-radius: 4px;
@@ -518,6 +529,156 @@
   border-style: dashed;
   text-decoration: line-through;
   cursor: not-allowed;
+}
+
+/* ── Item Removal / Re-add Controls in Combo ─────────────────── */
+.c-pdp-remove-hint {
+  font-size: 0.72rem;
+  color: #fbbf24;
+  margin-left: 8px;
+  font-weight: 600;
+}
+
+.c-pdp-reset-combo-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-muted, #94A3B8);
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.c-pdp-item-row.removed {
+  background: rgba(255, 255, 255, 0.015);
+  border-color: rgba(255, 255, 255, 0.05);
+  opacity: 0.8;
+}
+
+.c-pdp-item-thumb-removed-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+  font-size: 1.1rem;
+  font-weight: 800;
+  border-radius: 4px;
+}
+
+.c-pdp-removed-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.c-pdp-item-remove-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.c-pdp-item-remove-btn:hover:not(.disabled) {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.c-pdp-item-remove-btn.disabled {
+  color: #64748B;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.c-pdp-item-readd-btn {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.c-pdp-item-readd-btn:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #fbbf24;
+  color: #fef3c7;
+}
+
+/* Mobile Piece Removal Controls */
+.m-c-includes-item.removed,
+.m-c-custom-card.removed {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(245, 158, 11, 0.2);
+  opacity: 0.8;
+}
+
+.m-c-thumb-removed-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fbbf24;
+  font-size: 1rem;
+}
+
+.m-c-remove-item-link,
+.m-c-remove-pill-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.m-c-remove-item-link.disabled,
+.m-c-remove-pill-btn.disabled {
+  color: #64748B;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.m-c-readd-item-link,
+.m-c-readd-pill-btn {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

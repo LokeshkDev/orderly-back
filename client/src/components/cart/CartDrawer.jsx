@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiX, FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiTruck, FiArrowRight, FiTag } from 'react-icons/fi';
+import { 
+  FiX, 
+  FiTrash2, 
+  FiPlus, 
+  FiMinus, 
+  FiShoppingBag, 
+  FiTruck, 
+  FiArrowRight, 
+  FiTag, 
+  FiCheckCircle, 
+  FiChevronDown, 
+  FiChevronUp,
+  FiPercent
+} from 'react-icons/fi';
 import { useCart } from '../../context/CartContext';
 import { formatPrice } from '../../utils/formatters';
 import './CartDrawer.css';
@@ -14,12 +27,16 @@ const CartDrawer = () => {
     updateQuantity,
     subtotal,
     originalSubtotal,
-    pairOfferSavings,
-    total,
-    shippingCost,
+    pairWellWithDiscount,
+    isMultiPairOfferActive,
+    distinctPairProductCount,
+    totalSavings,
+    pairSettings,
+    cartTotal,
     freeShippingThreshold,
     appliedCoupon,
     discountAmount,
+    pricingBreakdown,
     applyCoupon,
     removeCoupon
   } = useCart();
@@ -27,10 +44,12 @@ const CartDrawer = () => {
   const [couponInput, setCouponInput] = useState('');
   const [couponMsg, setCouponMsg] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
+  const [isTariffOpen, setIsTariffOpen] = useState(false); // Collapsed by default to maximize product viewing space
   const navigate = useNavigate();
 
   if (!isCartOpen) return null;
 
+  const totalItemsCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const hasFreeShippingPromo = freeShippingThreshold > 0;
   const freeShippingProgress = hasFreeShippingPromo ? Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100)) : 0;
   const amountNeededForFreeShipping = hasFreeShippingPromo ? Math.max(0, freeShippingThreshold - subtotal) : 0;
@@ -50,44 +69,28 @@ const CartDrawer = () => {
   };
 
   return (
-    <div className="cart-drawer-backdrop">
-      <div className="cart-drawer-panel glass-panel">
+    <div className="cart-drawer-backdrop" onClick={() => setIsCartOpen(false)}>
+      <div className="cart-drawer-panel glass-panel" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="cart-drawer-header">
           <div className="d-flex align-items-center gap-2">
             <FiShoppingBag className="cart-header-icon" />
-            <h5 className="mb-0">Shopping Cart</h5>
-            <span className="cart-count-badge">({cart.length})</span>
+            <h4 className="cart-drawer-title mb-0">Shopping Bag ({totalItemsCount})</h4>
           </div>
-          <button className="cart-close-btn" onClick={() => setIsCartOpen(false)}>
+          <button className="cart-close-btn" onClick={() => setIsCartOpen(false)} aria-label="Close cart">
             <FiX />
           </button>
         </div>
 
-        {/* Free Shipping Progress */}
-        {hasFreeShippingPromo && (
-          <div className="free-shipping-container">
-          <div className="d-flex align-items-center justify-content-between mb-2">
-            <span className="shipping-text">
-              <FiTruck className="me-1 text-accent-red" />
-              {amountNeededForFreeShipping === 0 ? (
-                <strong className="text-success">You've Unlocked FREE Express Shipping! 🎉</strong>
-              ) : (
-                <>Add <strong>{formatPrice(amountNeededForFreeShipping)}</strong> more for FREE shipping</>
-              )}
-            </span>
-            <span className="shipping-percentage">{freeShippingProgress}%</span>
+        {/* Cart Multi-Product Pair Offer Unlocked Alert */}
+        {isMultiPairOfferActive && (
+          <div className="cart-pair-unlocked-banner">
+            <FiCheckCircle className="text-accent-red flex-shrink-0" />
+            <span><strong>Pair Offer Active:</strong> Flat {pairSettings?.discount_percent || 25}% OFF on total MRP!</span>
           </div>
-          <div className="progress-bar-bg">
-            <div 
-              className="progress-bar-fill"
-              style={{ width: `${freeShippingProgress}%` }}
-            />
-          </div>
-        </div>
         )}
 
-        {/* Cart Items List */}
+        {/* Body — Maximized Scrollable Products Area */}
         <div className="cart-drawer-body">
           {cart.length === 0 ? (
             <div className="cart-empty-state">
@@ -108,8 +111,15 @@ const CartDrawer = () => {
                   <img src={item.images?.[0] || item.image} alt={item.name} className="cart-item-img" />
                   
                   <div className="cart-item-details">
-                    <span className="cart-item-brand">{item.brand || 'ORDERLY CURATED'}</span>
-                    <h6 className="cart-item-title">{item.name}</h6>
+                    <div className="d-flex align-items-center gap-1 flex-wrap mb-1">
+                      <span className="cart-item-brand">{item.brand || 'ORDERLY'}</span>
+                      {item.isPairOffer && (
+                        <span className="cart-pair-badge">
+                          <FiTag /> PAIR PRODUCT {item.pairOffer?.discount_percent ? `(${item.pairOffer.discount_percent}% OFF)` : ''}
+                        </span>
+                      )}
+                    </div>
+                    <h6 className="cart-item-title" title={item.name}>{item.name}</h6>
                     
                     {item.isCombo ? (
                       <div className="cart-combo-pieces-box">
@@ -131,21 +141,30 @@ const CartDrawer = () => {
                     ) : (
                       <div className="cart-item-meta">
                         <span>Size: <strong>{item.selectedSize}</strong></span>
-                        <span>Color: <strong>{item.selectedColor}</strong></span>
+                        {item.selectedColor && item.selectedColor !== 'Standard' && (
+                          <span>Color: <strong>{item.selectedColor}</strong></span>
+                        )}
                       </div>
                     )}
 
-                    <span className="cart-item-price">{formatPrice(item.price)}</span>
-                    
-                    {/* Quantity Controls */}
-                    <div className="cart-qty-controls">
-                      <button onClick={() => updateQuantity(item.cartItemId, -1)} aria-label="Decrease quantity">
-                        <FiMinus />
-                      </button>
-                      <span>{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.cartItemId, 1)} aria-label="Increase quantity">
-                        <FiPlus />
-                      </button>
+                    <div className="cart-item-price-qty-row">
+                      <span className="cart-item-price">
+                        {Number(item.originalPrice || item.original_price || 0) > Number(item.price || 0) && (
+                          <del className="cart-item-mrp">{formatPrice(item.originalPrice || item.original_price)}</del>
+                        )}
+                        <strong>{formatPrice(item.price)}</strong>
+                      </span>
+                      
+                      {/* Quantity Controls */}
+                      <div className="cart-qty-controls">
+                        <button onClick={() => updateQuantity(item.cartItemId, -1)} aria-label="Decrease quantity">
+                          <FiMinus />
+                        </button>
+                        <span>{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.cartItemId, 1)} aria-label="Increase quantity">
+                          <FiPlus />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -153,6 +172,7 @@ const CartDrawer = () => {
                     className="cart-item-remove"
                     onClick={() => removeFromCart(item.cartItemId)}
                     title="Remove Item"
+                    aria-label="Remove Item"
                   >
                     <FiTrash2 />
                   </button>
@@ -162,77 +182,119 @@ const CartDrawer = () => {
           )}
         </div>
 
-        {/* Footer & Checkout */}
+        {/* Footer & Compact Collapsible Tariff Accordion */}
         {cart.length > 0 && (
           <div className="cart-drawer-footer">
-            {/* Coupon Code Box */}
-            <div className="coupon-box">
-              {appliedCoupon ? (
-                <div className="coupon-applied-alert">
-                  <span><FiTag /> Code <strong>{appliedCoupon.code}</strong> Applied {appliedCoupon.discountPercent ? `(${appliedCoupon.discountPercent}% Off)` : ''}</span>
-                  <button className="remove-coupon-btn" onClick={removeCoupon}>Remove</button>
-                </div>
-              ) : (
-                <form onSubmit={handleCouponSubmit} className="coupon-form">
-                  <input 
-                    type="text"
-                    placeholder="Enter coupon code"
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value)}
-                    className="coupon-input"
-                  />
-                  <button type="submit" className="coupon-btn">Apply</button>
-                </form>
-              )}
-              {couponMsg && (
-                <span className={`coupon-feedback ${couponMsg.success ? 'text-success' : 'text-danger'}`}>
-                  {couponMsg.message}
+            {/* Collapsible Tariff / Price Breakdown Accordion */}
+            <div className="cart-tariff-accordion">
+              {/* Accordion Toggle Header */}
+              <button 
+                type="button" 
+                className="cart-tariff-accordion-toggle"
+                onClick={() => setIsTariffOpen(!isTariffOpen)}
+                aria-expanded={isTariffOpen}
+              >
+                <span className="tariff-toggle-left">
+                  <FiPercent className="text-accent-red" />
+                  <span>Price Details & Offers</span>
+                  {totalSavings > 0 && (
+                    <span className="tariff-savings-tag">Save {formatPrice(totalSavings)}</span>
+                  )}
                 </span>
-              )}
-            </div>
+                <span className="tariff-toggle-right">
+                  <span className="tariff-toggle-hint">{isTariffOpen ? 'Hide' : 'View'}</span>
+                  {isTariffOpen ? <FiChevronUp /> : <FiChevronDown />}
+                </span>
+              </button>
 
-            {/* Price Breakdown */}
-            <div className="price-summary">
-              {pairOfferSavings > 0 && (
-                <div className="summary-row">
-                  <span>Items Total</span>
-                  <span>{formatPrice(originalSubtotal)}</span>
+              {/* Accordion Collapsible Content */}
+              {isTariffOpen && (
+                <div className="cart-tariff-breakdown-content">
+                  {/* Coupon Apply Box */}
+                  <div className="coupon-box">
+                    {appliedCoupon ? (
+                      <div className="coupon-applied-alert">
+                        <span><FiCheckCircle /> Coupon {appliedCoupon.code} applied! You save {formatPrice(discountAmount)}</span>
+                        <button 
+                          type="button"
+                          className="remove-coupon-btn"
+                          onClick={() => { removeCoupon(); setCouponMsg(null); }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <form className="coupon-form" onSubmit={handleCouponSubmit}>
+                        <input
+                          type="text"
+                          className="coupon-input"
+                          placeholder="Enter coupon code"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value)}
+                          disabled={couponLoading}
+                        />
+                        <button type="submit" className="coupon-btn" disabled={couponLoading || !couponInput.trim()}>
+                          {couponLoading ? '...' : 'Apply'}
+                        </button>
+                      </form>
+                    )}
+
+                    {couponMsg && !appliedCoupon && (
+                      <span className={`coupon-feedback ${couponMsg.success ? 'text-success' : 'text-danger'}`}>
+                        {couponMsg.message}
+                      </span>
+                    )}
+                  </div>
+
+                  {pricingBreakdown.isPairOfferActive && pricingBreakdown.totalMrp > 0 ? (
+                    <div className="summary-row">
+                      <span>Total MRP ({totalItemsCount} items)</span>
+                      <span>{formatPrice(pricingBreakdown.totalMrp)}</span>
+                    </div>
+                  ) : (
+                    <div className="summary-row">
+                      <span>Total MRP</span>
+                      <span>{formatPrice(originalSubtotal || subtotal)}</span>
+                    </div>
+                  )}
+
+                  {pairWellWithDiscount > 0 && (
+                    <div className="summary-row text-accent-red fw-bold">
+                      <span>Pair Offer ({pricingBreakdown.discountPercent || (isMultiPairOfferActive ? 25 : 20)}% OFF)</span>
+                      <span>-{formatPrice(pairWellWithDiscount)}</span>
+                    </div>
+                  )}
+
+                  <div className="summary-row">
+                    <span>Subtotal</span>
+                    <span>{formatPrice(subtotal)}</span>
+                  </div>
+
+                  {discountAmount > 0 && (
+                    <div className="summary-row text-accent-red fw-bold">
+                      <span>Coupon Discount</span>
+                      <span>-{formatPrice(discountAmount)}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {pairOfferSavings > 0 && (
-                <div className="summary-row text-success">
-                  <span>Offer Savings</span>
-                  <span>-{formatPrice(pairOfferSavings)}</span>
-                </div>
-              )}
-
-              <div className="summary-row">
-                <span>Subtotal</span>
-                <span>{formatPrice(subtotal)}</span>
-              </div>
-
-              {discountAmount > 0 && (
-                <div className="summary-row text-success">
-                  <span>Coupon Discount</span>
-                  <span>-{formatPrice(discountAmount)}</span>
-                </div>
-              )}
-
-              <div className="summary-row">
-                <span>Estimated Shipping</span>
-                <span>{shippingCost === 0 ? <strong className="text-success">FREE</strong> : formatPrice(shippingCost)}</span>
-              </div>
-
+              {/* Always Visible Total Amount Bar */}
               <div className="summary-row total-row">
-                <span>Total Amount</span>
-                <span className="total-price">{formatPrice(total)}</span>
+                <div className="d-flex flex-column">
+                  <span className="total-title">Total Amount</span>
+                  {totalSavings > 0 && (
+                    <span className="total-savings-sub">You save {formatPrice(totalSavings)}</span>
+                  )}
+                </div>
+                <span className="total-price">{formatPrice(cartTotal)}</span>
               </div>
             </div>
 
-            {/* CTA */}
-            <button className="btn-primary-orderly w-100 py-3 mt-2" onClick={handleCheckout}>
-              Proceed To Checkout <FiArrowRight />
+            {/* Primary CTA */}
+            <button className="btn-primary-orderly cart-checkout-cta w-100" onClick={handleCheckout}>
+              <span>Proceed To Checkout</span>
+              <FiArrowRight />
             </button>
           </div>
         )}

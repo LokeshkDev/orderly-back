@@ -4,7 +4,8 @@ import {
   FiGrid, FiImage, FiVideo, FiSave, FiPlus, FiEdit, FiTrash2, 
   FiEye, FiEyeOff, FiArrowUp, FiArrowDown, FiLayers, FiSliders, FiFilm,
   FiVolume2, FiShare2, FiCheck, FiSearch, FiGlobe, FiInstagram, FiFacebook, FiYoutube,
-  FiShoppingBag, FiTruck, FiRotateCcw, FiShield, FiHeadphones, FiExternalLink, FiSettings, FiTag, FiGift, FiFileText
+  FiShoppingBag, FiTruck, FiRotateCcw, FiShield, FiHeadphones, FiExternalLink, FiSettings, FiTag, FiGift, FiFileText,
+  FiMonitor, FiSmartphone
 } from 'react-icons/fi';
 import { FaWhatsapp, FaTwitter, FaPinterest } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -16,15 +17,17 @@ import { getYouTubeThumbnail } from '../../utils/videoUtils';
 import './HomepageSettings.css';
 
 const DEFAULT_SECTIONS = [
-  { section_key: 'hero_carousel', title: 'Hero Carousel & Trust Bar', subtitle: 'Main editorial hero slider & service features', is_visible: true, display_order: 1 },
-  { section_key: 'shop_by_category', title: 'Shop by Category (Collections)', subtitle: 'Discover Your Style categories grid', is_visible: true, display_order: 2 },
-  { section_key: 'trending_arrivals', title: 'Best Selling Products', subtitle: 'Handpicked products grid', is_visible: true, display_order: 3 },
-  { section_key: 'promo_offers', title: 'Promotional Offers (3 Blocks)', subtitle: 'Combo offers, 50% Off banner, New arrivals', is_visible: true, display_order: 4 },
-  { section_key: 'lookbook_banner', title: 'The Lookbook Editorial', subtitle: 'Large luxury editorial campaign banner', is_visible: true, display_order: 5 },
-  { section_key: 'video_banner', title: 'Video Campaign Showcase', subtitle: 'Brand film carousel', is_visible: true, display_order: 6 },
-  { section_key: 'shop_by_occasion', title: 'Shop By Occasion', subtitle: 'Occasion-based shopping grid', is_visible: true, display_order: 7 },
-  { section_key: 'featured_brands', title: 'Catchy Combo Bundles', subtitle: 'Multi-piece bundle deals', is_visible: true, display_order: 8 },
-  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', subtitle: 'Email subscription CTA banner', is_visible: true, display_order: 9 }
+  { section_key: 'hero_carousel', title: 'Hero Carousel', subtitle: 'Main editorial hero slider', is_visible: true, display_order: 1 },
+  { section_key: 'trust_features', title: 'Trust & Service Features Bar', subtitle: 'Free Shipping, Easy Returns, Premium Quality & Support', is_visible: true, display_order: 2 },
+  { section_key: 'shop_by_category', title: 'Shop by Category (Collections)', subtitle: 'Discover Your Style categories grid', is_visible: true, display_order: 3 },
+  { section_key: 'combo_categories', title: 'Shop by Combo Category', subtitle: 'Curated combo category grid', is_visible: true, display_order: 4 },
+  { section_key: 'trending_arrivals', title: 'Best Selling Products', subtitle: 'Handpicked products grid', is_visible: true, display_order: 5 },
+  { section_key: 'promo_offers', title: 'Promotional Offers (3 Blocks)', subtitle: 'Combo offers, 50% Off banner, New arrivals', is_visible: true, display_order: 6 },
+  { section_key: 'lookbook_banner', title: 'The Lookbook Editorial', subtitle: 'Large luxury editorial campaign banner', is_visible: true, display_order: 7 },
+  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', subtitle: 'Email subscription CTA banner', is_visible: true, display_order: 8 },
+  { section_key: 'video_banner', title: 'Video Campaign Showcase', subtitle: 'Brand film carousel', is_visible: false, display_order: 9 },
+  { section_key: 'shop_by_occasion', title: 'Shop By Occasion', subtitle: 'Occasion-based shopping grid', is_visible: false, display_order: 10 },
+  { section_key: 'featured_brands', title: 'Catchy Combo Bundles', subtitle: 'Multi-piece bundle deals', is_visible: false, display_order: 11 }
 ];
 
 const emptySlideForm = {
@@ -60,6 +63,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
 
   // State Management
   const [sections, setSections] = useState(DEFAULT_SECTIONS);
+  const [sectionDeviceTab, setSectionDeviceTab] = useState('desktop');
   const [savingSections, setSavingSections] = useState(false);
 
   const [slides, setSlides] = useState([]);
@@ -321,6 +325,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       subtitle: item.subtitle || '',
       description: item.description || '',
       image_url: item.image_url || item.image || '',
+      mobile_image_url: item.mobile_image_url || '',
       badge_text: item.badge_text || item.badge || '',
       cta_primary_text: item.cta_primary_text || 'SHOP NOW',
       cta_primary_link: item.cta_primary_link || '/shop',
@@ -445,14 +450,44 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       {/* TAB 1: SECTIONS LAYOUT ORDER */}
       {activeTab === 'sections' && (
         <div className="admin-card-white p-4">
-          <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
+          <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3 flex-wrap gap-2">
             <div>
               <h4 className="fw-bold text-dark mb-1">Homepage Section Order & Visibility Management</h4>
-              <p className="text-muted small mb-0">Drag or click Move Up / Move Down to change the top-to-bottom section rendering sequence on the customer homepage.</p>
+              <p className="text-muted small mb-0">Control the top-to-bottom section rendering sequence and visibility for both Desktop and Mobile experiences.</p>
             </div>
             <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Layout
             </button>
+          </div>
+
+          {/* Desktop vs Mobile Section Sub-Tabs */}
+          <div className="d-flex align-items-center gap-2 mb-3">
+            <button
+              type="button"
+              className={`btn btn-sm d-inline-flex align-items-center gap-2 ${sectionDeviceTab === 'desktop' ? 'btn-danger text-white fw-bold shadow-sm' : 'btn-outline-secondary'}`}
+              onClick={() => setSectionDeviceTab('desktop')}
+            >
+              <FiMonitor /> Desktop Layout ({sections.length} Sections)
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm d-inline-flex align-items-center gap-2 ${sectionDeviceTab === 'mobile' ? 'btn-danger text-white fw-bold shadow-sm' : 'btn-outline-secondary'}`}
+              onClick={() => setSectionDeviceTab('mobile')}
+            >
+              <FiSmartphone /> Mobile Layout ({sections.length} Sections)
+            </button>
+          </div>
+
+          <div className="alert alert-light border d-flex align-items-center justify-content-between py-2 px-3 mb-3 small">
+            <div>
+              <strong>{sectionDeviceTab === 'desktop' ? '🖥️ Desktop Browser Layout' : '📱 Mobile App & Browser Layout'}</strong>: 
+              <span className="text-muted ms-1">
+                {sectionDeviceTab === 'desktop' 
+                  ? 'Showing live section sequencing for desktop viewports. Same order & visibility sync across desktop and mobile.' 
+                  : 'Showing live section sequencing for mobile smartphones. Same order & visibility sync across desktop and mobile.'}
+              </span>
+            </div>
+            <span className="badge bg-dark text-white text-uppercase">{sections.filter(s => s.is_visible !== false).length} Active Sections</span>
           </div>
 
           <div className="table-responsive">
@@ -657,7 +692,13 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                       <span className="badge bg-danger text-white me-1">{slide.badge_text || 'HERO'}</span>
                       <span className="text-muted small">{slide.subtitle}</span>
                     </td>
-                    <td><code className="cat-slug-badge">{slide.cta_primary_text || 'SHOP NOW'}</code></td>
+                    <td>
+                      <div><code className="cat-slug-badge">{slide.cta_primary_text || 'SHOP NOW'}</code></div>
+                      <div className="small text-muted mt-1">
+                        <span className="me-2">{slide.cta_secondary_text || 'EXPLORE COLLECTIONS'}</span>
+                        {slide.cta_primary_link && <code className="cat-slug-badge">{slide.cta_primary_link}</code>}
+                      </div>
+                    </td>
                     <td><strong>#{slide.display_order || 1}</strong></td>
                     <td className="text-end pe-4">
                       <button className="btn-admin-outline me-2" onClick={() => openEditSlideModal(slide)}>
@@ -1210,6 +1251,30 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
               <FileUploadInput value={slideFormData.mobile_image_url} onChange={(url) => setSlideFormData(prev => ({ ...prev, mobile_image_url: url }))} type="image" folder="hero" label="Mobile Banner Image URL (Optional)" placeholder="Upload mobile image URL..." />
             </div>
           </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <h5 className="fw-bold text-dark mb-1">CTA Buttons</h5>
+            <p className="text-muted small mb-3">Set the button label and redirect link for each call-to-action.</p>
+            <div className="row g-3">
+              <div className="col-md-6">
+                <label className="admin-form-label">Primary CTA Label</label>
+                <input type="text" className="admin-input" value={slideFormData.cta_primary_text} onChange={(e) => setSlideFormData(prev => ({ ...prev, cta_primary_text: e.target.value }))} placeholder="e.g. SHOP NOW" />
+              </div>
+              <div className="col-md-6">
+                <label className="admin-form-label">Primary CTA Link</label>
+                <input type="text" className="admin-input" value={slideFormData.cta_primary_link} onChange={(e) => setSlideFormData(prev => ({ ...prev, cta_primary_link: e.target.value }))} placeholder="e.g. /shop or https://..." />
+              </div>
+              <div className="col-md-6">
+                <label className="admin-form-label">Secondary CTA Label</label>
+                <input type="text" className="admin-input" value={slideFormData.cta_secondary_text} onChange={(e) => setSlideFormData(prev => ({ ...prev, cta_secondary_text: e.target.value }))} placeholder="e.g. EXPLORE COLLECTIONS" />
+              </div>
+              <div className="col-md-6">
+                <label className="admin-form-label">Secondary CTA Link</label>
+                <input type="text" className="admin-input" value={slideFormData.cta_secondary_link} onChange={(e) => setSlideFormData(prev => ({ ...prev, cta_secondary_link: e.target.value }))} placeholder="e.g. /shop?category=Shirts or https://..." />
+              </div>
+            </div>
+          </div>
+
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
             <button type="button" className="btn-admin-outline" onClick={() => setIsSlideModalOpen(false)}>Cancel</button>
             <button type="submit" className="btn-admin-red">Save Slide</button>

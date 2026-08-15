@@ -19,7 +19,7 @@ const DEFAULT_CATCHY_COMBOS = [
     pieces_count: 2,
     original_price: 6999,
     offer_price: 4499,
-    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop',
+    image: '',
     items: [
       { name: 'European Linen Resort Shirt', category: 'Shirts' },
       { name: 'Japanese Selvedge Raw Denim', category: 'Denim' }
@@ -32,7 +32,7 @@ const DEFAULT_CATCHY_COMBOS = [
     pieces_count: 2,
     original_price: 5499,
     offer_price: 3699,
-    image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?q=80&w=800&auto=format&fit=crop',
+    image: '',
     items: [
       { name: 'Heavyweight Heavy Cotton Tee', category: 'Tees' },
       { name: 'Tactical Multi-Pocket Cargo', category: 'Trousers' }
@@ -45,7 +45,7 @@ const DEFAULT_CATCHY_COMBOS = [
     pieces_count: 3,
     original_price: 12999,
     offer_price: 8499,
-    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop',
+    image: '',
     items: [
       { name: 'Italian Double-Breasted Blazer', category: 'Blazers' },
       { name: 'Structured Linen Oxford Shirt', category: 'Shirts' },
@@ -134,11 +134,15 @@ const CatchyCombosSection = ({ title, subtitle }) => {
                 >
                   {/* Card Media Header */}
                   <div className="catchy-combo-media">
+                    {combo.image || combo.images?.[0] ? (
                     <img 
-                      src={combo.image || combo.images?.[0] || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop'} 
+                      src={combo.image || combo.images?.[0] || ''} 
                       alt={combo.name} 
                       className="catchy-combo-img"
                     />
+                  ) : (
+                    <div className="catchy-combo-img orderly-img-fallback">ORDERLY</div>
+                  )}
                     <div className="catchy-combo-overlay" />
 
                     {/* Badge Pill Top Right */}

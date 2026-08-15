@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiMenu, FiSearch, FiX } from 'react-icons/fi';
-import logoImg from '../../assets/logo/logo.jpeg';
+import logoImg from '../../assets/logo/logo.png';
 
 const MobileHeader = ({ onOpenMenu }) => {
   const navigate = useNavigate();

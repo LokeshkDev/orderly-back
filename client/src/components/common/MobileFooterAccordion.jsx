@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiChevronDown, FiChevronUp, FiInstagram, FiFacebook, FiYoutube, FiTwitter } from 'react-icons/fi';
-import logoImg from '../../assets/logo/logo.jpeg';
+import logoImg from '../../assets/logo/logo.png';
 
 const MobileFooterAccordion = () => {
   const [openSections, setOpenSections] = useState({

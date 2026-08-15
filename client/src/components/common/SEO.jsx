@@ -5,7 +5,7 @@ const SEO = ({
   title = "ORDERLY Mens Wear | Premium Men's Fashion & Luxury Apparel", 
   description = "ORDERLY Mens Wear, luxury men's fashion house crafting world-class menswear.",
   keywords = "mens fashion, luxury menswear, orderly mens wear",
-  image = "/src/assets/logo/logo.jpeg"
+  image = "/src/assets/logo/logo.png"
 }) => {
   return (
     <Helmet>

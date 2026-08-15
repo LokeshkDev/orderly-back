@@ -57,12 +57,10 @@ const OrderSuccess = () => {
     };
     loadOrder();
     const timer = setInterval(loadOrder, 5000);
-    window.addEventListener('focus', loadOrder);
     window.addEventListener('orderly_orders_updated', loadOrder);
     return () => {
       active = false;
       clearInterval(timer);
-      window.removeEventListener('focus', loadOrder);
       window.removeEventListener('orderly_orders_updated', loadOrder);
     };
   }, [orderId]);

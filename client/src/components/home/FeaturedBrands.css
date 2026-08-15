@@ -1,6 +1,6 @@
 .orderly-featured-brands {
   position: relative;
-  background-image: linear-gradient(rgba(11, 11, 11, 0.88), rgba(11, 11, 11, 0.88)), url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1600&auto=format&fit=crop');
+  background-image: linear-gradient(rgba(11, 11, 11, 0.88), rgba(11, 11, 11, 0.88)), linear-gradient(135deg, #0b0b0f 0%, #1a1d24 100%);
   background-attachment: fixed;
   background-position: center;
   background-repeat: no-repeat;
@@ -10,7 +10,7 @@
 }
 
 [data-theme="light"] .orderly-featured-brands {
-  background-image: linear-gradient(rgba(245, 245, 247, 0.92), rgba(245, 245, 247, 0.92)), url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1600&auto=format&fit=crop');
+  background-image: linear-gradient(rgba(245, 245, 247, 0.92), rgba(245, 245, 247, 0.92)), linear-gradient(135deg, #0b0b0f 0%, #1a1d24 100%);
 }
 
 .brands-grid {

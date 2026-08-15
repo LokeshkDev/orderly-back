@@ -121,11 +121,9 @@ const MobileShop = () => {
       loadProducts();
     };
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('focus', handleStorageChange);
     window.addEventListener('orderly_products_updated', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('focus', handleStorageChange);
       window.removeEventListener('orderly_products_updated', handleStorageChange);
     };
   }, []);

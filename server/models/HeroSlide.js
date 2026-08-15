@@ -23,6 +23,10 @@ const HeroSlide = sequelize.define('HeroSlide', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  mobile_image_url: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   badge_text: {
     type: DataTypes.STRING,
     allowNull: true,

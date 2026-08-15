@@ -9,7 +9,7 @@ const DEFAULT_LOOKBOOK = {
   description: 'Elevate your wardrobe with the latest styles designed for the modern man.',
   buttonText: 'EXPLORE NOW',
   buttonLink: '/shop',
-  image: 'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=1600&auto=format&fit=crop'
+  image: ''
 };
 
 const LookbookSection = () => {
@@ -41,11 +41,15 @@ const LookbookSection = () => {
     <section className="orderly-lookbook-section py-5">
       <div className="container-fluid px-lg-5">
         <div className="lookbook-banner-card">
-          <img 
-            src={config.image || DEFAULT_LOOKBOOK.image} 
-            alt={config.title || 'The Lookbook Fashion Campaign'} 
-            className="lookbook-bg-img" 
-          />
+          {config.image ? (
+            <img 
+              src={config.image || ''} 
+              alt={config.title || 'The Lookbook Fashion Campaign'} 
+              className="lookbook-bg-img" 
+            />
+          ) : (
+            <div className="lookbook-bg-img orderly-img-fallback">ORDERLY</div>
+          )}
           <div className="lookbook-overlay" />
 
           <div className="lookbook-content-box">

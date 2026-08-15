@@ -172,11 +172,15 @@ const VideoBannerSection = ({ title, subtitle }) => {
                   >
                     {/* Thumbnail Container */}
                     <div className="video-thumb-wrapper">
-                      <img 
-                        src={film.thumbnail || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop'} 
-                        alt={film.title} 
-                        className="video-thumb-img" 
-                      />
+                      {film.thumbnail ? (
+                        <img 
+                          src={film.thumbnail || ''} 
+                          alt={film.title} 
+                          className="video-thumb-img" 
+                        />
+                      ) : (
+                        <div className="video-thumb-img orderly-img-fallback">ORDERLY</div>
+                      )}
                       <div className="video-thumb-overlay" />
                       
                       {/* Centered Circular Play Button */}

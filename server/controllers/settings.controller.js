@@ -1,5 +1,6 @@
 import db from '../models/index.js';
 import { DEFAULT_DELIVERY_SETTINGS, DEFAULT_COURIER_SETTINGS } from '../utils/deliveryCalculator.js';
+import { DEFAULT_PAIR_OFFER_SETTINGS } from '../utils/pairOfferCalculator.js';
 
 const { SiteSetting } = db;
 
@@ -65,7 +66,11 @@ const DEFAULT_SETTINGS = {
   youtube_url: 'https://youtube.com',
   delivery_settings: DEFAULT_DELIVERY_SETTINGS,
   courier_settings: DEFAULT_COURIER_SETTINGS,
-  email_settings: DEFAULT_EMAIL_SETTINGS
+  email_settings: DEFAULT_EMAIL_SETTINGS,
+  pair_offer_enabled: 'true',
+  pair_offer_discount_percent: '25',
+  pair_offer_min_products: '2',
+  pair_offer_settings: DEFAULT_PAIR_OFFER_SETTINGS
 };
 
 const parseValue = (row) => {

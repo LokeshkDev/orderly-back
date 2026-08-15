@@ -13,7 +13,7 @@ const DEFAULT_PRODUCTS = [
     original_price: 2499,
     rating: 5,
     reviews_count: 128,
-    image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=800&auto=format&fit=crop',
+    image: '',
     badge: 'BESTSELLER'
   },
   {
@@ -23,7 +23,7 @@ const DEFAULT_PRODUCTS = [
     original_price: 12999,
     rating: 5,
     reviews_count: 94,
-    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop',
+    image: '',
     badge: 'LUXURY'
   },
   {
@@ -33,7 +33,7 @@ const DEFAULT_PRODUCTS = [
     original_price: 13999,
     rating: 5,
     reviews_count: 86,
-    image: 'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop',
+    image: '',
     badge: 'EXCLUSIVE'
   },
   {
@@ -43,7 +43,7 @@ const DEFAULT_PRODUCTS = [
     original_price: 4299,
     rating: 5,
     reviews_count: 112,
-    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop',
+    image: '',
     badge: 'TRENDING'
   },
   {
@@ -53,17 +53,9 @@ const DEFAULT_PRODUCTS = [
     original_price: 1599,
     rating: 5,
     reviews_count: 142,
-    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop',
+    image: '',
     badge: 'NEW'
   }
-];
-
-const FALLBACK_PRODUCT_IMAGES = [
-  'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop'
 ];
 
 const TrendingArrivalsSection = ({ title, subtitle }) => {
@@ -74,11 +66,11 @@ const TrendingArrivalsSection = ({ title, subtitle }) => {
       try {
         const res = await getProducts();
         if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const sanitized = res.data.map((prod, idx) => {
+          const sanitized = res.data.map((prod) => {
             const rawImg = prod.image || (Array.isArray(prod.images) && prod.images[0]);
             const validImg = (rawImg && typeof rawImg === 'string' && rawImg.length > 10)
               ? rawImg
-              : FALLBACK_PRODUCT_IMAGES[idx % FALLBACK_PRODUCT_IMAGES.length];
+              : '';
             return {
               ...prod,
               image: validImg

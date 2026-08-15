@@ -34,11 +34,9 @@ const ShopByOccasion = ({ title, subtitle }) => {
 
     window.addEventListener('orderly_occasions_updated', loadOccasions);
     window.addEventListener('storage', loadOccasions);
-    window.addEventListener('focus', loadOccasions);
     return () => {
       window.removeEventListener('orderly_occasions_updated', loadOccasions);
       window.removeEventListener('storage', loadOccasions);
-      window.removeEventListener('focus', loadOccasions);
     };
   }, []);
 

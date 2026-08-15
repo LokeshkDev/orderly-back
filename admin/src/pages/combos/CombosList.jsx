@@ -4,21 +4,21 @@ import {
   FiLayers, FiPackage, FiGrid, FiTag, FiShoppingBag, FiDollarSign, FiPercent, FiBox
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import api from '../../services/api.js';
 import FileUploadInput from '../../components/common/FileUploadInput';
 import './CombosList.css';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const CombosList = () => {
   const [combos, setCombos] = useState([]);
   const [productsCatalog, setProductsCatalog] = useState([]);
+  const [comboCategories, setComboCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [pieceFilter, setPieceFilter] = useState('All');
   const [modeFilter, setModeFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -31,6 +31,8 @@ const CombosList = () => {
     id: '',
     name: '',
     slug: '',
+    category: '',
+    category_slug: '',
     offer_price: 0,
     original_price: 0,
     badge: '',
@@ -44,13 +46,14 @@ const CombosList = () => {
   // Selected product IDs for Existing Products mode
   const [selectedProductIds, setSelectedProductIds] = useState(['', '', '', '']);
 
-  // Fetch combos & existing products from DB — the DB is the single source of truth.
+  // Fetch combos, products & combo categories from DB
   const loadData = async () => {
     setLoading(true);
     try {
-      const [combosRes, productsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/combos?includeDeleted=true`),
-        axios.get(`${API_BASE_URL}/products`)
+      const [combosRes, productsRes, catsRes] = await Promise.all([
+        api.get('/combos?includeDeleted=true'),
+        api.get('/products'),
+        api.get('/categories?type=combo')
       ]);
 
       if (combosRes.data && combosRes.data.success && Array.isArray(combosRes.data.data)) {
@@ -64,8 +67,14 @@ const CombosList = () => {
       } else {
         setProductsCatalog([]);
       }
+
+      if (catsRes.data && catsRes.data.success && Array.isArray(catsRes.data.data)) {
+        setComboCategories(catsRes.data.data);
+      } else {
+        setComboCategories([]);
+      }
     } catch (err) {
-      console.warn('Failed to load combos/products from DB:', err.message);
+      console.warn('Failed to load combos/products/categories from DB:', err.message);
     } finally {
       setLoading(false);
     }
@@ -136,6 +145,8 @@ const CombosList = () => {
         id: comboToEdit.id,
         name: comboToEdit.name,
         slug: comboToEdit.slug || comboToEdit.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        category: comboToEdit.category || comboCategories[0]?.name || '',
+        category_slug: comboToEdit.category_slug || comboCategories[0]?.slug || '',
         pieces_count: comboToEdit.pieces_count || 2,
         offer_price: comboToEdit.offer_price,
         original_price: comboToEdit.original_price,
@@ -159,6 +170,8 @@ const CombosList = () => {
         id: `combo-${Date.now()}`,
         name: '',
         slug: `combo-${Date.now()}`,
+        category: comboCategories[0]?.name || '',
+        category_slug: comboCategories[0]?.slug || '',
         pieces_count: count,
         offer_price: calcOriginalPrice > 0 ? Math.round(calcOriginalPrice * 0.7) : 0,
         original_price: calcOriginalPrice > 0 ? calcOriginalPrice : 0,
@@ -221,12 +234,12 @@ const CombosList = () => {
 
     try {
       if (editingCombo) {
-        const res = await axios.put(`${API_BASE_URL}/combos/${editingCombo.id}`, finalCombo);
+        const res = await api.put(`/combos/${editingCombo.id}`, finalCombo);
         if (res.data && res.data.success) {
           toast.success(`Combo "${formData.name}" updated successfully!`);
         }
       } else {
-        const res = await axios.post(`${API_BASE_URL}/combos`, finalCombo);
+        const res = await api.post('/combos', finalCombo);
         if (res.data && res.data.success) {
           toast.success(`New ${piecesCount}-piece combo "${formData.name}" created successfully!`);
         }
@@ -243,7 +256,7 @@ const CombosList = () => {
   const handleDeleteCombo = async (id, name) => {
     if (window.confirm(`Are you sure you want to delete combo "${name}"?`)) {
       try {
-        const res = await axios.delete(`${API_BASE_URL}/combos/${id}`);
+        const res = await api.delete(`/combos/${id}`);
         if (res.data && res.data.success) {
           toast.success(`Combo "${name}" removed from catalog.`);
           loadData();
@@ -255,11 +268,12 @@ const CombosList = () => {
     }
   };
 
-  // Filter combos by search term & dropdown filters
+  // Filter combos by search term, category & dropdown filters
   const filteredCombos = combos.filter(c => {
     const matchesSearch = 
       c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.badge?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.id?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesPiece = pieceFilter === 'All' || String(c.pieces_count || 2) === String(pieceFilter);
@@ -267,7 +281,11 @@ const CombosList = () => {
       (modeFilter === 'existing' && c.is_existing_products_combo) ||
       (modeFilter === 'custom' && !c.is_existing_products_combo);
 
-    return matchesSearch && matchesPiece && matchesMode;
+    const matchesCat = categoryFilter === 'All' || 
+      c.category === categoryFilter || 
+      c.category_slug === categoryFilter;
+
+    return matchesSearch && matchesPiece && matchesMode && matchesCat;
   });
 
   // Calculate stats
@@ -358,17 +376,30 @@ const CombosList = () => {
       {/* Toolbar Filters Bar */}
       <div className="combo-toolbar-card mb-4">
         <div className="row g-3 align-items-center">
-          <div className="col-md-6 col-lg-6">
+          <div className="col-md-3 col-lg-3">
             <div className="combo-search-wrapper">
               <FiSearch className="combo-search-icon" />
               <input 
                 type="text" 
                 className="combo-search-input"
-                placeholder="Search combos by title, ID, badge, or tag..."
+                placeholder="Search combos by title, ID, badge..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="col-md-3 col-lg-3">
+            <select 
+              className="combo-select-filter w-100"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="All">All Combo Categories</option>
+              {comboCategories.map(cat => (
+                <option key={cat.id || cat.slug} value={cat.name}>{cat.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="col-md-3 col-lg-3">
@@ -404,14 +435,14 @@ const CombosList = () => {
           <table className="admin-matrix-table align-middle mb-0">
             <thead>
               <tr>
-                <th className="ps-4" style={{ minWidth: '280px' }}>COMBO OFFER</th>
-                <th>PIECES</th>
-                <th>MODE</th>
-                <th>ORIGINAL PRICE</th>
-                <th>OFFER PRICE</th>
-                <th>SAVINGS BADGE</th>
-                <th>STATUS</th>
-                <th className="text-end pe-4">ACTIONS</th>
+                <th className="ps-4 text-start" style={{ minWidth: '260px' }}>COMBO OFFER</th>
+                <th className="text-center" style={{ minWidth: '95px' }}>PIECES</th>
+                <th className="text-center" style={{ minWidth: '140px' }}>MODE</th>
+                <th className="text-end" style={{ minWidth: '110px' }}>ORIGINAL PRICE</th>
+                <th className="text-end" style={{ minWidth: '110px' }}>OFFER PRICE</th>
+                <th className="text-center" style={{ minWidth: '120px' }}>SAVINGS BADGE</th>
+                <th className="text-center" style={{ minWidth: '90px' }}>STATUS</th>
+                <th className="text-end pe-4" style={{ minWidth: '130px' }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
@@ -424,25 +455,25 @@ const CombosList = () => {
               ) : filteredCombos.length > 0 ? (
                 filteredCombos.map(combo => (
                   <tr key={combo.id}>
-                    <td className="ps-4 py-3">
+                    <td className="ps-4 py-3 text-start">
                       <div className="d-flex align-items-center gap-3">
                         <img 
                           src={combo.images?.[0] || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop'} 
                           alt={combo.name} 
-                          className="combo-tbl-thumb"
+                          className="combo-tbl-thumb flex-shrink-0"
                         />
-                        <div>
-                          <div className="combo-title-text">{combo.name}</div>
+                        <div className="min-w-0">
+                          <div className="combo-title-text text-truncate" style={{ maxWidth: '240px' }} title={combo.name}>{combo.name}</div>
                           <span className="combo-code-badge">{combo.id}</span>
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td className="text-center">
                       <span className="badge-pieces">
                         {combo.pieces_count || 2} Pieces
                       </span>
                     </td>
-                    <td>
+                    <td className="text-center">
                       {combo.is_existing_products_combo ? (
                         <span className="badge-mode-existing">
                           <FiGrid /> Existing Catalog
@@ -453,18 +484,18 @@ const CombosList = () => {
                         </span>
                       )}
                     </td>
-                    <td>
-                      <span className="combo-price-original">₹{combo.original_price}</span>
+                    <td className="text-end">
+                      <span className="combo-price-original">₹{Number(combo.original_price || 0).toLocaleString()}</span>
                     </td>
-                    <td>
-                      <span className="combo-price-offer">₹{combo.offer_price}</span>
+                    <td className="text-end">
+                      <strong className="combo-price-offer text-danger">₹{Number(combo.offer_price || 0).toLocaleString()}</strong>
                     </td>
-                    <td>
+                    <td className="text-center">
                       <span className="badge-savings-tag">
                         {combo.badge || 'SPECIAL DEAL'}
                       </span>
                     </td>
-                    <td>
+                    <td className="text-center">
                       <span className={`status-badge-pill ${combo.status === 'Active' ? 'active' : 'draft'}`}>
                         {combo.status || 'Active'}
                       </span>
@@ -556,7 +587,7 @@ const CombosList = () => {
                   </div>
 
                   {/* Combo Title */}
-                  <div className="col-md-8">
+                  <div className="col-md-5">
                     <label className="admin-form-label">Combo Offer Title *</label>
                     <input 
                       type="text" 
@@ -568,8 +599,30 @@ const CombosList = () => {
                     />
                   </div>
 
-                  {/* Badge Tag */}
+                  {/* Combo Category */}
                   <div className="col-md-4">
+                    <label className="admin-form-label">Combo Category</label>
+                    <select
+                      className="admin-input"
+                      value={formData.category || ''}
+                      onChange={(e) => {
+                        const selectedCat = comboCategories.find(c => c.name === e.target.value);
+                        setFormData(prev => ({
+                          ...prev,
+                          category: e.target.value,
+                          category_slug: selectedCat?.slug || e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                        }));
+                      }}
+                    >
+                      <option value="">Select Category</option>
+                      {comboCategories.map(c => (
+                        <option key={c.id || c.slug} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Badge Tag */}
+                  <div className="col-md-3">
                     <label className="admin-form-label">Savings Badge Tag</label>
                     <input 
                       type="text" 

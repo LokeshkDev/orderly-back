@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/common/SEO';
 import { useCart } from '../context/CartContext';
-import { createOrder, createRazorpayOrder, getPaymentConfig, getSettings, verifyRazorpayPayment } from '../services/api';
+import { createOrder, createRazorpayOrder, getPaymentConfig, getSettings, verifyRazorpayPayment, getActiveCoupons } from '../services/api';
 import { formatPrice } from '../utils/formatters';
 import { 
-  FiLock, FiCheckCircle, FiCreditCard, FiSmartphone, FiTruck, FiHome, FiBriefcase, FiMapPin, FiShield, FiAlertCircle
+  FiLock, FiCheckCircle, FiCreditCard, FiSmartphone, FiTruck, FiHome, FiBriefcase, FiMapPin, FiShield, FiAlertCircle, FiTag, FiCopy, FiCheck
 } from 'react-icons/fi';
 import './Checkout.css';
 
@@ -33,7 +33,15 @@ const Checkout = () => {
     total, 
     subtotal, 
     originalSubtotal, 
+    mainProductsSubtotal,
+    pairWellWithSubtotal,
+    pairWellWithDiscount,
+    pairWellWithTotal,
     pairOfferSavings, 
+    isMultiPairOfferActive,
+    distinctPairProductCount,
+    totalSavings,
+    pairSettings,
     shippingCost, 
     discountAmount, 
     appliedCoupon, 
@@ -41,7 +49,9 @@ const Checkout = () => {
     pricingBreakdown,
     deliveryResult,
     pincode,
-    setPincode
+    setPincode,
+    applyCoupon,
+    removeCoupon
   } = useCart();
   const navigate = useNavigate();
 
@@ -50,6 +60,47 @@ const Checkout = () => {
   const [orderError, setOrderError] = useState(null);
   const [paymentConfig, setPaymentConfig] = useState({ razorpayKeyId: '', currency: 'INR', codAdvancePercentage: 10 });
   const [siteSettings, setSiteSettings] = useState(null);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponMsg, setCouponMsg] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [copiedCode, setCopiedCode] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const loadCoupons = async () => {
+      const res = await getActiveCoupons();
+      if (active && res && res.success && Array.isArray(res.data)) {
+        setAvailableCoupons(res.data.filter(c => c.show_on_checkout !== false));
+      }
+    };
+    loadCoupons();
+    const handleCouponsUpdated = () => loadCoupons();
+    window.addEventListener('orderly_coupons_updated', handleCouponsUpdated);
+    window.addEventListener('storage', handleCouponsUpdated);
+    return () => {
+      active = false;
+      window.removeEventListener('orderly_coupons_updated', handleCouponsUpdated);
+      window.removeEventListener('storage', handleCouponsUpdated);
+    };
+  }, []);
+
+  const handleCouponSubmit = async (e) => {
+    e.preventDefault();
+    if (!couponInput.trim() || couponLoading) return;
+    setCouponLoading(true);
+    setCouponMsg(null);
+    const res = await applyCoupon(couponInput);
+    setCouponLoading(false);
+    setCouponMsg(res);
+    if (res.success) setCouponInput('');
+  };
+
+  const handleCopyCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(''), 1500);
+  };
 
   // Address Type State (Home, Office, Other)
   const [addressType, setAddressType] = useState('Home');
@@ -86,7 +137,7 @@ const Checkout = () => {
 
   const codEnabled = String(siteSettings?.cod_enabled ?? 'true') !== 'false';
   const codAdvancePercentage = Number(paymentConfig.codAdvancePercentage) || 10;
-  const codAdvanceAmount = Math.max(0, Math.round((Number(total) || 0) * (codAdvancePercentage / 100)));
+  const codAdvanceAmount = Math.max(0, Math.round((Number(subtotal) || 0) * (codAdvancePercentage / 100) + (Number(shippingCost) || 0)));
   const codBalanceDue = Math.max(0, Math.round((Number(total) || 0) - codAdvanceAmount));
   const paymentDueNow = paymentMethod === 'cod' ? codAdvanceAmount : Number(total) || 0;
   const paymentLabel = paymentMethod === 'cod' ? 'COD Advance' : 'Online Payment';
@@ -467,7 +518,7 @@ const Checkout = () => {
                   {codEnabled ? (
                     <div className="payment-note mb-3">
                       <FiShield className="me-2" />
-                      COD requires a {codAdvancePercentage}% advance payment. You will pay the balance on delivery.
+                      COD requires a {codAdvancePercentage}% advance of subtotal plus delivery charges. You will pay the balance on delivery.
                     </div>
                   ) : (
                     <div className="payment-note mb-3 text-warning">
@@ -525,7 +576,14 @@ const Checkout = () => {
                       <div key={item.cartItemId} className="summary-item-row">
                         <img src={item.images?.[0] || item.image} alt={item.name} className="summary-item-img" />
                         <div className="summary-item-info">
-                          <h6 className="text-white fw-bold mb-1">{item.name}</h6>
+                          <div className="d-flex align-items-center flex-wrap gap-1 mb-1">
+                            <h6 className="text-white fw-bold mb-0">{item.name}</h6>
+                            {item.isPairOffer && (
+                              <span className="badge bg-danger text-white extra-small">
+                                PAIR PRODUCT {item.pairOffer?.discount_percent ? `(${item.pairOffer.discount_percent}% OFF)` : ''}
+                              </span>
+                            )}
+                          </div>
                           <div className="small text-muted">
                             <span>Qty: <strong className="text-white">{item.quantity}</strong></span>
                             {(item.selectedSize || item.size) && (
@@ -547,50 +605,132 @@ const Checkout = () => {
                             </div>
                           )}
                         </div>
-                        <span className="summary-item-price">{formatPrice(item.price * item.quantity)}</span>
+                        <span className="summary-item-price">
+                          {Number(item.originalPrice || item.original_price || 0) > Number(item.price || 0) && (
+                            <del className="me-1 text-muted small">{formatPrice((item.originalPrice || item.original_price) * item.quantity)}</del>
+                          )}
+                          {formatPrice(item.price * item.quantity)}
+                        </span>
                       </div>
                     ))}
                   </div>
 
+                  {/* Coupon Apply Box */}
+                  <div className="checkout-coupon-box mb-4">
+                    {appliedCoupon ? (
+                      <div className="checkout-coupon-applied">
+                        <div className="d-flex align-items-center gap-2">
+                          <FiCheck className="text-success" />
+                          <strong className="text-success">Coupon {appliedCoupon.code} applied!</strong>
+                        </div>
+                        <button 
+                          type="button"
+                          className="checkout-coupon-remove"
+                          onClick={() => { removeCoupon(); setCouponMsg(null); }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleCouponSubmit} className="checkout-coupon-form">
+                        <input
+                          type="text"
+                          className="checkout-coupon-input"
+                          placeholder="Enter coupon code"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value)}
+                          disabled={couponLoading}
+                        />
+                        <button type="submit" className="checkout-coupon-apply" disabled={couponLoading || !couponInput.trim()}>
+                          {couponLoading ? 'Applying...' : 'Apply'}
+                        </button>
+                      </form>
+                    )}
+
+                    {couponMsg && !appliedCoupon && (
+                      <span className={`checkout-coupon-feedback ${couponMsg.success ? 'text-success' : 'text-danger'}`}>
+                        {couponMsg.message}
+                      </span>
+                    )}
+
+                    {availableCoupons.length > 0 && !appliedCoupon && (
+                      <div className="checkout-coupon-offers">
+                        <span className="checkout-coupon-offers-label">
+                          <FiTag /> Available Coupons:
+                        </span>
+                        {availableCoupons.slice(0, 4).map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className="checkout-coupon-chip"
+                            onClick={() => {
+                              setCouponInput(c.code);
+                              handleCopyCode(c.code);
+                            }}
+                            title={`${c.description || ''} — click to use code`}
+                          >
+                            {c.code}
+                            <span className="checkout-coupon-chip-icon">
+                              {copiedCode === c.code ? <FiCheck /> : <FiCopy />}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="checkout-price-calc pt-3 border-top border-secondary">
-                    {pairOfferSavings > 0 && (
+                    {pricingBreakdown?.isPairOfferActive && pricingBreakdown?.totalMrp > 0 && (
                       <div className="d-flex justify-content-between mb-2">
-                        <span>Items Total</span>
-                        <span>{formatPrice(originalSubtotal)}</span>
+                        <span>Total MRP ({cart.length} items)</span>
+                        <span>{formatPrice(pricingBreakdown.totalMrp)}</span>
                       </div>
                     )}
-                    {pairOfferSavings > 0 && (
+
+                    {pairWellWithDiscount > 0 && (
                       <div className="d-flex justify-content-between mb-2 text-success">
-                        <span>Offer Savings</span>
-                        <span>-{formatPrice(pairOfferSavings)}</span>
+                        <span>Pair Offer ({pricingBreakdown?.discountPercent || (isMultiPairOfferActive ? 25 : 20)}% OFF)</span>
+                        <span>-{formatPrice(pairWellWithDiscount)}</span>
                       </div>
                     )}
+
                     <div className="d-flex justify-content-between mb-2">
                       <span>Subtotal</span>
                       <span>{formatPrice(subtotal)}</span>
                     </div>
+
                     {discountAmount > 0 && (
                       <div className="d-flex justify-content-between mb-2 text-success">
                         <span>Coupon Discount</span>
                         <span>-{formatPrice(discountAmount)}</span>
                       </div>
                     )}
+
                     <div className="d-flex justify-content-between mb-2">
                       <span>
                         {deliveryResult?.methodLabel || 'Express Shipping'}
                       </span>
                       <span>{shippingCost === 0 ? <strong className="text-success">FREE</strong> : formatPrice(shippingCost)}</span>
                     </div>
+
                     <div className="d-flex justify-content-between mb-2">
-                      <span>{paymentMethod === 'cod' ? 'COD Advance' : 'Payable Now'}</span>
+                      <span>{paymentMethod === 'cod' ? `COD Advance (Delivery + ${codAdvancePercentage}% of Subtotal)` : 'Payable Now'}</span>
                       <span className="text-warning fw-bold">{formatPrice(paymentDueNow)}</span>
                     </div>
+
                     {paymentMethod === 'cod' && (
                       <div className="d-flex justify-content-between mb-2">
                         <span>Balance Due on Delivery</span>
                         <span>{formatPrice(codBalanceDue)}</span>
                       </div>
                     )}
+
+                    {totalSavings > 0 && (
+                      <div className="p-2 rounded mt-2 mb-2 text-center text-success fw-bold" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                        🎉 Total Savings: You Save {formatPrice(totalSavings)}!
+                      </div>
+                    )}
+
                     <div className="d-flex justify-content-between fs-4 font-weight-bold pt-3 border-top border-secondary text-white">
                       <span>{paymentMethod === 'cod' ? 'Order Total' : 'Total Payable'}</span>
                       <span className="text-accent-red">{formatPrice(total)}</span>

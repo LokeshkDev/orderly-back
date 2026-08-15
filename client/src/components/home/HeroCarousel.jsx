@@ -4,7 +4,6 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, EffectFade, Pagination, Navigation } from 'swiper/modules';
 import { FiArrowRight, FiChevronLeft, FiChevronRight, FiTruck, FiRotateCcw, FiShield, FiHeadphones } from 'react-icons/fi';
 import { getHeroSlides } from '../../services/api';
-import heroAsset from '../../assets/hero.png';
 import 'swiper/css';
 import 'swiper/css/effect-fade';
 import 'swiper/css/pagination';
@@ -17,7 +16,7 @@ const DEFAULT_HERO_SLIDES = [
     subtitle: "PREMIUM MEN'S WEAR",
     title: "OWN YOUR\nSTYLE",
     desc: "Discover premium menswear crafted for confidence, comfort and timeless style.",
-    image: heroAsset || "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=1600&auto=format&fit=crop",
+    image: '',
     ctaPrimary: "SHOP NOW",
     ctaPrimaryLink: "/shop",
     ctaSecondary: "EXPLORE COLLECTIONS",
@@ -28,7 +27,7 @@ const DEFAULT_HERO_SLIDES = [
     subtitle: "NEW SEASON CAPSULE",
     title: "ELEVATE YOUR\nLOOK",
     desc: "Bespoke Italian tailoring & contemporary streetwear designed for the modern gentleman.",
-    image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1600&auto=format&fit=crop",
+    image: '',
     ctaPrimary: "EXPLORE NOW",
     ctaPrimaryLink: "/shop",
     ctaSecondary: "VIEW COMBOS",
@@ -51,7 +50,7 @@ const HeroCarousel = () => {
             const rawImg = slide.image_url || slide.image;
             const validImg = (rawImg && rawImg.length > 10) 
               ? rawImg 
-              : (DEFAULT_HERO_SLIDES[idx % DEFAULT_HERO_SLIDES.length]?.image || "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=1600&auto=format&fit=crop");
+              : (DEFAULT_HERO_SLIDES[idx % DEFAULT_HERO_SLIDES.length]?.image || '');
 
             return {
               id: slide.id,
@@ -135,17 +134,18 @@ const HeroCarousel = () => {
             <SwiperSlide key={slide.id || idx}>
               <div className="hero-slide-item">
                 {/* Background Image */}
-                <img 
-                  src={slide.image} 
-                  alt={slide.title || 'ORDERLY Menswear'} 
-                  className="hero-bg-img" 
-                />
+                {slide.image ? (
+                  <img 
+                    src={slide.image} 
+                    alt={slide.title || 'ORDERLY Menswear'} 
+                    className="hero-bg-img" 
+                  />
+                ) : (
+                  <div className="orderly-hero-fallback">ORDERLY</div>
+                )}
 
-                {/* Dark Cinematic Vignette Overlay */}
+                {/* Subtle Cinematic Vignette Overlay */}
                 <div className="hero-dark-overlay" />
-                
-                {/* Red Brush Accent Overlay */}
-                <div className="hero-red-brush-accent" />
 
                 {/* Content Box */}
                 <div className="container hero-content-container">
@@ -219,53 +219,6 @@ const HeroCarousel = () => {
             </button>
           </>
         )}
-      </div>
-
-      {/* Trust & Service Features Strip (Immediately Below Hero) */}
-      <div className="hero-trust-features-strip">
-        <div className="container-fluid px-lg-5">
-          <div className="trust-features-grid">
-            <div className="trust-feature-item">
-              <div className="trust-icon-box">
-                <FiTruck className="trust-icon-red" />
-              </div>
-              <div className="trust-text-box">
-                <h4 className="trust-item-title">FREE SHIPPING</h4>
-                <p className="trust-item-sub">On orders above ₹1499</p>
-              </div>
-            </div>
-
-            <div className="trust-feature-item">
-              <div className="trust-icon-box">
-                <FiRotateCcw className="trust-icon-red" />
-              </div>
-              <div className="trust-text-box">
-                <h4 className="trust-item-title">EASY RETURNS</h4>
-                <p className="trust-item-sub">Within 7 days</p>
-              </div>
-            </div>
-
-            <div className="trust-feature-item">
-              <div className="trust-icon-box">
-                <FiShield className="trust-icon-red" />
-              </div>
-              <div className="trust-text-box">
-                <h4 className="trust-item-title">PREMIUM QUALITY</h4>
-                <p className="trust-item-sub">100% Original Products</p>
-              </div>
-            </div>
-
-            <div className="trust-feature-item">
-              <div className="trust-icon-box">
-                <FiHeadphones className="trust-icon-red" />
-              </div>
-              <div className="trust-text-box">
-                <h4 className="trust-item-title">24/7 SUPPORT</h4>
-                <p className="trust-item-sub">We're here to help</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );

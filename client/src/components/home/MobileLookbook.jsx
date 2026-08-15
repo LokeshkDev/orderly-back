@@ -8,7 +8,7 @@ const DEFAULT_LOOKBOOK = {
   description: 'Elevate your wardrobe with the latest trends designed for the modern man.',
   buttonText: 'EXPLORE NOW',
   buttonLink: '/shop',
-  image: 'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=1200&auto=format&fit=crop'
+  image: ''
 };
 
 const MobileLookbook = () => {
@@ -39,11 +39,15 @@ const MobileLookbook = () => {
   return (
     <section className="mobile-only py-4">
       <div className="mobile-lookbook-card">
-        <img 
-          src={config.mobile_image || config.image || DEFAULT_LOOKBOOK.image} 
-          alt={config.title || 'The Lookbook'} 
-          className="mobile-lookbook-img" 
-        />
+        {config.mobile_image || config.image ? (
+          <img 
+            src={config.mobile_image || config.image || ''} 
+            alt={config.title || 'The Lookbook'} 
+            className="mobile-lookbook-img" 
+          />
+        ) : (
+          <div className="mobile-lookbook-img orderly-img-fallback">ORDERLY</div>
+        )}
         <div className="mobile-lookbook-overlay" />
         
         <div className="mobile-lookbook-content">

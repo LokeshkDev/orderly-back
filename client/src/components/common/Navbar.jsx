@@ -4,7 +4,7 @@ import { FiShoppingBag, FiMenu, FiSearch, FiHeart, FiX } from 'react-icons/fi';
 import MobileMenu from './MobileMenu';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
-import logoImg from '../../assets/logo/logo.jpeg';
+import logoImg from '../../assets/logo/logo.png';
 import './Navbar.css';
 
 const Navbar = () => {

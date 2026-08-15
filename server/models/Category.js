@@ -28,6 +28,10 @@ const Category = sequelize.define('Category', {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+  type: {
+    type: DataTypes.STRING,
+    defaultValue: 'product', // 'product' or 'combo'
+  },
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

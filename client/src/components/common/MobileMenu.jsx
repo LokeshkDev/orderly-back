@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { FiChevronRight, FiHeart, FiShoppingBag } from 'react-icons/fi';
-import logoImg from '../../assets/logo/logo.jpeg';
+import logoImg from '../../assets/logo/logo.png';
 import { useCart } from '../../context/CartContext';
 import './MobileMenu.css';
 

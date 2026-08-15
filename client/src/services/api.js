@@ -47,9 +47,17 @@ export const getHeroSlides = async () => {
   return { success: true, data: [] };
 };
 
-export const getCategories = async () => {
+export const getCategories = async (type = 'product') => {
   try {
-    const res = await api.get('/categories');
+    const res = await api.get(`/categories${type ? `?type=${type}` : ''}`);
+    if (res.data && res.data.success) return res.data;
+  } catch (error) {}
+  return { success: true, data: [] };
+};
+
+export const getComboCategories = async () => {
+  try {
+    const res = await api.get('/categories?type=combo');
     if (res.data && res.data.success) return res.data;
   } catch (error) {}
   return { success: true, data: [] };
@@ -289,6 +297,14 @@ export const getOrders = async () => {
   }
 };
 
+export const getActiveCoupons = async () => {
+  try {
+    const res = await api.get('/coupons/active');
+    if (res.data && res.data.success) return res.data;
+  } catch (error) {}
+  return { success: true, data: [] };
+};
+
 export const validateCoupon = async (code, cartTotal = 0) => {
   try {
     const res = await api.post('/coupons/validate', { code, total: cartTotal });
@@ -296,25 +312,27 @@ export const validateCoupon = async (code, cartTotal = 0) => {
   } catch (error) {}
 
   const c = String(code).toUpperCase().trim();
-  if (c === 'ORDERLY20' || c === 'WELCOME20') {
+  if (c === 'ORDERLY20') {
     const discount = Math.round(cartTotal * 0.20);
     return {
       success: true,
       message: '20% Special Discount Applied!',
-      data: { code: c, discount_type: 'percentage', discount_value: 20, discountAmount: discount }
+      data: { code: c, discount: discount, discount_type: 'percentage', discount_value: 20 }
     };
-  } else if (c === 'LUXURY10' || c === 'FIRST10') {
-    const discount = Math.round(cartTotal * 0.10);
+  } else if (c === 'WELCOME100') {
+    const discount = cartTotal >= 999 ? Math.min(300, Math.round(cartTotal)) : 0;
+    if (discount <= 0) return { success: false, message: 'This coupon requires a minimum order of ₹999' };
     return {
       success: true,
-      message: '10% Exclusive Discount Applied!',
-      data: { code: c, discount_type: 'percentage', discount_value: 10, discountAmount: discount }
+      message: '₹300 Welcome Discount Applied!',
+      data: { code: c, discount: discount, discount_type: 'fixed', discount_value: 300 }
     };
-  } else if (c === 'FLAT500' && cartTotal >= 2000) {
+  } else if (c === 'FESTIVE500') {
+    if (cartTotal < 2999) return { success: false, message: 'This coupon requires a minimum order of ₹2,999' };
     return {
       success: true,
       message: '₹500 Flat Savings Applied!',
-      data: { code: c, discount_type: 'fixed', discount_value: 500, discountAmount: 500 }
+      data: { code: c, discount: 500, discount_type: 'fixed', discount_value: 500 }
     };
   }
 

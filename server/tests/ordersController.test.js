@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import { normalizeOrderPayload } from '../controllers/orders.controller.js';
 
-test('normalizeOrderPayload keeps payment details and serializes cart items for DB storage', () => {
-  const payload = normalizeOrderPayload({
+test('normalizeOrderPayload keeps payment details and serializes cart items for DB storage', async () => {
+  const payload = await normalizeOrderPayload({
     items: [{
       id: 12,
       productId: 34,

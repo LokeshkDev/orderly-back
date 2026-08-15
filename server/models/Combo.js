@@ -36,6 +36,14 @@ const Combo = sequelize.define('Combo', {
     type: DataTypes.STRING,
     defaultValue: 'Active'
   },
+  category: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  category_slug: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   description: {
     type: DataTypes.TEXT
   },

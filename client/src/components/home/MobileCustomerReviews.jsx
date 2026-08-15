@@ -7,19 +7,19 @@ const MobileCustomerReviews = () => {
       name: 'Rahul Sharma',
       rating: '4.8/5',
       text: 'Amazing quality and perfect fit. Orderly is my go-to brand now!',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop'
+      avatar: ''
     },
     {
       name: 'Arjun Mehta',
       rating: '4.9/5',
       text: 'Great designs and super fast delivery. Highly recommended!',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop'
+      avatar: ''
     },
     {
       name: 'Karan Malhotra',
       rating: '4.7/5',
       text: 'The fabric quality is premium. Loved the shopping experience.',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&auto=format&fit=crop'
+      avatar: ''
     }
   ];
 
@@ -51,7 +51,12 @@ const MobileCustomerReviews = () => {
 
         {reviews.map((rev, idx) => (
           <div key={idx} className="mobile-review-item">
-            <img src={rev.avatar} alt={rev.name} className="mobile-review-avatar" />
+            <div
+              className="mobile-review-avatar"
+              style={{ background: '#E50914', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.8rem', width: '40px', height: '40px' }}
+            >
+              {rev.name.trim().split(/\s+/).slice(0, 2).map((w) => w.charAt(0)).join('').toUpperCase()}
+            </div>
             <div>
               <div className="d-flex align-items-center gap-2">
                 <div className="stars-gold" style={{ color: '#EAB308', fontSize: '0.75rem' }}>

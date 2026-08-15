@@ -44,7 +44,10 @@ const DEFAULT_SETTINGS = {
   cod_enabled: 'true',
   cod_advance_percentage: '10',
   free_shipping_threshold: '1999',
-  shipping_fee: '99'
+  shipping_fee: '99',
+  pair_offer_enabled: 'true',
+  pair_offer_discount_percent: '25',
+  pair_offer_min_products: '2'
 };
 
 const emptyBranchForm = {
@@ -435,6 +438,85 @@ const SiteSettings = () => {
                   value={settings.cod_advance_percentage}
                   onChange={(e) => handleChange('cod_advance_percentage', e.target.value)}
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 5: PAIR WELL WITH MULTI-PRODUCT OFFER CONFIGURATION */}
+        <div className="col-12">
+          <div className="admin-card-white p-4">
+            <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 border-bottom pb-3 mb-3">
+              <div>
+                <h4 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                  <FiTag className="text-danger" /> Pair Well With Multi-Product Offer Configuration
+                </h4>
+                <p className="text-muted small mb-0">
+                  Configure the automated promotional discount applied when customers purchase multiple distinct Pair Well With suggested products.
+                </p>
+              </div>
+              <span className={`badge ${settings.pair_offer_enabled === 'false' ? 'bg-secondary' : 'bg-success'} text-white px-3 py-2 fs-6`}>
+                {settings.pair_offer_enabled === 'false' ? 'Offer Inactive' : `Active: ${settings.pair_offer_discount_percent || 25}% OFF (Min ${settings.pair_offer_min_products || 2} Items)`}
+              </span>
+            </div>
+
+            <div className="row g-3">
+              <div className="col-md-4">
+                <label className="admin-form-label">Pair Well With Multi-Product Offer</label>
+                <select 
+                  className="admin-select"
+                  value={settings.pair_offer_enabled}
+                  onChange={(e) => handleChange('pair_offer_enabled', e.target.value)}
+                >
+                  <option value="true">Enabled (Apply Multi-Product Discount)</option>
+                  <option value="false">Disabled (Single Pair Deals Only)</option>
+                </select>
+                <span className="form-text text-muted extra-small">Enable or disable the multi-product discount globally.</span>
+              </div>
+
+              <div className="col-md-4">
+                <label className="admin-form-label">Multi-Product Discount Percentage (%)</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  max="90"
+                  className="admin-input fw-bold" 
+                  value={settings.pair_offer_discount_percent}
+                  onChange={(e) => handleChange('pair_offer_discount_percent', e.target.value)}
+                  placeholder="25"
+                />
+                <span className="form-text text-muted extra-small">Default is 25%. Calculated strictly on eligible Pair Well With subtotal.</span>
+              </div>
+
+              <div className="col-md-4">
+                <label className="admin-form-label">Minimum Distinct Pair Products Required</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  max="10"
+                  className="admin-input fw-bold" 
+                  value={settings.pair_offer_min_products}
+                  onChange={(e) => handleChange('pair_offer_min_products', e.target.value)}
+                  placeholder="2"
+                />
+                <span className="form-text text-muted extra-small">Default is 2. Offer triggers only when customer adds this many distinct pair products.</span>
+              </div>
+
+              <div className="col-12 mt-3">
+                <div className="p-3 bg-light rounded border">
+                  <div className="d-flex align-items-center gap-2 mb-1">
+                    <strong className="text-dark small">💡 Rule Summary & Calculation Flow:</strong>
+                  </div>
+                  <p className="text-muted extra-small mb-1">
+                    • When customer adds <strong>&lt; {settings.pair_offer_min_products || 2}</strong> distinct pair products: Standard single-product pair offer rules apply (per-item admin setup).
+                  </p>
+                  <p className="text-muted extra-small mb-1">
+                    • When customer adds <strong>&ge; {settings.pair_offer_min_products || 2}</strong> distinct pair products: A flat <strong>{settings.pair_offer_discount_percent || 25}%</strong> discount is applied across the entire eligible Pair Well With subtotal.
+                  </p>
+                  <p className="text-muted extra-small mb-0">
+                    • The main product and unrelated products are never discounted by this rule.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

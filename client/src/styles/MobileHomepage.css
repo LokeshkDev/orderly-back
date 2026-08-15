@@ -107,7 +107,7 @@
 }
 
 .mobile-header-logo {
-  height: 28px;
+  height: 80px;
   object-fit: contain;
 }
 
@@ -204,7 +204,7 @@
   height: 100%;
   object-fit: cover;
   object-position: center top;
-  filter: brightness(0.8);
+  filter: brightness(1.05) contrast(1.02);
 }
 
 .mobile-hero-overlay {
@@ -212,10 +212,11 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(5, 5, 5, 0.2) 0%,
-    rgba(5, 5, 5, 0.5) 60%,
-    rgba(5, 5, 5, 0.98) 100%
+    rgba(5, 5, 5, 0.05) 0%,
+    rgba(5, 5, 5, 0.35) 60%,
+    rgba(5, 5, 5, 0.9) 100%
   );
+  pointer-events: none;
 }
 
 .mobile-hero-content {

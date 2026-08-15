@@ -1,0 +1,108 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { getComboCategories } from '../../services/api';
+
+const DEFAULT_MOBILE_COMBO_CATS = [
+  {
+    name: 'FORMAL SUITS',
+    sub: 'Tailored 2 & 3-Piece Sets',
+    categoryQuery: 'formal',
+    image: ''
+  },
+  {
+    name: 'CASUAL SETS',
+    sub: 'Relaxed Everyday Ensembles',
+    categoryQuery: 'casual',
+    image: ''
+  },
+  {
+    name: 'TROUSER + SHIRT',
+    sub: 'Smart Coordinated Looks',
+    categoryQuery: 'trouser',
+    image: ''
+  },
+  {
+    name: 'DENIM SETS',
+    sub: 'Sharp & Tailored Pairings',
+    categoryQuery: 'denim',
+    image: ''
+  },
+  {
+    name: 'SHOES & ACCESSORIES',
+    sub: 'Complete The Look',
+    categoryQuery: 'shoe',
+    image: ''
+  }
+];
+
+const MobileComboCategories = () => {
+  const [categories, setCategories] = useState(DEFAULT_MOBILE_COMBO_CATS);
+
+  useEffect(() => {
+    const loadComboCategories = async () => {
+      try {
+        const res = await getComboCategories();
+        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          const active = res.data.filter(c => c.is_active !== false);
+          const mapped = active.map((cat, idx) => ({
+            name: (cat.name || '').toUpperCase(),
+            sub: cat.description || cat.sub || DEFAULT_MOBILE_COMBO_CATS[idx % DEFAULT_MOBILE_COMBO_CATS.length]?.sub || 'Curated Combo Set',
+            categoryQuery: cat.slug || cat.name,
+            image: (cat.image && cat.image.length > 10) ? cat.image : ''
+          }));
+          setCategories(mapped.length > 0 ? mapped : DEFAULT_MOBILE_COMBO_CATS);
+        } else {
+          setCategories(DEFAULT_MOBILE_COMBO_CATS);
+        }
+      } catch (err) {
+        setCategories(DEFAULT_MOBILE_COMBO_CATS);
+      }
+    };
+    loadComboCategories();
+
+    window.addEventListener('orderly_categories_updated', loadComboCategories);
+    window.addEventListener('storage', loadComboCategories);
+    return () => {
+      window.removeEventListener('orderly_categories_updated', loadComboCategories);
+      window.removeEventListener('storage', loadComboCategories);
+    };
+  }, []);
+
+  return (
+    <section className="mobile-only py-3">
+      {/* Header */}
+      <div className="mobile-section-header">
+        <span className="mobile-section-eyebrow">CURATED COMBO SETS</span>
+        <h2 className="mobile-section-title">EXPLORE COMBO CATEGORIES</h2>
+      </div>
+
+      {/* Horizontal Touch Scrollable Category Cards */}
+      <div className="mobile-categories-scroll">
+        {categories.map((cat, idx) => (
+          <Link
+            key={idx}
+            to={`/combos?category=${encodeURIComponent(cat.categoryQuery)}`}
+            className="mobile-category-card"
+          >
+            {cat.image && cat.image.length > 0 ? (
+              <img
+                src={cat.image}
+                alt={cat.name}
+                className="mobile-category-img"
+              />
+            ) : (
+              <div className="mobile-category-img orderly-img-fallback">ORDERLY</div>
+            )}
+            <div className="mobile-category-overlay" />
+            <div className="mobile-category-info">
+              <div className="mobile-category-name">{cat.name}</div>
+              <span className="mobile-category-sub">{cat.sub}</span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+export default MobileComboCategories;

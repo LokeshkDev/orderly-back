@@ -7,40 +7,32 @@ const DEFAULT_MOBILE_CATS = [
     name: 'CASUAL WEAR',
     sub: 'Everyday Comfort',
     categoryQuery: 'Casual Shirts',
-    image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=800&auto=format&fit=crop'
+    image: ''
   },
   {
     name: 'FORMAL WEAR',
     sub: 'Sharp & Sophisticated',
     categoryQuery: 'Formal Shirts',
-    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop'
+    image: ''
   },
   {
     name: 'STREET WEAR',
     sub: 'Urban & Trendy',
     categoryQuery: 'Tees',
-    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop'
+    image: ''
   },
   {
     name: 'SPORT WEAR',
     sub: 'Performance First',
     categoryQuery: 'Activewear',
-    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop'
+    image: ''
   },
   {
     name: 'ETHNIC WEAR',
     sub: 'Tradition Reimagined',
     categoryQuery: 'Ethnic',
-    image: 'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop'
+    image: ''
   }
-];
-
-const FALLBACK_IMAGES = [
-  'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop'
 ];
 
 const MobileCategories = () => {
@@ -56,7 +48,7 @@ const MobileCategories = () => {
             name: (cat.name || '').toUpperCase(),
             sub: cat.description || cat.sub || DEFAULT_MOBILE_CATS[idx % DEFAULT_MOBILE_CATS.length]?.sub || 'Everyday Comfort',
             categoryQuery: cat.slug || cat.name,
-            image: (cat.image && cat.image.length > 10) ? cat.image : FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length]
+            image: (cat.image && cat.image.length > 10) ? cat.image : ''
           }));
           setCategories(mapped.length > 0 ? mapped : DEFAULT_MOBILE_CATS);
         } else {
@@ -92,14 +84,15 @@ const MobileCategories = () => {
             to={`/shop?category=${encodeURIComponent(cat.categoryQuery)}`}
             className="mobile-category-card"
           >
-            <img 
-              src={cat.image} 
-              alt={cat.name} 
-              className="mobile-category-img" 
-              onError={(e) => {
-                e.target.src = FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
-              }}
-            />
+            {cat.image && cat.image.length > 0 ? (
+              <img 
+                src={cat.image} 
+                alt={cat.name} 
+                className="mobile-category-img" 
+              />
+            ) : (
+              <div className="mobile-category-img orderly-img-fallback">ORDERLY</div>
+            )}
             <div className="mobile-category-overlay" />
             <div className="mobile-category-info">
               <div className="mobile-category-name">{cat.name}</div>

@@ -4,10 +4,8 @@ import {
   FiPackage, FiImage, FiGrid, FiTag, FiLink2 
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import api from '../../services/api.js';
 import FileUploadInput from '../../components/common/FileUploadInput';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const ProductsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,7 +20,7 @@ const ProductsList = () => {
   useEffect(() => {
     const loadFromDB = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/products`);
+        const res = await api.get('/products');
         if (res.data && res.data.success && Array.isArray(res.data.data)) {
           const dbList = res.data.data;
           setProducts(dbList);
@@ -40,8 +38,8 @@ const ProductsList = () => {
     const loadOptions = async () => {
       try {
         const [catRes, brandRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/categories`),
-          axios.get(`${API_BASE_URL}/brands`)
+          api.get('/categories'),
+          api.get('/brands')
         ]);
         if (catRes.data && catRes.data.success && Array.isArray(catRes.data.data)) {
           setCategoryOptions(catRes.data.data.map(c => c.name).filter(Boolean));
@@ -103,18 +101,18 @@ const ProductsList = () => {
 
   const getPairBasePrice = (product) => Number(product?.originalPrice ?? product?.price ?? 0);
 
+  const PAIR_OFFER_PERCENT = 25;
+
   const buildPairOffer = (product, rawOffer = {}) => {
-    const discountPercent = Math.max(0, Math.min(90, Number(rawOffer.discount_percent ?? rawOffer.discountPercent ?? 0)));
     const basePrice = getPairBasePrice(product);
-    const offerPrice = discountPercent > 0
-      ? Math.max(0, Math.round(basePrice * (100 - discountPercent) / 100))
-      : Number(rawOffer.offer_price ?? basePrice ?? 0);
+    const discountPercent = Math.max(0, Math.min(90, Number(rawOffer.discount_percent ?? rawOffer.discountPercent ?? PAIR_OFFER_PERCENT)));
+    const offerPrice = Math.max(0, Math.round(basePrice * (100 - discountPercent) / 100));
 
     return {
       enabled: Boolean(rawOffer.enabled),
       discount_percent: discountPercent,
       offer_price: offerPrice,
-      badge: rawOffer.badge || (discountPercent > 0 ? `AVAIL ${discountPercent}% OFF` : ''),
+      badge: rawOffer.badge || `AVAIL ${discountPercent}% OFF`,
       note: rawOffer.note || ''
     };
   };
@@ -138,7 +136,7 @@ const ProductsList = () => {
         ...(prev.pair_offers || {}),
         [key]: {
           enabled: false,
-          discount_percent: 0,
+          discount_percent: PAIR_OFFER_PERCENT,
           offer_price: 0,
           badge: '',
           note: '',
@@ -160,6 +158,15 @@ const ProductsList = () => {
       badge: `AVAIL ${discountPct}% OFF`,
       note: `Pair deal ${discountPct}% off when added from product page`
     });
+  };
+
+  const togglePairOffer = (product, pairId, enable) => {
+    if (enable) {
+      const current = formData.pair_offers?.[String(pairId)] || {};
+      applyPairPercentageDeal(product, pairId, current.discount_percent || PAIR_OFFER_PERCENT);
+    } else {
+      updatePairOffer(pairId, { enabled: false });
+    }
   };
 
   const openAddModal = () => {
@@ -337,10 +344,10 @@ const ProductsList = () => {
     let savedProduct = finalFormData;
     try {
       if (editingProduct) {
-        const res = await axios.put(`${API_BASE_URL}/products/${editingProduct.id}`, finalFormData);
+        const res = await api.put(`/products/${editingProduct.id}`, finalFormData);
         if (res.data && res.data.success && res.data.data) savedProduct = { ...finalFormData, ...res.data.data };
       } else {
-        const res = await axios.post(`${API_BASE_URL}/products`, finalFormData);
+        const res = await api.post('/products', finalFormData);
         if (res.data && res.data.success && res.data.data) savedProduct = { ...finalFormData, ...res.data.data };
       }
     } catch (err) {
@@ -362,7 +369,7 @@ const ProductsList = () => {
   const handleDeleteProduct = async (id, name) => {
     if (window.confirm(`Are you sure you want to remove "${name}" from catalog?`)) {
       try {
-        const res = await axios.delete(`${API_BASE_URL}/products/${id}`);
+        const res = await api.delete(`/products/${id}`);
         if (res.data && res.data.success) {
           const updatedList = products.filter(p => p.id !== id);
           saveProductsToStorage(updatedList);
@@ -860,7 +867,7 @@ const ProductsList = () => {
                           <div>
                             <div className="admin-form-label mb-1">PAIR OFFER SETUP</div>
                             <div className="text-muted extra-small">
-                              Set a discount percent for each selected pair. The offer price and badge are calculated automatically from the product’s base price.
+                              Set a discount % for each pair product (calculated from its MRP). A single pair add-on in the cart uses its own %. When 2+ pair add-ons are added together, every add-on gets a flat {PAIR_OFFER_PERCENT}% off its MRP.
                             </div>
                           </div>
                         </div>
@@ -875,37 +882,22 @@ const ProductsList = () => {
                                   <div className="min-w-0">
                                     <div className="fw-bold text-dark small line-clamp-1">{selectedProduct.name}</div>
                                     <div className="text-muted extra-small">
-                                      Regular price: ₹{Number(selectedProduct.price || 0).toLocaleString()}
+                                      MRP: ₹{Number(selectedProduct.originalPrice || selectedProduct.price || 0).toLocaleString()} → Offer price: ₹{Number(offer.offer_price || 0).toLocaleString()}
                                     </div>
                                   </div>
                                   <label className="d-flex align-items-center gap-2 text-dark small mb-0">
                                     <input
                                       type="checkbox"
                                       checked={Boolean(offer.enabled)}
-                                      onChange={(e) => updatePairOffer(pairId, {
-                                        enabled: e.target.checked,
-                                        offer_price: offer.offer_price || selectedProduct.price || 0
-                                      })}
+                                      onChange={(e) => togglePairOffer(selectedProduct, pairId, e.target.checked)}
                                     />
                                     Activate offer
                                   </label>
                                 </div>
-                                <div className="d-flex flex-wrap gap-2 mb-3">
-                                  {[20, 30].map(pct => (
-                                    <button
-                                      key={pct}
-                                      type="button"
-                                      className="btn-admin-outline py-1 px-2 text-nowrap"
-                                      onClick={() => applyPairPercentageDeal(selectedProduct, pairId, pct)}
-                                    >
-                                      Set {pct}% off
-                                    </button>
-                                  ))}
-                                </div>
                                 {offer.enabled && (
                                   <div className="row g-2">
-                                    <div className="col-md-4">
-                                      <label className="admin-form-label mb-1">Discount Percent</label>
+                                    <div className="col-md-3">
+                                      <label className="admin-form-label mb-1">Discount %</label>
                                       <input
                                         type="number"
                                         className="admin-input py-1 px-2"
@@ -916,17 +908,27 @@ const ProductsList = () => {
                                         placeholder="e.g. 20"
                                       />
                                     </div>
-                                    <div className="col-md-4">
-                                      <label className="admin-form-label mb-1">Badge Preview</label>
+                                    <div className="col-md-3">
+                                      <label className="admin-form-label mb-1">Offer Price (₹)</label>
+                                      <input
+                                        type="text"
+                                        className="admin-input py-1 px-2"
+                                        value={`₹${Number(offer.offer_price || 0).toLocaleString()}`}
+                                        readOnly
+                                        placeholder="Auto from MRP"
+                                      />
+                                    </div>
+                                    <div className="col-md-3">
+                                      <label className="admin-form-label mb-1">Badge</label>
                                       <input
                                         type="text"
                                         className="admin-input py-1 px-2"
                                         value={offer.badge || ''}
-                                        readOnly
-                                        placeholder="Auto-generated from discount percent"
+                                        onChange={(e) => updatePairOffer(pairId, { badge: e.target.value })}
+                                        placeholder="e.g. AVAIL 20% OFF"
                                       />
                                     </div>
-                                    <div className="col-md-4">
+                                    <div className="col-md-3">
                                       <label className="admin-form-label mb-1">Promo Note</label>
                                       <input
                                         type="text"

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import SEO from '../components/common/SEO';
 import HeroCarousel from '../components/home/HeroCarousel';
+import TrustFeaturesStrip from '../components/home/TrustFeaturesStrip';
 import ShopByCategory from '../components/home/ShopByCategory';
+import ComboCategories from '../components/home/ComboCategories';
 import TrendingArrivalsSection from '../components/home/TrendingArrivalsSection';
 import PromoSection from '../components/home/PromoSection';
 import LookbookSection from '../components/home/LookbookSection';
@@ -13,15 +15,17 @@ import MobileHomepage from './MobileHomepage';
 import { getHomepageSections } from '../services/api';
 
 const DEFAULT_HOMEPAGE_SECTIONS = [
-  { section_key: 'hero_carousel', title: 'Hero Carousel & Trust Bar', is_visible: true, display_order: 1 },
-  { section_key: 'shop_by_category', title: 'DISCOVER YOUR STYLE', is_visible: true, display_order: 2 },
-  { section_key: 'trending_arrivals', title: 'BEST SELLING PRODUCTS', is_visible: true, display_order: 3 },
-  { section_key: 'promo_offers', title: 'Promotional Offers', is_visible: true, display_order: 4 },
-  { section_key: 'lookbook_banner', title: 'The Lookbook 2026', is_visible: true, display_order: 5 },
-  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', is_visible: true, display_order: 6 },
-  { section_key: 'video_banner', title: 'Video Banner', is_visible: false, display_order: 7 },
-  { section_key: 'shop_by_occasion', title: 'Shop by Occasion', is_visible: false, display_order: 8 },
-  { section_key: 'featured_brands', title: 'Catchy Combo Bundles', is_visible: false, display_order: 9 }
+  { section_key: 'hero_carousel', title: 'Hero Carousel', is_visible: true, display_order: 1 },
+  { section_key: 'trust_features', title: 'Trust & Service Features Bar', is_visible: true, display_order: 2 },
+  { section_key: 'shop_by_category', title: 'DISCOVER YOUR STYLE', is_visible: true, display_order: 3 },
+  { section_key: 'combo_categories', title: 'EXPLORE COMBO CATEGORIES', is_visible: true, display_order: 4 },
+  { section_key: 'trending_arrivals', title: 'BEST SELLING PRODUCTS', is_visible: true, display_order: 5 },
+  { section_key: 'promo_offers', title: 'Promotional Offers', is_visible: true, display_order: 6 },
+  { section_key: 'lookbook_banner', title: 'The Lookbook 2026', is_visible: true, display_order: 7 },
+  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', is_visible: true, display_order: 8 },
+  { section_key: 'video_banner', title: 'Video Banner', is_visible: false, display_order: 9 },
+  { section_key: 'shop_by_occasion', title: 'Shop by Occasion', is_visible: false, display_order: 10 },
+  { section_key: 'featured_brands', title: 'Catchy Combo Bundles', is_visible: false, display_order: 11 }
 ];
 
 const Home = () => {
@@ -63,8 +67,12 @@ const Home = () => {
     switch (sec.section_key) {
       case 'hero_carousel':
         return <HeroCarousel key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
+      case 'trust_features':
+        return <TrustFeaturesStrip key={sec.section_key} />;
       case 'shop_by_category':
         return <ShopByCategory key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
+      case 'combo_categories':
+        return <ComboCategories key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
       case 'trending_arrivals':
         return <TrendingArrivalsSection key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
       case 'promo_offers':

@@ -4,7 +4,7 @@ import {
   FiHeart, FiShoppingBag, FiShield, FiRefreshCw, FiChevronRight,
   FiChevronLeft, FiCheck, FiAlertCircle, FiEye, FiMaximize2,
   FiMinus, FiPlus, FiTruck, FiLock, FiX, FiTag, FiChevronDown,
-  FiHelpCircle, FiFileText, FiEdit3, FiStar
+  FiHelpCircle, FiFileText, FiEdit3, FiStar, FiTrash2
 } from 'react-icons/fi';
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
 import { formatPrice, calculateDiscount } from '../../utils/formatters';
@@ -33,6 +33,14 @@ const MobileComboDetail = ({
   relatedCombos,
   productsCatalog,
   pieceSelections,
+  removedPieceIndices = [],
+  toggleRemovePiece,
+  maxRemovablePieces = 2,
+  canRemoveMore = true,
+  activeOfferPrice,
+  activeOriginalPrice,
+  includedCount,
+  totalComboPieces,
   handleSelectColor,
   handleSelectSize,
   quantity,
@@ -40,8 +48,7 @@ const MobileComboDetail = ({
   handleAddToCart,
   toggleWishlist,
   isWishlisted,
-  validationError,
-  setShowSizeGuide
+  validationError
 }) => {
   /* Active thumbnail index */
   const [activeImgIndex, setActiveImgIndex] = useState(0);
@@ -71,7 +78,11 @@ const MobileComboDetail = ({
 
   const comboImages = combo.images?.length > 0 ? combo.images : [];
   const currentMainImg = comboImages[activeImgIndex] || comboImages[0] || '';
-  const discountPercent = calculateDiscount(combo.original_price, combo.offer_price);
+  const currentOfferPrice = activeOfferPrice ?? combo.offer_price;
+  const currentOriginalPrice = activeOriginalPrice ?? combo.original_price;
+  const currentIncludedCount = includedCount ?? (combo.items?.length || combo.pieces_count || 5);
+  const totalPieces = totalComboPieces ?? (combo.items?.length || combo.pieces_count || 5);
+  const discountPercent = calculateDiscount(currentOriginalPrice, currentOfferPrice);
 
   const goToPrevImage = () => {
     if (!comboImages.length) return;
@@ -94,9 +105,12 @@ const MobileComboDetail = ({
   const handleTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
     const distance = touchStartX.current - touchEndX.current;
-    if (distance > 40) {
+    const isLeftSwipe = distance > 40;
+    const isRightSwipe = distance < -40;
+
+    if (isLeftSwipe) {
       goToNextImage();
-    } else if (distance < -40) {
+    } else if (isRightSwipe) {
       goToPrevImage();
     }
     touchStartX.current = 0;
@@ -119,7 +133,7 @@ const MobileComboDetail = ({
     <div className="orderly-mobile-combo-pdp">
       {/* ── 0. ANNOUNCEMENT BAR & MOBILE HEADER ───────────────────── */}
       <div className="mobile-announcement-bar">
-        Free Shipping on Orders Above <span className="mobile-announcement-highlight">₹1499</span> | Easy 7 Days Returns
+        Free Express Delivery on Luxury Combos | Handcrafted Bespoke Fits
       </div>
 
       <MobileHeader onOpenMenu={() => setIsMenuOpen(true)} />
@@ -142,15 +156,20 @@ const MobileComboDetail = ({
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
+          {/* Badge */}
+          {combo.badge && (
+            <span className="m-c-badge-pill">{combo.badge}</span>
+          )}
+
           {/* Discount Badge */}
           {discountPercent > 0 && (
-            <span className="m-c-discount-badge">-{discountPercent}%</span>
+            <span className="m-c-discount-tag-hero">-{discountPercent}%</span>
           )}
 
           {/* Wishlist Overlay Button */}
           <button
             type="button"
-            className={`m-c-wishlist-overlay-btn ${isWishlisted ? 'active' : ''}`}
+            className={`m-c-wishlist-btn ${isWishlisted ? 'active' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
               toggleWishlist(combo);
@@ -255,12 +274,17 @@ const MobileComboDetail = ({
 
       {/* ── 5. PRICE & DISCOUNT ──────────────────────────────────── */}
       <div className="m-c-price-row">
-        <span className="m-c-price-current">{formatPrice(combo.offer_price)}</span>
-        {combo.original_price && (
-          <span className="m-c-price-original">{formatPrice(combo.original_price)}</span>
+        <span className="m-c-price-current">{formatPrice(currentOfferPrice)}</span>
+        {currentOriginalPrice && (
+          <span className="m-c-price-original">{formatPrice(currentOriginalPrice)}</span>
         )}
         {discountPercent > 0 && (
           <span className="m-c-discount-tag">{discountPercent}% OFF</span>
+        )}
+        {removedPieceIndices.length > 0 && (
+          <span className="badge bg-warning text-dark extra-small ms-1">
+            {currentIncludedCount}-Piece Set
+          </span>
         )}
       </div>
       <p className="m-c-tax-note">Inclusive of all taxes</p>
@@ -273,43 +297,14 @@ const MobileComboDetail = ({
         </div>
       )}
 
-      {/* ── 6. COMBO INCLUDES (Summary Card) ─────────────────────── */}
-      <div className="m-c-includes-card">
-        <div className="m-c-includes-header">
-          <FiTag className="m-c-tag-icon" />
-          <span>Combo Includes ({combo.items?.length || combo.pieces_count || 5} Items)</span>
-        </div>
-        <div className="m-c-includes-list">
-          {combo.items?.map((item, idx) => {
-            const sel = pieceSelections[item.pieceIndex] || {};
-            const targetProd = productsCatalog.find(p => String(p.id) === String(item.productId) || p.name === item.name);
-            const itemImg = item.image || (targetProd && targetProd.images?.[0]) || combo.images?.[idx] || '';
-
-            return (
-              <div key={item.pieceIndex || idx} className="m-c-includes-item">
-                <div className="m-c-item-thumb">
-                  {itemImg ? <img src={itemImg} alt={item.name} /> : <div className="m-c-item-thumb-placeholder" />}
-                </div>
-                <div className="m-c-item-info">
-                  <h4 className="m-c-item-name">{item.name}</h4>
-                  <div className="m-c-item-sub">
-                    <span>Size: <strong>{sel.size || 'M'}</strong></span>
-                    <span className="m-c-sub-sep">|</span>
-                    <span>Qty: <strong>1</strong></span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── 7. SELECT OPTIONS FOR EACH ITEM (Mobile Customizer) ──── */}
+      {/* ── 6. SELECT OPTIONS FOR EACH ITEM (Mobile Customizer) ──── */}
       <div className="m-c-customizer-section">
         <h3 className="m-c-customizer-title">Select Options for Each Item</h3>
         <div className="m-c-customizer-list">
           {combo.items?.map((item, idx) => {
-            const sel = pieceSelections[item.pieceIndex] || {};
+            const pIdx = Number(item.pieceIndex);
+            const isRemoved = removedPieceIndices.includes(pIdx);
+            const sel = pieceSelections[pIdx] || {};
             const targetProd = productsCatalog.find(p => String(p.id) === String(item.productId) || p.name === item.name);
             const itemImg = item.image || (targetProd && targetProd.images?.[0]) || combo.images?.[idx] || '';
 
@@ -319,44 +314,73 @@ const MobileComboDetail = ({
             const defaultSizes = isTrousersOrJeans
               ? ['30', '32', '34', '36', '38']
               : isShoes
-              ? ['7', '8', '9', '10', '11']
-              : ['S', 'M', 'L', 'XL', 'XXL'];
+                ? ['7', '8', '9', '10', '11']
+                : ['S', 'M', 'L', 'XL', 'XXL'];
 
             const availableSizes = item.sizes?.length > 0 ? item.sizes : defaultSizes;
 
             return (
-              <div key={item.pieceIndex || idx} className="m-c-custom-card">
-                <div className="m-c-card-top">
-                  <div className="m-c-card-thumb">
-                    {itemImg ? <img src={itemImg} alt={item.name} /> : <div className="m-c-item-thumb-placeholder" />}
-                  </div>
-                  <h4 className="m-c-card-name">{item.name}</h4>
-                </div>
-
-                <div className="m-c-card-options">
-                  <div className="m-c-size-row-label">
-                    <span>{isTrousersOrJeans ? 'Waist Size:' : isShoes ? 'Shoe Size (UK):' : 'Size:'}</span>
-                    <strong>{sel.size || 'M'}</strong>
+              <div key={pIdx || idx} className={`m-c-custom-card ${isRemoved ? 'removed' : ''}`}>
+                <div className="m-c-card-top d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="m-c-card-thumb">
+                      {itemImg ? <img src={itemImg} alt={item.name} /> : <div className="m-c-item-thumb-placeholder" />}
+                    </div>
+                    <div>
+                      <h4 className={`m-c-card-name ${isRemoved ? 'text-decoration-line-through text-muted' : ''}`}>{item.name}</h4>
+                      {isRemoved && <span className="badge bg-warning text-dark extra-small">REMOVED</span>}
+                    </div>
                   </div>
 
-                  <div className="m-c-size-pills">
-                    {availableSizes.map((sz, sIdx) => {
-                      const szStock = targetProd ? getVariantStock(targetProd, sel.color, sz) : 10;
-                      const isOut = szStock <= 0;
-                      return (
-                        <button
-                          key={sIdx}
-                          type="button"
-                          className={`m-c-size-pill ${sel.size === sz ? 'active' : ''} ${isOut ? 'out-of-stock' : ''}`}
-                          onClick={() => handleSelectSize(item.pieceIndex, sz)}
-                          disabled={isOut}
-                        >
-                          {sz}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {totalPieces >= 3 && (
+                    !isRemoved ? (
+                      <button
+                        type="button"
+                        className={`m-c-remove-pill-btn ${!canRemoveMore ? 'disabled' : ''}`}
+                        onClick={() => toggleRemovePiece(pIdx)}
+                        disabled={!canRemoveMore}
+                      >
+                        <FiTrash2 /> Remove
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="m-c-readd-pill-btn"
+                        onClick={() => toggleRemovePiece(pIdx)}
+                      >
+                        <FiPlus /> Re-Add
+                      </button>
+                    )
+                  )}
                 </div>
+
+                {!isRemoved && (
+                  <div className="m-c-card-options">
+                    <div className="m-c-size-row-label">
+                      <span>{isTrousersOrJeans ? 'Waist Size:' : isShoes ? 'Shoe Size (UK):' : 'Size:'}</span>
+                      <strong>{sel.size || availableSizes[0] || 'M'}</strong>
+                    </div>
+
+                    <div className="m-c-size-pills">
+                      {availableSizes.map((sz, sIdx) => {
+                        const szStock = targetProd ? getVariantStock(targetProd, sel.color, sz) : 10;
+                        const isOut = szStock <= 0;
+                        const activeSize = sel.size || availableSizes[0] || 'M';
+                        return (
+                          <button
+                            key={sIdx}
+                            type="button"
+                            className={`m-c-size-pill ${activeSize === sz ? 'active' : ''} ${isOut ? 'out-of-stock' : ''}`}
+                            onClick={() => handleSelectSize(pIdx, sz)}
+                            disabled={isOut}
+                          >
+                            {sz}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -605,7 +629,7 @@ const MobileComboDetail = ({
         <div className="m-c-sticky-purchase-bar">
           <div className="m-c-sticky-info">
             <span className="m-c-sticky-name">{combo.name}</span>
-            <span className="m-c-sticky-price">{formatPrice(combo.offer_price)}</span>
+            <span className="m-c-sticky-price">{formatPrice(currentOfferPrice)}</span>
           </div>
           <button
             type="button"

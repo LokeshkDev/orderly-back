@@ -1,13 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getSettings, validateCoupon } from '../services/api';
 import { calculateDeliveryCharge, DEFAULT_DELIVERY_SETTINGS } from '../utils/deliveryCalculator';
+import { 
+  calculatePairOffers, 
+  DEFAULT_PAIR_OFFER_SETTINGS, 
+  roundCurrency,
+  isPairItem 
+} from '../utils/pairOfferCalculator';
 
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(() => {
-    const saved = localStorage.getItem('orderly_cart');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('orderly_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -44,31 +54,93 @@ export const CartProvider = ({ children }) => {
         return [...prevCart, { ...product, cartItemId: itemKey, quantity: (typeof selectedSize === 'number' ? selectedSize : quantity) || 1 }];
       }
 
-      const colorName = selectedColor ? (selectedColor.name || selectedColor) : (product.colors?.[0]?.name || 'Standard');
-      const itemKey = `${product.id}-${selectedSize}-${colorName}`;
+      const colorName = selectedColor ? (selectedColor.name || selectedColor) : (product.colors?.[0]?.name || product.selectedColor || 'Standard');
+      const sizeVal = selectedSize || product.selectedSize || product.sizes?.[0] || 'M';
+      const isPair = Boolean(product.isPairOffer || product.pairOffer?.enabled || product.is_pair_offer);
+      const itemKey = `${product.id}-${sizeVal}-${colorName}${isPair ? '-pair' : ''}`;
 
       const existingIndex = prevCart.findIndex(item => item.cartItemId === itemKey);
       if (existingIndex > -1) {
         const updated = [...prevCart];
-        updated[existingIndex].quantity += quantity;
+        updated[existingIndex].quantity += (typeof selectedSize === 'number' ? selectedSize : quantity) || 1;
         return updated;
       } else {
+        const baseSellingPrice = roundCurrency(Number(product.price ?? product.unit_price ?? 0));
+        const baseMrp = roundCurrency(Number(product.originalPrice ?? product.original_price ?? product.price ?? 0));
         return [
           ...prevCart,
           {
             ...product,
             cartItemId: itemKey,
-            selectedSize,
+            selectedSize: sizeVal,
             selectedColor: colorName,
-            quantity
+            quantity: (typeof selectedSize === 'number' ? selectedSize : quantity) || 1,
+            price: baseSellingPrice,
+            originalPrice: baseMrp,
+            isPairOffer: isPair,
+            pairOffer: product.pairOffer || (isPair ? { enabled: true } : null)
           }
         ];
       }
     });
   };
 
+  const addMultipleToCart = (itemsList = []) => {
+    if (!Array.isArray(itemsList) || itemsList.length === 0) return;
+    setCart((prevCart) => {
+      let updatedCart = [...prevCart];
+      itemsList.forEach((product) => {
+        if (!product) return;
+        const colorName = product.selectedColor ? (product.selectedColor.name || product.selectedColor) : (product.colors?.[0]?.name || 'Standard');
+        const sizeVal = product.selectedSize || product.sizes?.[0] || 'M';
+        const qty = Math.max(1, Number(product.quantity || 1));
+        const isPair = Boolean(product.isPairOffer || product.pairOffer?.enabled || product.is_pair_offer);
+        const itemKey = `${product.id}-${sizeVal}-${colorName}${isPair ? '-pair' : ''}`;
+
+        const existingIndex = updatedCart.findIndex(item => item.cartItemId === itemKey);
+        if (existingIndex > -1) {
+          updatedCart[existingIndex].quantity += qty;
+        } else {
+          const baseSellingPrice = roundCurrency(Number(product.price ?? product.unit_price ?? 0));
+          const baseMrp = roundCurrency(Number(product.originalPrice ?? product.original_price ?? product.price ?? 0));
+          updatedCart.push({
+            ...product,
+            cartItemId: itemKey,
+            selectedSize: sizeVal,
+            selectedColor: colorName,
+            quantity: qty,
+            price: baseSellingPrice,
+            originalPrice: baseMrp,
+            isPairOffer: isPair,
+            pairOffer: product.pairOffer || (isPair ? { enabled: true } : null)
+          });
+        }
+      });
+      return updatedCart;
+    });
+  };
+
   const removeFromCart = (cartItemId) => {
-    setCart(prev => prev.filter(item => item.cartItemId !== cartItemId));
+    setCart(prev => {
+      const target = prev.find(item => item.cartItemId === cartItemId);
+      if (!target) return prev;
+      const next = prev.filter(item => item.cartItemId !== cartItemId);
+      if (target.isPairOffer || target.isCombo) return next;
+      const targetId = String(target.productId || target.product_id || target.id);
+      const hasRemainingMain = next.some(item =>
+        !item.isPairOffer && !item.isCombo &&
+        String(item.productId || item.product_id || item.id) === targetId
+      );
+      if (hasRemainingMain) return next;
+      const hasAnyMainLeft = next.some(item => !item.isPairOffer && !item.isCombo);
+      return next.filter(item => {
+        if (!item.isPairOffer) return true;
+        const parentId = String(item.pairParentId ?? item.pair_parent_id ?? '');
+        if (parentId === targetId) return false;
+        if (!parentId) return hasAnyMainLeft;
+        return true;
+      });
+    });
   };
 
   const updateQuantity = (cartItemId, delta) => {
@@ -87,31 +159,44 @@ export const CartProvider = ({ children }) => {
     setDiscountAmount(0);
   };
 
-  const getLinePrice = (item, field) => Number(item?.[field] ?? 0) || 0;
-  const hasPairOffer = (item) => Boolean(item?.pairOffer?.enabled || item?.pairOffer || item?.isPairOffer);
-  const getLineBasePrice = (item) => {
-    const originalPrice = getLinePrice(item, 'originalPrice') || getLinePrice(item, 'original_price');
-    const salePrice = getLinePrice(item, 'price');
-    return hasPairOffer(item) && originalPrice > salePrice ? originalPrice : salePrice;
+  // Pair Offer Dynamic Calculation Engine
+  const pairSettings = {
+    enabled: settings?.pair_offer_enabled !== false && String(settings?.pair_offer_enabled) !== 'false',
+    discount_percent: Number(settings?.pair_offer_discount_percent ?? DEFAULT_PAIR_OFFER_SETTINGS.discount_percent),
+    min_distinct_products: Number(settings?.pair_offer_min_products ?? DEFAULT_PAIR_OFFER_SETTINGS.min_distinct_products)
   };
 
-  const subtotal = cart.reduce((acc, item) => acc + (getLinePrice(item, 'price') * item.quantity), 0);
-  const originalSubtotal = cart.reduce((acc, item) => acc + (getLineBasePrice(item) * item.quantity), 0);
-  const pairOfferSavings = Math.max(0, originalSubtotal - subtotal);
+  const pairCalc = calculatePairOffers({
+    items: cart,
+    pairSettings
+  });
+
+  const effectiveCart = pairCalc.normalizedItems;
+  const subtotal = pairCalc.subtotal;
+  const originalSubtotal = pairCalc.originalSubtotal;
+  const pairOfferSavings = pairCalc.pairOfferSavings;
+  const pairWellWithSubtotal = pairCalc.pairWellWithSubtotal;
+  const pairWellWithDiscount = pairCalc.pairWellWithDiscount;
+  const pairWellWithTotal = pairCalc.pairWellWithTotal;
+  const isMultiPairOfferActive = pairCalc.isMultiOfferActive;
+  const distinctPairProductCount = pairCalc.distinctPairProductCount;
+  const mainProductsSubtotal = pairCalc.mainProductsSubtotal;
 
   // Delivery Calculation Engine Integration
   const deliverySettings = settings?.delivery_settings || DEFAULT_DELIVERY_SETTINGS;
   const deliveryResult = calculateDeliveryCharge({
-    cartItems: cart,
+    cartItems: effectiveCart,
     subtotal,
     pincode,
     deliverySettings,
-    legacySettings: settings
+    legacySettings: settings,
+    isMultiPairOfferActive
   });
 
-  const shippingCost = cart.length === 0 ? 0 : Number(deliveryResult.shippingFee || 0);
-  const total = Math.max(0, subtotal + shippingCost - discountAmount);
-  const totalSavings = pairOfferSavings + discountAmount;
+  const shippingCost = effectiveCart.length === 0 ? 0 : Number(deliveryResult.shippingFee || 0);
+  const total = Math.max(0, roundCurrency(subtotal + shippingCost - discountAmount));
+  const cartTotal = Math.max(0, roundCurrency(subtotal - discountAmount));
+  const totalSavings = roundCurrency(pairOfferSavings + discountAmount);
 
   // Free shipping threshold for cart progress bar (from price based or legacy)
   const priceRanges = deliverySettings?.price_based?.ranges || [];
@@ -119,9 +204,19 @@ export const CartProvider = ({ children }) => {
   const freeShippingThreshold = freeTier ? Number(freeTier.min) : (Number(settings?.free_shipping_threshold) || 2000);
 
   const pricingBreakdown = {
+    isPairOfferActive: pairCalc.isPairOfferActive,
+    isMultiPairOfferActive,
+    discountPercent: pairCalc.discountPercent,
+    totalMrp: pairCalc.totalMrp,
+    mainProductsSubtotal,
+    pairWellWithMrpTotal: pairCalc.pairWellWithMrpTotal,
+    pairWellWithSubtotal,
+    pairWellWithDiscount,
+    pairWellWithTotal,
+    pairOfferSavings,
+    distinctPairProductCount,
     originalSubtotal,
     subtotal,
-    pairOfferSavings,
     couponDiscount: discountAmount,
     shippingCost,
     total,
@@ -158,17 +253,27 @@ export const CartProvider = ({ children }) => {
   return (
     <CartContext.Provider
       value={{
-        cart,
+        cart: effectiveCart,
+        rawCart: cart,
         isCartOpen,
         setIsCartOpen,
         addToCart,
+        addMultipleToCart,
         removeFromCart,
         updateQuantity,
         clearCart,
         subtotal,
         originalSubtotal,
+        mainProductsSubtotal,
+        pairWellWithSubtotal,
+        pairWellWithDiscount,
+        pairWellWithTotal,
         pairOfferSavings,
+        isMultiPairOfferActive,
+        distinctPairProductCount,
+        pairSettings,
         total,
+        cartTotal,
         shippingCost,
         freeShippingThreshold,
         deliveryResult,
@@ -181,7 +286,7 @@ export const CartProvider = ({ children }) => {
         pricingBreakdown,
         applyCoupon,
         removeCoupon,
-        totalItems: cart.reduce((acc, item) => acc + item.quantity, 0)
+        totalItems: effectiveCart.reduce((acc, item) => acc + item.quantity, 0)
       }}
     >
       {children}
@@ -192,7 +297,42 @@ export const CartProvider = ({ children }) => {
 export const useCart = () => {
   const context = useContext(CartContext);
   if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
+    return {
+      cart: [],
+      rawCart: [],
+      isCartOpen: false,
+      setIsCartOpen: () => {},
+      addToCart: () => {},
+      addMultipleToCart: () => {},
+      removeFromCart: () => {},
+      updateQuantity: () => {},
+      clearCart: () => {},
+      subtotal: 0,
+      originalSubtotal: 0,
+      mainProductsSubtotal: 0,
+      pairWellWithSubtotal: 0,
+      pairWellWithDiscount: 0,
+      pairWellWithTotal: 0,
+      pairOfferSavings: 0,
+      isMultiPairOfferActive: false,
+      distinctPairProductCount: 0,
+      pairSettings: DEFAULT_PAIR_OFFER_SETTINGS,
+      total: 0,
+      cartTotal: 0,
+      shippingCost: 0,
+      freeShippingThreshold: 0,
+      deliveryResult: {},
+      deliverySettings: {},
+      pincode: '',
+      setPincode: () => {},
+      shippingFee: 0,
+      appliedCoupon: null,
+      discountAmount: 0,
+      pricingBreakdown: {},
+      applyCoupon: async () => ({ success: false, message: '' }),
+      removeCoupon: () => {},
+      totalItems: 0
+    };
   }
   return context;
 };

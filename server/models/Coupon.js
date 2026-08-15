@@ -40,6 +40,18 @@ const Coupon = sequelize.define('Coupon', {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
   },
+  show_on_pdp: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
+  show_on_checkout: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
+  description: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   expires_at: {
     type: DataTypes.DATE,
     allowNull: true,

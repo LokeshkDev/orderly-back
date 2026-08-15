@@ -359,6 +359,8 @@ export const MASTER_COMBOS = [
     original_price: 7798,
     badge: 'SAVE ₹2,299',
     status: 'Active',
+    category: 'Casual Weekend Sets',
+    category_slug: 'casual-combos',
     description: 'Curated 2-piece luxury ensemble pairing our European Linen Resort Shirt with Japanese Selvedge Raw Denim.',
     images: [
       'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=1000&auto=format&fit=crop',
@@ -398,6 +400,8 @@ export const MASTER_COMBOS = [
     original_price: 13997,
     badge: 'LUXURY BUNDLE',
     status: 'Active',
+    category: 'Executive & Formal Combos',
+    category_slug: 'formal-combos',
     description: '3-piece executive luxury capsule featuring an Italian Wool Double-Breasted Suit Blazer, Normandy Linen Shirt, and Heavyweight Cotton Tee.',
     images: [
       'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1000&auto=format&fit=crop',

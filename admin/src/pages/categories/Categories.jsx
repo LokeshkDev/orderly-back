@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiCheck, FiFolder } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiCheck, FiFolder, FiLayers, FiTag } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 import FileUploadInput from '../../components/common/FileUploadInput';
@@ -9,8 +9,9 @@ const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('product'); // 'product' or 'combo'
 
-  // Load categories from the MySQL DB — the DB is the single source of truth.
+  // Load all categories from the MySQL DB — the DB is the single source of truth.
   const loadCategories = async () => {
     setLoading(true);
     try {
@@ -40,17 +41,22 @@ const Categories = () => {
     name: '',
     slug: '',
     image: '',
+    description: '',
+    type: 'product',
     display_order: 1,
     is_active: true
   });
 
   const openAddModal = () => {
     setEditingCategory(null);
+    const tabCategories = categories.filter(c => (c.type || 'product') === activeTab);
     setFormData({
       name: '',
       slug: '',
       image: '',
-      display_order: categories.length + 1,
+      description: '',
+      type: activeTab,
+      display_order: tabCategories.length + 1,
       is_active: true
     });
     setIsModalOpen(true);
@@ -61,9 +67,11 @@ const Categories = () => {
     setFormData({
       name: cat.name,
       slug: cat.slug,
-      image: cat.image,
-      display_order: cat.display_order,
-      is_active: cat.is_active
+      image: cat.image || '',
+      description: cat.description || '',
+      type: cat.type || 'product',
+      display_order: cat.display_order || 1,
+      is_active: cat.is_active ?? true
     });
     setIsModalOpen(true);
   };
@@ -82,14 +90,19 @@ const Categories = () => {
     }
 
     try {
+      const payload = {
+        ...formData,
+        type: formData.type || activeTab
+      };
+
       if (editingCategory) {
-        const res = await api.put(`/categories/${editingCategory.id}`, formData);
-        const saved = res.data && res.data.success ? res.data.data : formData;
+        const res = await api.put(`/categories/${editingCategory.id}`, payload);
+        const saved = res.data && res.data.success ? res.data.data : payload;
         setCategories(prev => prev.map(c => c.id === editingCategory.id ? { ...c, ...saved } : c));
         toast.success(`Category "${formData.name}" updated in the database!`);
       } else {
-        const res = await api.post('/categories', formData);
-        const saved = res.data && res.data.success ? res.data.data : { id: Date.now(), ...formData, product_count: 0 };
+        const res = await api.post('/categories', payload);
+        const saved = res.data && res.data.success ? res.data.data : { id: Date.now(), ...payload, product_count: 0 };
         setCategories(prev => [...prev, saved]);
         toast.success(`Category "${formData.name}" created in the database!`);
       }
@@ -115,22 +128,59 @@ const Categories = () => {
     }
   };
 
-  const filteredCategories = categories.filter(c =>
+  const currentTabCategories = categories.filter(c => {
+    const cType = c.type || 'product';
+    return cType === activeTab;
+  });
+
+  const filteredCategories = currentTabCategories.filter(c =>
     (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (c.slug || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const productCatCount = categories.filter(c => (c.type || 'product') === 'product').length;
+  const comboCatCount = categories.filter(c => c.type === 'combo').length;
 
   return (
     <div className="admin-categories-page p-4">
       {/* Header */}
       <div className="d-flex align-items-center justify-content-between mb-4">
         <div>
-          <h1 className="dash-title">Apparel Categories</h1>
-          <p className="dash-sub">Organize menswear departments, sub-categories, order, and banners.</p>
+          <h1 className="dash-title">
+            {activeTab === 'product' ? 'Apparel Categories' : 'Combo Categories'}
+          </h1>
+          <p className="dash-sub">
+            {activeTab === 'product' 
+              ? 'Organize menswear departments, sub-categories, order, and banners.'
+              : 'Organize combo bundle categories (e.g. Formal Combos, Casual Sets, Summer Vacation Outfits).'}
+          </p>
         </div>
 
         <button className="btn-admin-red d-flex align-items-center gap-2" onClick={openAddModal}>
-          <FiPlus /> Add Category
+          <FiPlus /> {activeTab === 'product' ? 'Add Category' : 'Add Combo Category'}
+        </button>
+      </div>
+
+      {/* Dual Tab Navigation */}
+      <div className="cat-tabs-container mb-4">
+        <button
+          type="button"
+          className={`cat-tab-btn ${activeTab === 'product' ? 'active' : ''}`}
+          onClick={() => setActiveTab('product')}
+        >
+          <FiFolder />
+          <span>Apparel Categories</span>
+          <span className="cat-tab-counter">{productCatCount}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`cat-tab-btn ${activeTab === 'combo' ? 'active' : ''}`}
+          onClick={() => setActiveTab('combo')}
+        >
+          <FiLayers />
+          <span>Combo Categories</span>
+          <span className="cat-tab-counter">{comboCatCount}</span>
         </button>
       </div>
 
@@ -141,7 +191,7 @@ const Categories = () => {
             <div className="position-relative">
               <input
                 type="text"
-                placeholder="Search categories by name or slug..."
+                placeholder={`Search ${activeTab === 'product' ? 'apparel' : 'combo'} categories by name or slug...`}
                 className="admin-input ps-5"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -161,7 +211,7 @@ const Categories = () => {
                 <th style={{ width: '60px' }}>MEDIA</th>
                 <th>CATEGORY NAME</th>
                 <th>SLUG</th>
-                <th>PRODUCTS</th>
+                <th>{activeTab === 'product' ? 'PRODUCTS' : 'DESCRIPTION / SETS'}</th>
                 <th>ORDER</th>
                 <th>STATUS</th>
                 <th className="text-end">ACTIONS</th>
@@ -177,7 +227,7 @@ const Categories = () => {
               ) : filteredCategories.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '40px' }} className="text-muted">
-                    No categories in the database yet. Click "Add Category" to create one.
+                    No {activeTab === 'product' ? 'apparel' : 'combo'} categories found. Click "{activeTab === 'product' ? 'Add Category' : 'Add Combo Category'}" to create one.
                   </td>
                 </tr>
               ) : filteredCategories.map(cat => (
@@ -199,7 +249,15 @@ const Categories = () => {
                     <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>{cat.name}</strong>
                   </td>
                   <td><code className="cat-slug-badge">{cat.slug}</code></td>
-                  <td><span className="badge-count-pill">{cat.product_count} items</span></td>
+                  <td>
+                    {activeTab === 'product' ? (
+                      <span className="badge-count-pill">{cat.product_count || 0} items</span>
+                    ) : (
+                      <span className="text-muted extra-small text-truncate d-inline-block" style={{ maxWidth: '280px' }}>
+                        {cat.description || 'Curated combo sets collection'}
+                      </span>
+                    )}
+                  </td>
                   <td><strong>#{cat.display_order}</strong></td>
                   <td>
                     <span className={`status-badge-pill ${cat.is_active ? 'active' : 'draft'}`}>
@@ -237,7 +295,7 @@ const Categories = () => {
           <div className="admin-modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header d-flex align-items-center justify-content-between pb-3 border-bottom">
               <h3 className="mb-0 font-weight-bold d-flex align-items-center gap-2" style={{ color: '#0f172a' }}>
-                <FiFolder className="text-danger" /> {editingCategory ? 'Edit Category' : 'Create New Category'}
+                <FiFolder className="text-danger" /> {editingCategory ? `Edit ${formData.type === 'combo' ? 'Combo' : 'Apparel'} Category` : `Create New ${formData.type === 'combo' ? 'Combo' : 'Apparel'} Category`}
               </h3>
               <button className="close-modal-btn" onClick={() => setIsModalOpen(false)}><FiX /></button>
             </div>
@@ -245,11 +303,37 @@ const Categories = () => {
             <form onSubmit={handleSave} className="admin-modal-body py-4">
               <div className="row g-3">
                 <div className="col-12">
+                  <label className="admin-form-label">CATEGORY TYPE</label>
+                  <div className="d-flex gap-4 mb-2">
+                    <label className="d-flex align-items-center gap-2 cursor-pointer fw-bold">
+                      <input
+                        type="radio"
+                        name="cat_type"
+                        value="product"
+                        checked={formData.type === 'product'}
+                        onChange={() => setFormData(prev => ({ ...prev, type: 'product' }))}
+                      />
+                      Apparel Category (Single Products)
+                    </label>
+                    <label className="d-flex align-items-center gap-2 cursor-pointer fw-bold">
+                      <input
+                        type="radio"
+                        name="cat_type"
+                        value="combo"
+                        checked={formData.type === 'combo'}
+                        onChange={() => setFormData(prev => ({ ...prev, type: 'combo' }))}
+                      />
+                      Combo Category (Curated Sets)
+                    </label>
+                  </div>
+                </div>
+
+                <div className="col-12">
                   <label className="admin-form-label">CATEGORY NAME *</label>
                   <input
                     type="text"
                     className="admin-input"
-                    placeholder="e.g. Shirts, Oversized Tees, Denim"
+                    placeholder={formData.type === 'combo' ? 'e.g. Executive & Formal Combos, Casual Sets' : 'e.g. Shirts, Oversized Tees, Denim'}
                     value={formData.name}
                     onChange={handleNameChange}
                     required
@@ -261,9 +345,20 @@ const Categories = () => {
                   <input
                     type="text"
                     className="admin-input"
-                    placeholder="e.g. shirts"
+                    placeholder="e.g. formal-combos"
                     value={formData.slug}
                     onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+                  />
+                </div>
+
+                <div className="col-12">
+                  <label className="admin-form-label">DESCRIPTION (Optional)</label>
+                  <textarea
+                    rows={2}
+                    className="admin-input"
+                    placeholder="Brief description for category banner and SEO..."
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   />
                 </div>
 
@@ -274,7 +369,7 @@ const Categories = () => {
                     type="image"
                     folder="categories"
                     label="CATEGORY BANNER IMAGE (Upload)"
-                    recommendedSize="Recommended: 600 x 600 px (1:1 Square Ratio)"
+                    recommendedSize="Recommended: 800 x 800 px (1:1 Ratio)"
                   />
                 </div>
 

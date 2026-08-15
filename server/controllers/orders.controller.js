@@ -7,6 +7,11 @@ import {
   DEFAULT_DELIVERY_SETTINGS, 
   DEFAULT_COURIER_SETTINGS 
 } from '../utils/deliveryCalculator.js';
+import { 
+  calculatePairOffers, 
+  DEFAULT_PAIR_OFFER_SETTINGS, 
+  roundCurrency 
+} from '../utils/pairOfferCalculator.js';
 import { DEFAULT_EMAIL_SETTINGS } from './settings.controller.js';
 import Product from '../models/Product.js';
 
@@ -39,10 +44,16 @@ const getParsedSettings = async () => {
         settings[r.setting_key] = r.setting_value;
       }
     });
+    const pairSettings = {
+      enabled: settings.pair_offer_enabled !== 'false' && settings.pair_offer_enabled !== false,
+      discount_percent: Number(settings.pair_offer_discount_percent ?? DEFAULT_PAIR_OFFER_SETTINGS.discount_percent),
+      min_distinct_products: Number(settings.pair_offer_min_products ?? DEFAULT_PAIR_OFFER_SETTINGS.min_distinct_products)
+    };
     return {
       delivery_settings: settings.delivery_settings || DEFAULT_DELIVERY_SETTINGS,
       courier_settings: settings.courier_settings || DEFAULT_COURIER_SETTINGS,
       email_settings: settings.email_settings || DEFAULT_EMAIL_SETTINGS,
+      pair_settings: pairSettings,
       raw: settings
     };
   } catch (err) {
@@ -50,6 +61,7 @@ const getParsedSettings = async () => {
       delivery_settings: DEFAULT_DELIVERY_SETTINGS,
       courier_settings: DEFAULT_COURIER_SETTINGS,
       email_settings: DEFAULT_EMAIL_SETTINGS,
+      pair_settings: DEFAULT_PAIR_OFFER_SETTINGS,
       raw: {}
     };
   }
@@ -131,7 +143,7 @@ export const normalizeOrderPayload = async (payload = {}) => {
     payment_gateway = 'razorpay'
   } = payload;
 
-  const { delivery_settings, raw } = await getParsedSettings();
+  const { delivery_settings, pair_settings, raw } = await getParsedSettings();
 
   const normalizedPaymentMethod = ['cod', 'online', 'card', 'upi'].includes(String(paymentMethod).toLowerCase())
     ? String(paymentMethod).toLowerCase()
@@ -141,37 +153,26 @@ export const normalizeOrderPayload = async (payload = {}) => {
     ? String(status).toLowerCase()
     : 'pending';
 
-  // Authoritatively compute and validate item pricing & pair offers from MRP
-  let computedSubtotal = 0;
-  const normalizedItems = Array.isArray(items) ? items.map((item, index) => {
-    const productItem = item || {};
-    const mrp = Number(productItem.originalPrice ?? productItem.original_price ?? productItem.price ?? 0);
-    let unitPrice = Number(productItem.price ?? productItem.unit_price ?? 0);
+  // Authoritatively compute and validate item pricing & multi-product pair offers
+  const pairCalc = calculatePairOffers({
+    items: Array.isArray(items) ? items : [],
+    pairSettings: pair_settings || DEFAULT_PAIR_OFFER_SETTINGS
+  });
 
-    // If pair offer is enabled, enforce calculation: MRP * (100 - discountPercent) / 100
-    if (productItem.pairOffer?.enabled || productItem.isPairOffer) {
-      const discountPct = Math.max(0, Math.min(90, Number(productItem.pairOffer?.discount_percent ?? productItem.pairOffer?.discountPercent ?? 0)));
-      if (discountPct > 0 && mrp > 0) {
-        unitPrice = Math.round(mrp * (100 - discountPct) / 100);
-      }
-    }
+  const normalizedItems = pairCalc.normalizedItems.map((item, index) => ({
+    product_id: item.productId ?? item.product_id ?? item.id ?? null,
+    combo_id: item.comboId ?? item.combo_id ?? null,
+    product_name: item.name || item.product_name || item.productName || `Item ${index + 1}`,
+    size: item.selectedSize || item.size || null,
+    color: item.selectedColor || item.color || null,
+    quantity: Math.max(1, Number(item.quantity || 1)),
+    unit_price: roundCurrency(item.unit_price ?? item.price ?? 0),
+    original_price: roundCurrency(item.original_price ?? item.originalPrice ?? item.price ?? 0),
+    is_pair_offer: Boolean(item.isPairOffer),
+    line_total: roundCurrency(item.line_total ?? (Number(item.unit_price ?? item.price ?? 0) * Number(item.quantity || 1)))
+  }));
 
-    const qty = Math.max(1, Number(productItem.quantity || 1));
-    computedSubtotal += unitPrice * qty;
-
-    return {
-      product_id: productItem.productId ?? productItem.product_id ?? null,
-      combo_id: productItem.comboId ?? productItem.combo_id ?? null,
-      product_name: productItem.name || productItem.product_name || productItem.productName || `Item ${index + 1}`,
-      size: productItem.selectedSize || productItem.size || null,
-      color: productItem.selectedColor || productItem.color || null,
-      quantity: qty,
-      unit_price: unitPrice,
-      original_price: mrp
-    };
-  }) : [];
-
-  const effectiveSubtotal = computedSubtotal > 0 ? computedSubtotal : Number(clientSubtotal || 0);
+  const effectiveSubtotal = pairCalc.subtotal > 0 ? pairCalc.subtotal : Number(clientSubtotal || 0);
 
   // Authoritative Backend Delivery Calculation
   const deliveryResult = calculateDeliveryCharge({
@@ -179,27 +180,45 @@ export const normalizeOrderPayload = async (payload = {}) => {
     subtotal: effectiveSubtotal,
     pincode: shippingAddress?.pincode || '',
     deliverySettings: delivery_settings,
-    legacySettings: raw
+    legacySettings: raw,
+    isMultiPairOfferActive: pairCalc.isMultiOfferActive
   });
 
   const numericDiscount = Math.max(0, Number(discount || 0));
   const authoritativeShippingFee = Number(deliveryResult.shippingFee || 0);
-  const computedGrandTotal = Math.max(0, effectiveSubtotal + authoritativeShippingFee - numericDiscount);
+  const computedGrandTotal = Math.max(0, roundCurrency(effectiveSubtotal + authoritativeShippingFee - numericDiscount));
+
+  const authoritativePricingBreakdown = {
+    mainProductsSubtotal: pairCalc.mainProductsSubtotal,
+    pairWellWithMrpTotal: pairCalc.pairWellWithMrpTotal,
+    pairWellWithSubtotal: pairCalc.pairWellWithSubtotal,
+    pairWellWithDiscount: pairCalc.pairWellWithDiscount,
+    pairWellWithTotal: pairCalc.pairWellWithTotal,
+    pairOfferSavings: pairCalc.pairOfferSavings,
+    isMultiPairOfferActive: pairCalc.isMultiOfferActive,
+    distinctPairProductCount: pairCalc.distinctPairProductCount,
+    originalSubtotal: pairCalc.originalSubtotal,
+    subtotal: effectiveSubtotal,
+    discount: numericDiscount,
+    shippingCost: authoritativeShippingFee,
+    total: computedGrandTotal,
+    deliveryMethod: deliveryResult.method,
+    deliveryExplanation: deliveryResult.explanation
+  };
 
   return {
     customer_id: customer_id ?? null,
     order_number: order_number || `ORD-${Date.now().toString().slice(-8)}`,
     status: normalizedStatus,
     subtotal: effectiveSubtotal,
+    mainProductsSubtotal: pairCalc.mainProductsSubtotal,
+    pairWellWithSubtotal: pairCalc.pairWellWithSubtotal,
+    pairWellWithDiscount: pairCalc.pairWellWithDiscount,
+    pairWellWithTotal: pairCalc.pairWellWithTotal,
+    pairOfferSavings: pairCalc.pairOfferSavings,
     discount: numericDiscount,
-    pricing_breakdown: pricingBreakdown || pricing_breakdown || {
-      subtotal: effectiveSubtotal,
-      discount: numericDiscount,
-      shippingCost: authoritativeShippingFee,
-      total: computedGrandTotal,
-      deliveryMethod: deliveryResult.method,
-      deliveryExplanation: deliveryResult.explanation
-    },
+    pricing_breakdown: authoritativePricingBreakdown,
+    pricingBreakdown: authoritativePricingBreakdown,
     shipping_fee: authoritativeShippingFee,
     delivery_method: deliveryResult.method,
     delivery_location_label: deliveryResult.locationLabel || null,

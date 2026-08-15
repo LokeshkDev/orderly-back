@@ -3,16 +3,26 @@ import { Op } from 'sequelize';
 
 export const getCombos = async (req, res) => {
   try {
-    const { search, status, includeDeleted } = req.query;
+    const { search, status, category, category_slug, includeDeleted } = req.query;
     const where = {};
 
     if (includeDeleted !== 'true') where.deleted = false;
     if (status) where.status = status;
+    if (category) {
+      where[Op.or] = [
+        { category: category },
+        { category_slug: category }
+      ];
+    }
+    if (category_slug) {
+      where.category_slug = category_slug;
+    }
 
     if (search) {
       where[Op.or] = [
         { name: { [Op.like]: `%${search}%` } },
-        { badge: { [Op.like]: `%${search}%` } }
+        { badge: { [Op.like]: `%${search}%` } },
+        { category: { [Op.like]: `%${search}%` } }
       ];
     }
 

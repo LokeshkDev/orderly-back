@@ -16,7 +16,7 @@ const DEFAULT_PROMOS = {
     subtitle: 'On Selected Items',
     buttonText: 'SHOP NOW',
     buttonLink: '/shop',
-    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop'
+    image: ''
   },
   block3: {
     title: 'NEW ARRIVALS',
@@ -70,12 +70,20 @@ const MobilePromotions = () => {
 
         {/* Card 2: 50% OFF Center Video Banner */}
         <div className="mobile-promo-banner-center">
+          {!b2.image && (
+            <div
+              className="mobile-promo-banner-video orderly-img-fallback"
+              style={{ position: 'absolute', inset: 0, zIndex: -1 }}
+            >
+              ORDERLY
+            </div>
+          )}
           <video
             autoPlay
             loop
             muted
             playsInline
-            poster={b2.image || DEFAULT_PROMOS.block2.image}
+            poster={b2.image || ''}
             className="mobile-promo-banner-video"
           >
             <source

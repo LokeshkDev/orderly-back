@@ -2,23 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FiHeart, FiShoppingBag, FiShield, FiRefreshCw, FiChevronRight,
-  FiCheck, FiArrowDown, FiAlertCircle, FiEye, FiChevronLeft,
+  FiCheck, FiAlertCircle, FiEye, FiChevronLeft,
   FiMaximize2, FiMinus, FiPlus, FiTruck, FiLock, FiX, FiTag,
-  FiChevronDown, FiHelpCircle, FiFileText, FiEdit3, FiStar
+  FiChevronDown, FiEdit3,
+  FiCheckCircle, FiGift
 } from 'react-icons/fi';
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
 import ProductCard from './ProductCard';
 import { formatPrice, calculateDiscount } from '../../utils/formatters';
 import { getVariantStock } from '../../pages/ProductDetail';
+import { getActiveCoupons } from '../../services/api';
 import MobileHeader from '../common/MobileHeader';
 import MobileMenu from '../common/MobileMenu';
 import MobileFooterAccordion from '../common/MobileFooterAccordion';
-
-/* ── Promotional offers ───────────────────────────────────────── */
-const PDP_PROMOTIONAL_OFFERS = [
-  { text: 'Get extra 10% off on prepaid orders', code: 'ORDERLY10' },
-  { text: 'Buy 2 Get extra 15% off', code: 'COMBO15' },
-];
 
 /* ── Star rating renderer ──────────────────────────────────────── */
 const renderStars = (rating = 5) => {
@@ -64,7 +60,11 @@ const MobileProductDetail = ({
   validSuggested,
   alsoLikeProducts,
   cart,
-  wishlist
+  isMainProductInCart = false,
+  mainReqToast = null,
+  selectedPairMap = {},
+  updatePairVariant,
+  pairOfferPercent = 25
 }) => {
   /* ── Accordion States ──────────────────────────────────────────── */
   const [openAccordions, setOpenAccordions] = useState({
@@ -79,11 +79,44 @@ const MobileProductDetail = ({
     setOpenAccordions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  /* ── Add main to cart + auto-scroll to Pair Well With section ──── */
+  const handleAddMainToCart = () => {
+    handleAddToCart();
+    setTimeout(() => {
+      if (pairsWellRef.current) {
+        pairsWellRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 400);
+  };
+
   /* ── Fullscreen modal ──────────────────────────────────────────── */
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   /* ── Compare State (Local UI feedback) ─────────────────────────── */
   const [isCompared, setIsCompared] = useState(false);
+
+  /* ── Active coupons (admin-managed, show_on_pdp) ───────────────── */
+  const [mPdpCoupons, setMPdpCoupons] = useState([]);
+
+  useEffect(() => {
+    const loadCoupons = async () => {
+      const res = await getActiveCoupons();
+      if (res && res.success && Array.isArray(res.data)) {
+        setMPdpCoupons(res.data.filter(c => c.show_on_pdp !== false));
+      } else {
+        setMPdpCoupons([]);
+      }
+    };
+    loadCoupons();
+
+    const handleCouponsUpdated = () => loadCoupons();
+    window.addEventListener('orderly_coupons_updated', handleCouponsUpdated);
+    window.addEventListener('storage', handleCouponsUpdated);
+    return () => {
+      window.removeEventListener('orderly_coupons_updated', handleCouponsUpdated);
+      window.removeEventListener('storage', handleCouponsUpdated);
+    };
+  }, []);
 
   /* ── Sticky Purchase Bar Visibility ────────────────────────────── */
   const [showStickyBar, setShowStickyBar] = useState(false);
@@ -103,7 +136,6 @@ const MobileProductDetail = ({
   const currentMainImg = galleryImages[selectedImgIndex] || galleryImages[0] || '';
   const discountPercent = calculateDiscount(activeProduct?.originalPrice, activeProduct?.price);
   const stockCount = activeProduct ? getVariantStock(activeProduct, selectedColor, selectedSize) : 0;
-  const isMainProductInCart = cart.some(item => String(item.id) === String(activeProduct?.id));
 
   const goToPrevImage = () => setSelectedImgIndex(prev => prev > 0 ? prev - 1 : galleryImages.length - 1);
   const goToNextImage = () => setSelectedImgIndex(prev => prev < galleryImages.length - 1 ? prev + 1 : 0);
@@ -153,6 +185,12 @@ const MobileProductDetail = ({
 
       <MobileHeader onOpenMenu={() => setIsMenuOpen(true)} />
       <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+
+      {mainReqToast && (
+        <div className="m-pdp-main-req-toast">
+          <FiAlertCircle /> {mainReqToast}
+        </div>
+      )}
 
       {/* ── 1. BREADCRUMB ────────────────────────────────────────── */}
       <nav className="m-pdp-breadcrumb" aria-label="Breadcrumb">
@@ -303,15 +341,15 @@ const MobileProductDetail = ({
       <p className="m-pdp-tax-note">Inclusive of all taxes</p>
 
       {/* ── 6. OFFERS FOR YOU ────────────────────────────────────── */}
-      {PDP_PROMOTIONAL_OFFERS.length > 0 && (
+      {mPdpCoupons.length > 0 && (
         <div className="m-pdp-offers-box">
           <div className="m-pdp-offers-header">
             <FiTag className="m-pdp-tag-icon" />
             <span>Offers for you</span>
           </div>
-          {PDP_PROMOTIONAL_OFFERS.map((offer, idx) => (
-            <div key={idx} className="m-pdp-offer-item">
-              <span className="m-pdp-offer-text">{offer.text}</span>
+          {mPdpCoupons.map((offer, idx) => (
+            <div key={offer.id || idx} className="m-pdp-offer-item">
+              <span className="m-pdp-offer-text">{offer.description || `${offer.discount_type === 'percentage' ? offer.discount_value + '% off' : '₹' + offer.discount_value + ' off'} on orders above ₹${Number(offer.min_order || 0).toLocaleString('en-IN')}`}</span>
               <div className="m-pdp-offer-code-row">
                 <span className="m-pdp-code-lbl">Use code:</span>
                 <span className="m-pdp-code-badge">{offer.code}</span>
@@ -418,7 +456,7 @@ const MobileProductDetail = ({
         <button
           type="button"
           className={`m-pdp-add-cart-btn ${stockCount <= 0 ? 'disabled' : ''}`}
-          onClick={handleAddToCart}
+          onClick={handleAddMainToCart}
           disabled={stockCount <= 0}
         >
           <FiShoppingBag />
@@ -603,102 +641,166 @@ const MobileProductDetail = ({
       {validSuggested.length > 0 && (
         <section className="m-pdp-section-block">
           <div className="m-pdp-sec-head">
-            <h3 className="m-pdp-sec-title">PAIRS WELL WITH</h3>
-            <Link to="/shop" className="m-pdp-sec-link">View All →</Link>
+            <div>
+              <h3 className="m-pdp-sec-title">PAIRS WELL WITH</h3>
+              <span className="text-muted extra-small">
+                {isMainProductInCart ? 'Curated styling suggestions' : 'Add main product first to unlock styling add-ons'}
+              </span>
+            </div>
+            <span className={`pdp-status-pill ${isMainProductInCart ? 'unlocked' : 'locked'}`}>
+              {isMainProductInCart ? <><FiCheckCircle /> Unlocked</> : <><FiLock /> Add Main First</>}
+            </span>
           </div>
+
+          {/* Dynamic Banner */}
+          {!isMainProductInCart ? (
+            <div className="m-pdp-pair-offer-banner locked mb-3">
+              <div className="d-flex align-items-center gap-2 mb-1">
+                <span className="pdp-pair-badge-pill warning"><FiLock /> Add Main Item First</span>
+                <strong className="text-warning small">Add {activeProduct.name} to Bag First</strong>
+              </div>
+              <p className="mb-0 text-muted extra-small">
+                Add this main item to your bag above to unlock Pair Well With add-ons and get flat <strong>{pairOfferPercent}% OFF</strong>!
+              </p>
+            </div>
+          ) : cart.filter(i => Boolean(i.isPairOffer || i.pairOffer?.enabled)).length === 0 ? (
+            <div className="m-pdp-pair-offer-banner idle mb-3">
+              <div className="d-flex align-items-center gap-2 mb-1">
+                <span className="pdp-pair-badge-pill"><FiTag /> Offer</span>
+                <strong className="text-white small">Pair Offer: Flat {pairOfferPercent}% OFF</strong>
+              </div>
+              <p className="mb-0 text-muted extra-small">
+                Add 2 or more styling pieces to unlock <strong>{pairOfferPercent}% OFF on all items</strong>!
+              </p>
+            </div>
+          ) : cart.filter(i => Boolean(i.isPairOffer || i.pairOffer?.enabled)).length === 1 ? (
+            <div className="m-pdp-pair-offer-banner progress-unlock mb-3">
+              <div className="d-flex align-items-center justify-content-between mb-1">
+                <div className="d-flex align-items-center gap-1">
+                  <span className="pdp-pair-badge-pill warning"><FiGift /> Unlock</span>
+                  <strong className="text-warning extra-small">Add 1 more for {pairOfferPercent}% OFF on ALL items!</strong>
+                </div>
+                <span className="badge bg-warning text-dark fw-bold px-2 py-1 extra-small">1/2 Added</span>
+              </div>
+              <div className="pdp-pair-progress-bar-bg">
+                <div className="pdp-pair-progress-bar-fill" style={{ width: '50%' }} />
+              </div>
+            </div>
+          ) : (
+            <div className="m-pdp-pair-offer-banner unlocked mb-3">
+              <div className="d-flex align-items-center justify-content-between flex-nowrap gap-2">
+                <div className="d-flex align-items-center gap-1 flex-nowrap text-truncate">
+                  <span className="pdp-pair-badge-pill theme-active flex-shrink-0"><FiCheckCircle /> ACTIVE</span>
+                  <strong className="text-white extra-small text-truncate">🎉 {pairOfferPercent}% OFF ON ALL ITEMS</strong>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="m-pdp-carousel-wrapper">
             <div className="m-pdp-carousel-track" ref={pairsWellRef}>
-              {validSuggested.map((item, idx) => (
-                <div key={item.id || idx} className="m-pdp-pair-card">
-                  <div className="m-pdp-pair-img-wrap">
-                    {getSafeProductImage(item) ? (
-                      <img src={getSafeProductImage(item)} alt={item.name || 'Product'} />
-                    ) : (
-                      <div className="m-pdp-pair-placeholder">No Image</div>
-                    )}
-                    {item.pairOffer?.badge && (
-                      <span className="m-pdp-pair-badge">{item.pairOffer.badge}</span>
-                    )}
-                    <button
-                      type="button"
-                      className="m-pdp-pair-wish-btn"
-                      onClick={() => toggleWishlist(item)}
-                      aria-label="Wishlist"
-                    >
-                      <FiHeart />
-                    </button>
-                  </div>
-                  <div className="m-pdp-pair-content">
-                    <h5 className="m-pdp-pair-title">{item.name}</h5>
-                    <div className="m-pdp-pair-price-row">
-                      {item.pairOffer ? (
-                        <>
-                          <span>offer </span>
-                          <strong>{formatPrice(item.price)}</strong>
-                          {Number(item.originalPrice || 0) > Number(item.price || 0) && (
-                            <span className="m-pdp-pair-old">{formatPrice(item.originalPrice)}</span>
-                          )}
-                        </>
+              {validSuggested.map((item, idx) => {
+                const pId = String(item.id);
+                const isInCart = cart.some(i => String(i.productId || i.product_id || i.id) === pId);
+                const currentSelectedSize = selectedPairMap[pId]?.selectedSize || item.sizes?.[0] || 'M';
+                const mrp = Number(item.originalPrice ?? item.original_price ?? item.mrp ?? item.price ?? 0);
+                const singleDiscountPercent = Number(item.pairOffer?.discount_percent ?? 20);
+                const isMultiActive = cart.filter(i => Boolean(i.isPairOffer || i.pairOffer?.enabled)).length >= 2;
+                const itemDiscountedPrice = isMultiActive
+                  ? Math.max(0, Math.round(mrp * (1 - pairOfferPercent / 100)))
+                  : Math.max(0, Math.round(mrp * (1 - singleDiscountPercent / 100)));
+
+                return (
+                  <div key={item.id || idx} className={`m-pdp-pair-card ${isInCart ? 'selected in-cart' : ''} ${!isMainProductInCart ? 'locked-card' : ''}`}>
+                    <div className="m-pdp-pair-img-wrap" onClick={() => {
+                      if (!isMainProductInCart) {
+                        if (!mainReqToast) alert('Please add the main item to bag first!');
+                        return;
+                      }
+                      if (isInCart) {
+                        const inItem = cart.find(i => String(i.productId || i.product_id || i.id) === pId);
+                        if (inItem) removeFromCart(inItem.cartItemId || inItem.id);
+                      } else {
+                        addToCart({ ...item, originalPrice: mrp, price: item.price || mrp, isPairOffer: true, pairParentId: activeProduct?.id ?? null }, currentSelectedSize, 'Standard', 1);
+                      }
+                    }}>
+                      {getSafeProductImage(item) ? (
+                        <img src={getSafeProductImage(item)} alt={item.name || 'Product'} />
                       ) : (
-                        <>
-                          <span>from </span>
-                          <strong>{formatPrice(item.price)}</strong>
-                        </>
+                        <div className="m-pdp-pair-placeholder">No Image</div>
                       )}
-                    </div>
-                    {item.pairOffer?.note && (
-                      <div className="m-pdp-pair-note">{item.pairOffer.note}</div>
-                    )}
-                    <div className="m-pdp-pair-stars-row">
-                      <span className="m-pdp-stars-sm">{renderStars(item.rating || 4.8)}</span>
-                      <span className="m-pdp-count-sm">({item.reviewsCount || 64})</span>
-                    </div>
-                    <div className="m-pdp-pair-btns">
+                      <span className={`m-pdp-pair-badge ${isMultiActive ? 'highlight' : ''}`}>
+                        {isMultiActive ? `${pairOfferPercent}% OFF` : `${singleDiscountPercent}% OFF`}
+                      </span>
                       <button
                         type="button"
-                        className="m-pdp-pair-qv-btn"
-                        onClick={() => openQuickView(item)}
+                        className="m-pdp-pair-wish-btn"
+                        onClick={(e) => { e.stopPropagation(); toggleWishlist(item); }}
+                        aria-label="Wishlist"
                       >
-                        <FiEye /> QUICK VIEW
+                        <FiHeart />
                       </button>
-                      <button
-                        type="button"
-                        className="m-pdp-pair-cart-icon-btn"
-                        onClick={() => {
-                          if (item.colors?.length > 1 || item.sizes?.length > 1) {
-                            openQuickView(item);
-                            return;
-                          }
-                          const offerPrice = item.pairOffer?.enabled ? Number(item.pairOffer.offer_price || item.price || 0) : Number(item.price || 0);
-                          const originalPrice = item.pairOffer?.enabled
-                            ? Number(item.originalPrice || item.original_price || item.price || 0)
-                            : Number(item.originalPrice || item.original_price || 0);
-                          const cartItem = {
-                            id: item.id,
-                            name: item.name,
-                            price: offerPrice,
-                            originalPrice,
-                            pairOffer: item.pairOffer || null,
-                            isPairOffer: Boolean(item.pairOffer?.enabled),
-                            image: getSafeProductImage(item),
-                            quantity: 1,
-                            selectedColor: item.colors?.[0]?.name || 'Standard',
-                            selectedSize: item.sizes?.[0] || 'M'
-                          };
-                          if (typeof addToCart === 'function') {
-                            addToCart(cartItem, cartItem.selectedSize, cartItem.selectedColor, 1);
-                          } else {
-                            openQuickView(item);
-                          }
-                        }}
-                        aria-label="Quick Add"
-                      >
-                        <FiShoppingBag />
-                      </button>
+                    </div>
+
+                    <div className="m-pdp-pair-content">
+                      <h5 className="m-pdp-pair-title">{item.name}</h5>
+                      <div className="m-pdp-pair-price-row">
+                        <span>offer </span>
+                        <strong className="m-pdp-pair-price-accent">{formatPrice(itemDiscountedPrice)}</strong>
+                        {mrp > itemDiscountedPrice && (
+                          <del className="m-pdp-pair-old">{formatPrice(mrp)}</del>
+                        )}
+                      </div>
+
+                      {/* Size picker */}
+                      {Array.isArray(item.sizes) && item.sizes.length > 0 && (
+                        <div className="m-pdp-pair-variant-picker mb-1">
+                          <span className="extra-small text-muted me-1">Size:</span>
+                          <select 
+                            className="pdp-pair-select-sm"
+                            value={currentSelectedSize}
+                            onChange={(e) => updatePairVariant(item.id, { selectedSize: e.target.value })}
+                          >
+                            {item.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="m-pdp-pair-stars-row">
+                        <span className="m-pdp-stars-sm">{renderStars(item.rating || 4.8)}</span>
+                        <span className="m-pdp-count-sm">({item.reviewsCount || 64})</span>
+                      </div>
+
+                      <div className="m-pdp-pair-btns">
+                        <button
+                          type="button"
+                          className="m-pdp-pair-qv-btn"
+                          onClick={() => openQuickView(item)}
+                        >
+                          <FiEye /> VIEW
+                        </button>
+                        <button
+                          type="button"
+                          className={`m-pdp-pair-select-toggle-btn ${isInCart ? 'active in-cart' : ''} ${!isMainProductInCart ? 'locked' : ''}`}
+                          onClick={() => {
+                            if (!isMainProductInCart) {
+                              return;
+                            }
+                            if (isInCart) {
+                              const inItem = cart.find(i => String(i.productId || i.product_id || i.id) === pId);
+                              if (inItem) removeFromCart(inItem.cartItemId || inItem.id);
+                            } else {
+addToCart({ ...item, originalPrice: mrp, price: item.price || mrp, isPairOffer: true, pairParentId: activeProduct?.id ?? null }, currentSelectedSize, 'Standard', 1);
+                            }
+                          }}
+                        >
+                          {!isMainProductInCart ? <><FiLock /> Add Main</> : isInCart ? <><FiCheck /> In Bag</> : <><FiPlus /> Add to Bag</>}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
@@ -768,7 +870,7 @@ const MobileProductDetail = ({
           <button
             type="button"
             className={`m-pdp-sticky-add-btn ${stockCount <= 0 ? 'disabled' : ''}`}
-            onClick={handleAddToCart}
+            onClick={handleAddMainToCart}
             disabled={stockCount <= 0}
           >
             <FiShoppingBag />

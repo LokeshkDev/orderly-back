@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { 
   FiX, 
   FiSliders, 
   FiHeart, 
   FiChevronDown, 
   FiChevronUp, 
+  FiArrowLeft,
+  FiArrowRight,
+  FiLayers,
   FiRotateCcw, 
   FiShield, 
   FiTruck, 
@@ -16,20 +19,22 @@ import MobileHeader from '../components/common/MobileHeader';
 import MobileMenu from '../components/common/MobileMenu';
 import MobileFooterAccordion from '../components/common/MobileFooterAccordion';
 import BottomNavbar from '../components/common/BottomNavbar';
-import { getCombos, getProducts } from '../services/api';
+import { getCombos, getProducts, getComboCategories } from '../services/api';
 import { useWishlist } from '../context/WishlistContext';
 import '../styles/MobileHomepage.css';
 import './MobileCombos.css';
 
-const FALLBACK_COMBO_PHOTOS = [
-  'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=600&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=600&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=600&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=600&auto=format&fit=crop'
+const DEFAULT_COMBO_CATEGORIES = [
+  { id: 101, name: 'Executive & Formal Combos', slug: 'formal-combos', image: '', description: 'Tailored 2-piece and 3-piece formal suiting & linen sets' },
+  { id: 102, name: 'Casual Weekend Sets', slug: 'casual-combos', image: '', description: 'Everyday relaxed tees, casual shirts, and comfort trousers' },
+  { id: 103, name: 'Partywear & Evening Sets', slug: 'partywear-combos', image: '', description: 'Bold jackets, satin sheen shirts, and slim chino styling' },
+  { id: 104, name: 'Summer Vacation Outfits', slug: 'summer-combos', image: '', description: 'Lightweight linens, breathable polo shirts, and stretch shorts' }
 ];
 
 const MobileCombos = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [combos, setCombos] = useState([]);
+  const [comboCategories, setComboCategories] = useState(DEFAULT_COMBO_CATEGORIES);
   const [productsCatalog, setProductsCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -37,62 +42,95 @@ const MobileCombos = () => {
   const [isSortDrawerOpen, setIsSortDrawerOpen] = useState(false);
   const { wishlist, toggleWishlist } = useWishlist();
 
-  // Mobile Filter & Sort States
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  // Category filter from URL or state
+  const categoryParam = searchParams.get('category') || 'All';
+  const [selectedCategory, setSelectedCategory] = useState(categoryParam);
   const [priceLimit, setPriceLimit] = useState(50000);
   const [sortBy, setSortBy] = useState('popularity');
-  const [displayCount, setDisplayCount] = useState(6);
+  const [displayCount, setDisplayCount] = useState(12);
+
+  // Sync with URL params
+  useEffect(() => {
+    setSelectedCategory(categoryParam);
+  }, [categoryParam]);
+
+  const handleCategorySelect = (slugOrName) => {
+    setSelectedCategory(slugOrName);
+    if (slugOrName === 'All') {
+      searchParams.delete('category');
+      setSearchParams(searchParams);
+    } else {
+      setSearchParams({ category: slugOrName });
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    const fetchCombosAndProducts = async () => {
+    const fetchCombosAndCategories = async () => {
       setLoading(true);
       try {
-        const [combosRes, productsRes] = await Promise.all([getCombos(), getProducts()]);
+        const [combosRes, productsRes, catsRes] = await Promise.all([
+          getCombos(), 
+          getProducts(),
+          getComboCategories()
+        ]);
         if (combosRes && combosRes.success && Array.isArray(combosRes.data)) {
           setCombos(combosRes.data.filter(c => c.status !== 'Inactive'));
         }
         if (productsRes && productsRes.success && Array.isArray(productsRes.data)) {
           setProductsCatalog(productsRes.data);
         }
+        if (catsRes && catsRes.success && Array.isArray(catsRes.data) && catsRes.data.length > 0) {
+          setComboCategories(catsRes.data.filter(c => c.is_active !== false));
+        }
       } catch (err) {
-        console.warn('Failed to fetch combos/products:', err);
+        console.warn('Failed to fetch combos/products/categories:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchCombosAndProducts();
+    fetchCombosAndCategories();
 
-    window.addEventListener('orderly_products_updated', fetchCombosAndProducts);
-    window.addEventListener('storage', fetchCombosAndProducts);
-    window.addEventListener('focus', fetchCombosAndProducts);
+    window.addEventListener('orderly_combos_updated', fetchCombosAndCategories);
+    window.addEventListener('orderly_categories_updated', fetchCombosAndCategories);
+    window.addEventListener('storage', fetchCombosAndCategories);
 
     return () => {
-      window.removeEventListener('orderly_products_updated', fetchCombosAndProducts);
-      window.removeEventListener('storage', fetchCombosAndProducts);
-      window.removeEventListener('focus', fetchCombosAndProducts);
+      window.removeEventListener('orderly_combos_updated', fetchCombosAndCategories);
+      window.removeEventListener('orderly_categories_updated', fetchCombosAndCategories);
+      window.removeEventListener('storage', fetchCombosAndCategories);
     };
   }, []);
 
-  const categoryOptions = useMemo(() => {
-    const fromCombos = Array.from(new Set(
-      combos.flatMap(cb => (cb.items || []).map(it => it.category).filter(Boolean))
-    ));
-    return ['All', 'Shirts', 'T-Shirts', 'Pants', 'Hoodies', 'Jeans', ...fromCombos];
-  }, [combos]);
+  // Active Category details
+  const activeCategoryObj = useMemo(() => {
+    if (selectedCategory === 'All') return null;
+    return comboCategories.find(c => 
+      c.slug === selectedCategory || 
+      c.name?.toLowerCase() === selectedCategory.toLowerCase()
+    ) || { name: selectedCategory, description: 'Curated combo sets collection' };
+  }, [comboCategories, selectedCategory]);
 
   const filteredCombos = useMemo(() => {
+    if (selectedCategory === 'All') return [];
+
     let result = combos.filter(combo => {
       if (!combo) return false;
       
       // Category filter
-      if (selectedCategory !== 'All') {
-        const catQuery = selectedCategory.toLowerCase();
-        const hasCat = combo.name?.toLowerCase().includes(catQuery) || combo.items?.some(item => {
-          const name = (item.name || item.pieceLabel || '').toLowerCase();
-          return name.includes(catQuery) || (item.category && item.category.toLowerCase().includes(catQuery));
-        });
-        if (!hasCat) return false;
-      }
+      const catQuery = selectedCategory.toLowerCase().trim();
+      const comboCat = (combo.category || '').toLowerCase().trim();
+      const comboSlug = (combo.category_slug || '').toLowerCase().trim();
+
+      const matched = comboCat === catQuery || 
+                      comboSlug === catQuery ||
+                      comboCat.includes(catQuery) ||
+                      combo.name?.toLowerCase().includes(catQuery) ||
+                      combo.items?.some(item => {
+                        const name = (item.name || item.pieceLabel || '').toLowerCase();
+                        return name.includes(catQuery) || (item.category && item.category.toLowerCase().includes(catQuery));
+                      });
+      if (!matched) return false;
 
       // Price filter
       if (combo.offer_price > priceLimit) return false;
@@ -121,20 +159,27 @@ const MobileCombos = () => {
   };
 
   const clearAllFilters = () => {
-    setSelectedCategory('All');
     setPriceLimit(50000);
     setSortBy('popularity');
-    setDisplayCount(6);
+    setDisplayCount(12);
     setIsFilterDrawerOpen(false);
   };
 
-  const hasActiveFilters = selectedCategory !== 'All' || priceLimit < 50000;
+  const getCategoryComboCount = (cat) => {
+    const qName = (cat.name || '').toLowerCase();
+    const qSlug = (cat.slug || '').toLowerCase();
+    return combos.filter(c => {
+      const cName = (c.category || '').toLowerCase();
+      const cSlug = (c.category_slug || '').toLowerCase();
+      return cName === qName || cSlug === qSlug || cName.includes(qSlug) || c.name?.toLowerCase().includes(qSlug);
+    }).length;
+  };
 
   return (
     <>
       <SEO 
-        title="Smart Combos & Bigger Savings | ORDERLY Mobile Shopping App"
-        description="Shop luxury men's combo bundles. Save up to 35% on curated 2-piece shirts, polo t-shirts, cargo pants and denim sets."
+        title={activeCategoryObj ? `${activeCategoryObj.name} | ORDERLY Combos` : "Smart Combos & Categories | ORDERLY Mobile Shopping App"}
+        description="Shop luxury men's combo categories and curated multi-piece bundles on mobile. Save up to 35% on complete styling sets."
       />
 
       <div className="mobile-app-wrapper mobile-only">
@@ -144,300 +189,332 @@ const MobileCombos = () => {
         {/* 3. Mobile Slide-Out Drawer */}
         <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 
-        {/* 4. COMPACT MOBILE COMBO HERO BANNER MATCHING REFERENCE SCREENSHOT */}
-        <div className="mobile-combo-hero">
-          <div className="mobile-combo-hero-overlay" />
-          <div className="mobile-combo-hero-content">
-            <span className="mobile-hero-eyebrow">COMBOS &mdash;</span>
-            <h1 className="mobile-hero-title">
-              SMART COMBOS<br />
-              <span className="text-red-accent">BIGGER SAVINGS</span>
-            </h1>
-            <p className="mobile-hero-sub">
-              Handpicked combos for your style and comfort
-            </p>
-          </div>
-        </div>
-
-        {/* 5. MOBILE FILTER & SORT BUTTONS ROW MATCHING REFERENCE SCREENSHOT */}
-        <div className="mobile-combo-controls-container">
-          <div className="mobile-combo-buttons-row">
-            <button 
-              type="button" 
-              className="mobile-combo-ctrl-btn"
-              onClick={() => setIsFilterDrawerOpen(true)}
-            >
-              <FiSliders className="text-danger" />
-              <span>FILTER</span>
-              <FiChevronDown className="ms-1" />
-              {hasActiveFilters && <span className="mobile-active-dot" />}
-            </button>
-
-            <button 
-              type="button" 
-              className="mobile-combo-ctrl-btn"
-              onClick={() => setIsSortDrawerOpen(true)}
-            >
-              <span>SORT</span>
-              <FiChevronDown className="ms-1" />
-            </button>
-          </div>
-
-          {/* Active Chips Row */}
-          {hasActiveFilters && (
-            <div className="mobile-active-chips-scroll mt-2">
-              {selectedCategory !== 'All' && (
-                <span className="mobile-chip-tag">
-                  {selectedCategory} <FiX onClick={() => setSelectedCategory('All')} />
-                </span>
-              )}
-              {priceLimit < 50000 && (
-                <span className="mobile-chip-tag">
-                  Under ₹{priceLimit} <FiX onClick={() => setPriceLimit(50000)} />
-                </span>
-              )}
-              <button type="button" className="mobile-reset-link" onClick={clearAllFilters}>Reset</button>
+        {selectedCategory === 'All' ? (
+          /* ========================================================= */
+          /* 1. MAIN MOBILE COMBOS PAGE — ONLY COMBO CATEGORIES (1 CARD/ROW) */
+          /* ========================================================= */
+          <div className="mobile-combos-landing">
+            {/* HERO BANNER */}
+            <div className="mobile-combo-hero">
+              <div className="mobile-combo-hero-overlay" />
+              <div className="mobile-combo-hero-content">
+                <span className="mobile-hero-eyebrow">CURATED COMBOS &mdash;</span>
+                <h1 className="mobile-hero-title">
+                  SMART COMBOS<br />
+                  <span className="text-red-accent">BIGGER SAVINGS</span>
+                </h1>
+                <p className="mobile-hero-sub">
+                  Select a combo category below to explore curated multi-piece menswear ensembles
+                </p>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* 6. SINGLE-COLUMN MOBILE COMBO CARDS GRID MATCHING REFERENCE SCREENSHOT */}
-        <section className="px-3 py-2">
-          {loading ? (
-            <div className="text-center py-5">
-              <span className="spinner-border text-danger" role="status" />
-              <p className="text-white-50 small mt-2">Loading smart combos...</p>
-            </div>
-          ) : displayedCombos.length > 0 ? (
-            <div className="mobile-combos-single-col-grid">
-              {displayedCombos.map((combo, idx) => {
-                const discountPct = (combo.original_price && combo.offer_price) 
-                  ? Math.round(((combo.original_price - combo.offer_price) / combo.original_price) * 100)
-                  : 30;
+            {/* SINGLE CARD COMBO CATEGORIES LIST (1 CARD PER ROW) */}
+            <div className="mobile-combo-categories-container px-3 py-3">
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <h3 className="m-combo-sec-title">
+                  <FiLayers className="text-danger me-2" />
+                  EXPLORE BY CATEGORY
+                </h3>
+                <span className="m-combo-cat-count-pill">{comboCategories.length} Categories</span>
+              </div>
 
-                const img1 = combo.items?.[0]?.image || combo.images?.[0] || FALLBACK_COMBO_PHOTOS[idx % 4];
-                const img2 = combo.items?.[1]?.image || combo.images?.[1] || combo.images?.[0] || FALLBACK_COMBO_PHOTOS[(idx + 1) % 4];
-                
-                const itemSummary = combo.items_summary || (
-                  combo.items && combo.items.length > 0
-                    ? `▣ ${combo.items.length} Items`
-                    : '▣ 2 Items'
-                );
+              {loading ? (
+                <div className="text-center py-5">
+                  <span className="spinner-border text-danger" role="status" />
+                  <p className="text-white-50 small mt-2">Loading combo categories...</p>
+                </div>
+              ) : (
+                <div className="mobile-combo-categories-single-cards-list">
+                  {comboCategories.map((cat, idx) => {
+                    const count = getCategoryComboCount(cat);
 
-                const isWished = isInWishlist(combo.id);
-
-                return (
-                  <div key={combo.id} className="mobile-creative-combo-card">
-                    {/* Top Discount Badge & Wishlist Button */}
-                    <div className="mobile-combo-card-top">
-                      <span className="mobile-discount-badge">-{discountPct}%</span>
-                      <button 
-                        type="button"
-                        className={`mobile-wishlist-circle-btn ${isWished ? 'active' : ''}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleWishlist(combo);
-                        }}
-                        aria-label="Add to Wishlist"
+                    return (
+                      <div
+                        key={cat.id || idx}
+                        className="m-combo-single-cat-card"
+                        onClick={() => handleCategorySelect(cat.slug || cat.name)}
+                        role="button"
+                        tabIndex={0}
                       >
-                        <FiHeart />
-                      </button>
-                    </div>
+                        <div className="m-combo-cat-card-img-wrap">
+                          {cat.image ? (
+                            <img
+                              src={cat.image}
+                              alt={cat.name}
+                              className="m-combo-cat-card-img"
+                            />
+                          ) : (
+                            <div className="m-combo-cat-card-img orderly-img-fallback">ORDERLY</div>
+                          )}
+                          <div className="m-combo-cat-card-gradient" />
+                          <span className="m-combo-cat-count-tag">
+                            {count > 0 ? `${count} Combos` : 'Curated Set'}
+                          </span>
+                        </div>
 
-                    {/* Multi-Product Split Image Box with Central Plus Circle */}
-                    <Link to={`/combo/${combo.id}`} className="mobile-split-photo-box">
-                      <div className="mobile-photo-col">
-                        <img src={img1} alt={combo.name} className="mobile-item-photo" />
+                        <div className="m-combo-cat-card-body">
+                          <h4 className="m-combo-cat-card-title">{cat.name}</h4>
+                          {cat.description && (
+                            <p className="m-combo-cat-card-desc">{cat.description}</p>
+                          )}
+                          <div className="m-combo-cat-card-cta">
+                            <span>Explore Combos</span>
+                            <FiArrowRight />
+                          </div>
+                        </div>
                       </div>
-                      
-                      {/* Plus Circle Indicator */}
-                      <div className="mobile-plus-circle-badge">+</div>
-
-                      <div className="mobile-photo-col">
-                        <img src={img2} alt={combo.name} className="mobile-item-photo" />
-                      </div>
-                    </Link>
-
-                    {/* Combo Info Body */}
-                    <div className="mobile-combo-info-body">
-                      <Link to={`/combo/${combo.id}`} className="mobile-combo-title-link">
-                        <h3 className="mobile-combo-title">{combo.name}</h3>
-                      </Link>
-
-                      <div className="mobile-combo-items-summary">
-                        {itemSummary}
-                      </div>
-
-                      <div className="mobile-combo-price-row">
-                        <span className="mobile-offer-price">₹{combo.offer_price?.toLocaleString()}</span>
-                        {combo.original_price && (
-                          <span className="mobile-original-price">₹{combo.original_price?.toLocaleString()}</span>
-                        )}
-                      </div>
-
-                      <Link to={`/combo/${combo.id}`} className="btn-mobile-view-combo-cta">
-                        VIEW COMBO &rarr;
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="mobile-empty-state text-center py-5">
-              <h4 className="text-white mb-2">NO COMBOS FOUND</h4>
-              <p className="text-white-50 extra-small">Try clearing filters to explore all smart combo deals.</p>
-              <button type="button" className="btn-mobile-red-solid py-2 px-4 mt-2" onClick={clearAllFilters}>
-                CLEAR FILTERS
-              </button>
-            </div>
-          )}
-
-          {/* Load More Button */}
-          {displayedCombos.length < filteredCombos.length && (
-            <div className="text-center my-4">
-              <button 
-                type="button" 
-                className="btn-mobile-load-more w-100"
-                onClick={() => setDisplayCount(prev => prev + 6)}
+          </div>
+        ) : (
+          /* ========================================================= */
+          /* 2. DEDICATED MOBILE CATEGORY PAGE — RESPECTIVE COMBOS     */
+          /* ========================================================= */
+          <div className="mobile-combo-category-view">
+            {/* DEDICATED MOBILE CATEGORY HEADER */}
+            <div className="mobile-combo-category-header px-3 py-3">
+              <button
+                type="button"
+                className="m-back-to-all-cats-btn mb-2"
+                onClick={() => handleCategorySelect('All')}
               >
-                LOAD MORE COMBOS ↻
+                <FiArrowLeft /> All Combo Categories
               </button>
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <h2 className="m-category-page-title mb-1">{activeCategoryObj?.name}</h2>
+                  {activeCategoryObj?.description && (
+                    <p className="m-category-page-desc mb-0">{activeCategoryObj.description}</p>
+                  )}
+                </div>
+                <span className="m-cat-page-count-badge flex-shrink-0">
+                  {filteredCombos.length} Sets
+                </span>
+              </div>
             </div>
-          )}
-        </section>
 
-        {/* 7. APP SERVICE FEATURES STRIP */}
-        <div className="mobile-features-strip my-3">
-          <div>
-            <div className="mobile-feature-icon-red"><FiGift /></div>
-            <div className="mobile-feature-label">100% SECURE<br/>PAYMENTS</div>
-          </div>
-          <div>
-            <div className="mobile-feature-icon-red"><FiRotateCcw /></div>
-            <div className="mobile-feature-label">EASY<br/>RETURNS</div>
-          </div>
-          <div>
-            <div className="mobile-feature-icon-red"><FiTruck /></div>
-            <div className="mobile-feature-label">FAST<br/>DELIVERY</div>
-          </div>
-          <div>
-            <div className="mobile-feature-icon-red"><FiShield /></div>
-            <div className="mobile-feature-label">PREMIUM<br/>QUALITY</div>
-          </div>
-        </div>
-
-        {/* 8. MOBILE FOOTER ACCORDIONS */}
-        <MobileFooterAccordion />
-
-        {/* 9. FIXED MOBILE BOTTOM NAVIGATION */}
-        <BottomNavbar />
-
-        {/* 10. MOBILE FILTER DRAWER */}
-        {isFilterDrawerOpen && (
-          <div className="mobile-app-filter-backdrop" onClick={() => setIsFilterDrawerOpen(false)}>
-            <div className="mobile-app-filter-drawer" onClick={(e) => e.stopPropagation()}>
-              <div className="mobile-drawer-top-bar">
-                <div className="d-flex align-items-center gap-2">
-                  <FiSliders className="text-danger" />
-                  <h3 className="mobile-drawer-title">FILTERS</h3>
-                </div>
-                <div className="d-flex align-items-center gap-3">
-                  <button type="button" className="mobile-clear-red" onClick={clearAllFilters}>
-                    Clear All
-                  </button>
-                  <button type="button" className="mobile-close-x" onClick={() => setIsFilterDrawerOpen(false)}>
-                    <FiX />
-                  </button>
-                </div>
-              </div>
-
-              <div className="mobile-drawer-scroll-body">
-                {/* Categories */}
-                <div className="mobile-accordion-group">
-                  <h4 className="mobile-accordion-header text-danger mb-2">CATEGORIES</h4>
-                  <div className="d-flex flex-column gap-2">
-                    {categoryOptions.map((cat, idx) => (
-                      <label key={idx} className="mobile-filter-check-row">
-                        <input 
-                          type="checkbox"
-                          checked={selectedCategory === cat}
-                          onChange={() => setSelectedCategory(selectedCategory === cat ? 'All' : cat)}
-                        />
-                        <span className="cat-name">{cat}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Price Limit */}
-                <div className="mobile-accordion-group mt-3">
-                  <h4 className="mobile-accordion-header text-danger mb-2">MAX PRICE</h4>
-                  <input 
-                    type="range"
-                    min="1500"
-                    max="50000"
-                    step="1000"
-                    value={priceLimit}
-                    onChange={(e) => setPriceLimit(Number(e.target.value))}
-                    className="mobile-price-slider w-100 mb-2"
-                  />
-                  <div className="d-flex justify-content-between text-white-50 extra-small">
-                    <span>₹1,500</span>
-                    <span>₹{priceLimit.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mobile-drawer-bottom-bar">
+            {/* FILTER & SORT BUTTONS ROW */}
+            <div className="mobile-combo-controls-container">
+              <div className="mobile-combo-buttons-row">
                 <button 
                   type="button" 
-                  className="mobile-view-products-btn"
-                  onClick={() => setIsFilterDrawerOpen(false)}
+                  className="mobile-combo-ctrl-btn"
+                  onClick={() => setIsFilterDrawerOpen(true)}
                 >
-                  VIEW {filteredCombos.length} COMBOS
+                  <FiSliders className="text-danger" />
+                  <span>FILTER</span>
+                  <FiChevronDown className="ms-1" />
+                  {priceLimit < 50000 && <span className="mobile-active-dot" />}
+                </button>
+
+                <button 
+                  type="button" 
+                  className="mobile-combo-ctrl-btn"
+                  onClick={() => setIsSortDrawerOpen(true)}
+                >
+                  <span>SORT</span>
+                  <FiChevronDown className="ms-1" />
                 </button>
               </div>
+
+              {/* Active Filter Chips Row */}
+              {priceLimit < 50000 && (
+                <div className="mobile-active-chips-scroll mt-2">
+                  <span className="mobile-chip-tag">
+                    Under ₹{priceLimit} <FiX onClick={() => setPriceLimit(50000)} />
+                  </span>
+                  <button type="button" className="mobile-reset-link" onClick={clearAllFilters}>Reset</button>
+                </div>
+              )}
             </div>
+
+            {/* SINGLE-COLUMN RESPECTIVE COMBOS GRID */}
+            <section className="px-3 py-3">
+              {loading ? (
+                <div className="text-center py-5">
+                  <span className="spinner-border text-danger" role="status" />
+                  <p className="text-white-50 small mt-2">Loading combos...</p>
+                </div>
+              ) : displayedCombos.length > 0 ? (
+                <div className="mobile-combos-single-col-grid">
+                  {displayedCombos.map((combo) => {
+                    const discountPct = (combo.original_price && combo.offer_price) 
+                      ? Math.round(((combo.original_price - combo.offer_price) / combo.original_price) * 100)
+                      : 30;
+
+                    const img1 = combo.items?.[0]?.image || combo.images?.[0] || '';
+                    const img2 = combo.items?.[1]?.image || combo.images?.[1] || combo.images?.[0] || '';
+                    
+                    const itemSummary = combo.items_summary || (
+                      combo.items && combo.items.length > 0
+                        ? `▣ ${combo.items.length} Items Set`
+                        : `▣ ${combo.pieces_count || 2} Pieces Set`
+                    );
+
+                    const isWished = isInWishlist(combo.id);
+
+                    return (
+                      <div key={combo.id} className="mobile-creative-combo-card">
+                        {/* Top Discount Badge & Wishlist Button */}
+                        <div className="mobile-combo-card-top">
+                          <span className="mobile-discount-badge">-{discountPct}%</span>
+                          <button 
+                            type="button"
+                            className={`mobile-wishlist-circle-btn ${isWished ? 'active' : ''}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleWishlist(combo);
+                            }}
+                            aria-label="Add to Wishlist"
+                          >
+                            <FiHeart />
+                          </button>
+                        </div>
+
+                        {/* Split Photo Box */}
+                        <Link to={`/combo/${combo.id}`} className="mobile-combo-split-photos">
+                          <div className="mobile-combo-photo-col">
+                            {img1 ? (
+                              <img src={img1} alt={combo.name} />
+                            ) : (
+                              <div className="orderly-img-fallback">ORDERLY</div>
+                            )}
+                          </div>
+                          <div className="mobile-combo-plus-circle">+</div>
+                          <div className="mobile-combo-photo-col">
+                            {img2 ? (
+                              <img src={img2} alt={combo.name} />
+                            ) : (
+                              <div className="orderly-img-fallback">ORDERLY</div>
+                            )}
+                          </div>
+                        </Link>
+
+                        {/* Info Body */}
+                        <div className="mobile-combo-info-card">
+                          <Link to={`/combo/${combo.id}`} className="mobile-combo-title-link">
+                            <h3 className="mobile-combo-card-title">{combo.name}</h3>
+                          </Link>
+
+                          <div className="mobile-combo-items-summary">
+                            {itemSummary}
+                          </div>
+
+                          <div className="mobile-combo-pricing-line">
+                            <span className="mobile-combo-offer-price">₹{combo.offer_price?.toLocaleString()}</span>
+                            {combo.original_price && (
+                              <span className="mobile-combo-old-price">₹{combo.original_price?.toLocaleString()}</span>
+                            )}
+                          </div>
+
+                          <Link to={`/combo/${combo.id}`} className="mobile-view-combo-action-btn">
+                            VIEW COMBO &rarr;
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mobile-combos-empty text-center py-5">
+                  <FiLayers style={{ fontSize: '3rem', color: '#475569', marginBottom: '12px' }} />
+                  <h4 className="text-white mb-1">No Combos in this Category</h4>
+                  <p className="text-muted small mb-3">No combo sets are currently added under "{activeCategoryObj?.name}".</p>
+                  <button 
+                    type="button" 
+                    className="btn-admin-red px-4 py-2"
+                    onClick={() => handleCategorySelect('All')}
+                  >
+                    View All Categories
+                  </button>
+                </div>
+              )}
+            </section>
           </div>
         )}
 
-        {/* 11. MOBILE SORT BOTTOM SHEET */}
-        {isSortDrawerOpen && (
-          <div className="mobile-app-filter-backdrop" onClick={() => setIsSortDrawerOpen(false)}>
-            <div className="mobile-sort-bottom-sheet" onClick={(e) => e.stopPropagation()}>
-              <div className="d-flex align-items-center justify-content-between pb-3 border-bottom border-secondary mb-3">
-                <h4 className="mobile-drawer-title mb-0">SORT BY</h4>
-                <button type="button" className="mobile-close-x" onClick={() => setIsSortDrawerOpen(false)}>
+        {/* Filter Drawer Popup (Price Limit) */}
+        {isFilterDrawerOpen && (
+          <div className="mobile-drawer-backdrop" onClick={() => setIsFilterDrawerOpen(false)}>
+            <div className="mobile-bottom-drawer" onClick={(e) => e.stopPropagation()}>
+              <div className="mobile-drawer-header">
+                <h4 className="mb-0 font-weight-bold">Filter Combos</h4>
+                <button type="button" className="mobile-drawer-close" onClick={() => setIsFilterDrawerOpen(false)}>
                   <FiX />
                 </button>
               </div>
 
-              <div className="d-flex flex-column gap-2">
-                {[
-                  { label: 'Popularity', val: 'popularity' },
-                  { label: 'Price: Low to High', val: 'price-low' },
-                  { label: 'Price: High to Low', val: 'price-high' },
-                  { label: 'Biggest Savings', val: 'discount' }
-                ].map((opt, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    className={`mobile-sort-option-btn ${sortBy === opt.val ? 'active' : ''}`}
-                    onClick={() => {
-                      setSortBy(opt.val);
-                      setIsSortDrawerOpen(false);
-                    }}
-                  >
-                    <span>{opt.label}</span>
-                    {sortBy === opt.val && <span className="text-danger fw-bold">&bull;</span>}
-                  </button>
-                ))}
+              <div className="mobile-drawer-body py-3">
+                <label className="admin-form-label mb-2">MAX PRICE LIMIT</label>
+                <div className="d-flex flex-column gap-2">
+                  {[50000, 3000, 6000, 10000].map(price => (
+                    <label key={price} className="mobile-filter-radio-row">
+                      <input
+                        type="radio"
+                        name="price_filter"
+                        checked={priceLimit === price}
+                        onChange={() => setPriceLimit(price)}
+                      />
+                      <span>{price === 50000 ? 'All Prices' : `Under ₹${price.toLocaleString()}`}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mobile-drawer-footer">
+                <button type="button" className="btn-admin-outline w-50" onClick={clearAllFilters}>Reset</button>
+                <button type="button" className="btn-admin-red w-50" onClick={() => setIsFilterDrawerOpen(false)}>Apply</button>
               </div>
             </div>
           </div>
         )}
+
+        {/* Sort Drawer Popup */}
+        {isSortDrawerOpen && (
+          <div className="mobile-drawer-backdrop" onClick={() => setIsSortDrawerOpen(false)}>
+            <div className="mobile-bottom-drawer" onClick={(e) => e.stopPropagation()}>
+              <div className="mobile-drawer-header">
+                <h4 className="mb-0 font-weight-bold">Sort Combos</h4>
+                <button type="button" className="mobile-drawer-close" onClick={() => setIsSortDrawerOpen(false)}>
+                  <FiX />
+                </button>
+              </div>
+
+              <div className="mobile-drawer-body py-3">
+                <div className="d-flex flex-column gap-2">
+                  {[
+                    { id: 'popularity', label: 'Popularity' },
+                    { id: 'price-low', label: 'Price: Low to High' },
+                    { id: 'price-high', label: 'Price: High to Low' },
+                    { id: 'discount', label: 'Biggest Savings' }
+                  ].map(opt => (
+                    <label key={opt.id} className="mobile-filter-radio-row">
+                      <input
+                        type="radio"
+                        name="sort_filter"
+                        checked={sortBy === opt.id}
+                        onChange={() => {
+                          setSortBy(opt.id);
+                          setIsSortDrawerOpen(false);
+                        }}
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer & Bottom Navbar */}
+        <MobileFooterAccordion />
+        <BottomNavbar />
       </div>
     </>
   );

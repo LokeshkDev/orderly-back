@@ -235,10 +235,25 @@ export const calculateDeliveryCharge = ({
   subtotal = 0,
   pincode = '',
   deliverySettings = null,
-  legacySettings = null
+  legacySettings = null,
+  isMultiPairOfferActive = false
 }) => {
   const settings = deliverySettings || DEFAULT_DELIVERY_SETTINGS;
   const numSubtotal = Math.max(0, Number(subtotal) || 0);
+
+  // If Multi-Product Pair Well With offer is active, delivery is unconditionally FREE
+  if (isMultiPairOfferActive) {
+    return {
+      shippingFee: 0,
+      method: 'pair_offer_free',
+      methodLabel: 'FREE Express Delivery',
+      locationLabel: null,
+      isBelowMinOrder: false,
+      minOrderAmount: 0,
+      breakdownText: 'FREE Delivery (Pair Offer)',
+      explanation: 'Unlocked with Pair Well With Offer'
+    };
+  }
 
   const totalItemQuantity = Array.isArray(cartItems)
     ? cartItems.reduce((acc, item) => acc + (Math.max(1, Number(item.quantity) || 1)), 0)

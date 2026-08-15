@@ -145,9 +145,12 @@ const buildPaymentBreakdown = async ({ order, paymentMethod }) => {
   const totalPaise = toPaise(order.total);
   const normalizedMethod = String(paymentMethod || order.payment_method || 'online').toLowerCase();
   const codAdvancePercentage = normalizedMethod === 'cod' ? await getCodAdvancePercentage() : 0;
-  const amountPaise = normalizedMethod === 'cod'
-    ? Math.round(totalPaise * (codAdvancePercentage / 100))
-    : totalPaise;
+  const orderSubtotal = toNumber(order.subtotal, order.total || 0);
+  const orderShippingFee = toNumber(order.shipping_fee ?? order.shippingFee, 0);
+  const codAdvanceAmount = normalizedMethod === 'cod'
+    ? Math.round(toPaise(orderShippingFee) + toPaise(orderSubtotal) * (codAdvancePercentage / 100))
+    : 0;
+  const amountPaise = normalizedMethod === 'cod' ? codAdvanceAmount : totalPaise;
   const codDuePaise = normalizedMethod === 'cod' ? Math.max(totalPaise - amountPaise, 0) : 0;
 
   return {

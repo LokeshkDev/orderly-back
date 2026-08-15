@@ -87,11 +87,9 @@ const Shop = () => {
 
     window.addEventListener('orderly_products_updated', loadProducts);
     window.addEventListener('storage', loadProducts);
-    window.addEventListener('focus', loadProducts);
 
     return () => {
       window.removeEventListener('storage', loadProducts);
-      window.removeEventListener('focus', loadProducts);
       window.removeEventListener('orderly_products_updated', loadProducts);
     };
   }, []);
@@ -231,7 +229,7 @@ const Shop = () => {
           <div className="shop-hero-overlay" />
           <div className="shop-hero-bg-graphic" />
 
-          <div className="container-fluid px-lg-5 position-relative z-2">
+          <div className="container-fluid px-lg-5 shop-hero-content-wrap">
             <span className="shop-hero-eyebrow">SHOP &rarr;</span>
             <h1 className="shop-hero-title">
               {selectedCategory !== 'All' ? selectedCategory.toUpperCase() : 'ALL PRODUCTS'}

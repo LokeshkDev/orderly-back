@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   FiShoppingBag, FiCheck, FiChevronRight, FiChevronLeft, FiHeart, FiRefreshCw,
-  FiAlertCircle, FiMaximize2, FiMinus, FiPlus, FiX, FiInfo, FiEdit3
+  FiAlertCircle, FiMaximize2, FiMinus, FiPlus, FiX, FiInfo, FiTrash2
 } from 'react-icons/fi';
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
 import SEO from '../components/common/SEO';
@@ -31,7 +31,7 @@ const renderStars = (rating = 5) => {
 
 const ComboDetail = () => {
   const { id } = useParams();
-  const { addToCart } = useCart();
+  const { addToCart, setIsCartOpen } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
 
   const [combo, setCombo] = useState(null);
@@ -42,11 +42,10 @@ const ComboDetail = () => {
   /* Gallery State */
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showSizeGuide, setShowSizeGuide] = useState(false);
 
   /* Selections per piece: { 1: { color: 'Black', size: 'M' }, 2: { color: 'Black', size: 'M' } } */
   const [pieceSelections, setPieceSelections] = useState({});
-  const [globalComboSize, setGlobalComboSize] = useState('M');
+  const [removedPieceIndices, setRemovedPieceIndices] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
   const [validationError, setValidationError] = useState('');
@@ -60,6 +59,7 @@ const ComboDetail = () => {
     const loadData = async () => {
       setLoading(true);
       setValidationError('');
+      setRemovedPieceIndices([]);
       try {
         const [comboRes, combosListRes, productsRes] = await Promise.all([
           getComboById(id),
@@ -83,10 +83,28 @@ const ComboDetail = () => {
         }
 
         if (targetCombo) {
-          setCombo(targetCombo);
+          // Normalize items to guarantee valid, unique numerical pieceIndex (1-indexed)
+          const normalizedItems = (targetCombo.items || []).map((item, idx) => ({
+            ...item,
+            pieceIndex: Number(item.pieceIndex ?? (idx + 1)),
+            sizes: (item.sizes && item.sizes.length > 0) ? item.sizes : (
+              item.name.toLowerCase().includes('trouser') || item.name.toLowerCase().includes('pant') || item.name.toLowerCase().includes('jean') || item.name.toLowerCase().includes('shirt slick') || item.name.toLowerCase().includes('slick')
+                ? ['30', '32', '34', '36', '38']
+                : item.name.toLowerCase().includes('blazer') || item.name.toLowerCase().includes('suit')
+                ? ['38', '40', '42', '44', '46']
+                : ['S', 'M', 'L', 'XL', 'XXL']
+            )
+          }));
+
+          const normalizedCombo = {
+            ...targetCombo,
+            items: normalizedItems
+          };
+
+          setCombo(normalizedCombo);
           setActiveImgIndex(0);
           const initial = {};
-          targetCombo.items?.forEach(item => {
+          normalizedItems.forEach((item) => {
             initial[item.pieceIndex] = {
               color: item.colors?.[0]?.name || 'Standard',
               size: item.sizes?.[0] || 'M'
@@ -107,12 +125,57 @@ const ComboDetail = () => {
     loadData();
   }, [id]);
 
+  /* ── Combo Piece Removal & Dynamic Pricing Calculations ───────── */
+  const totalComboPieces = combo?.items?.length || combo?.pieces_count || 0;
+  // 2-piece combo: no removal allowed. 3-piece: up to 1 item. 4-piece: up to 2 items.
+  const maxRemovablePieces = totalComboPieces >= 3 ? Math.min(2, Math.max(0, totalComboPieces - 2)) : 0;
+  const canRemoveMore = removedPieceIndices.length < maxRemovablePieces;
+
+  const includedItems = (combo?.items || []).filter(
+    item => !removedPieceIndices.includes(Number(item.pieceIndex))
+  );
+  const includedCount = includedItems.length;
+
+  // Base prices
+  const baseOfferPrice = Number(combo?.offer_price || 0);
+  const baseOriginalPrice = Number(combo?.original_price || combo?.offer_price || 0);
+
+  // Proportional price calculation for included items
+  const activeOfferPrice = totalComboPieces > 0
+    ? Math.round((baseOfferPrice / totalComboPieces) * includedCount)
+    : baseOfferPrice;
+
+  const activeOriginalPrice = totalComboPieces > 0
+    ? Math.round((baseOriginalPrice / totalComboPieces) * includedCount)
+    : baseOriginalPrice;
+
+  const discountPercent = calculateDiscount(activeOriginalPrice, activeOfferPrice);
+
+  const toggleRemovePiece = (pieceIdx) => {
+    const targetIdx = Number(pieceIdx);
+    if (removedPieceIndices.includes(targetIdx)) {
+      // Re-include piece
+      setRemovedPieceIndices(prev => prev.filter(idx => Number(idx) !== targetIdx));
+      setValidationError('');
+    } else {
+      // Check restriction: cannot remove more than maxRemovablePieces (at most 2)
+      if (removedPieceIndices.length >= maxRemovablePieces) {
+        setValidationError(`You can remove a maximum of ${maxRemovablePieces} items from this combo set.`);
+        setTimeout(() => setValidationError(''), 4000);
+        return;
+      }
+      setRemovedPieceIndices(prev => [...prev, targetIdx]);
+      setValidationError('');
+    }
+  };
+
   /* Handlers for per-piece selections */
   const handleSelectColor = (pieceIndex, colorName) => {
+    const pIdx = Number(pieceIndex);
     setPieceSelections(prev => ({
       ...prev,
-      [pieceIndex]: {
-        ...prev[pieceIndex],
+      [pIdx]: {
+        ...(prev[pIdx] || {}),
         color: colorName
       }
     }));
@@ -120,30 +183,15 @@ const ComboDetail = () => {
   };
 
   const handleSelectSize = (pieceIndex, sizeVal) => {
+    const pIdx = Number(pieceIndex);
     setPieceSelections(prev => ({
       ...prev,
-      [pieceIndex]: {
-        ...prev[pieceIndex],
+      [pIdx]: {
+        ...(prev[pIdx] || {}),
         size: sizeVal
       }
     }));
     setValidationError('');
-  };
-
-  /* Helper to apply a size preset across all pieces */
-  const handleApplyGlobalSize = (sizeVal) => {
-    setGlobalComboSize(sizeVal);
-    if (!combo || !combo.items) return;
-    const updated = { ...pieceSelections };
-    combo.items.forEach(item => {
-      if (item.sizes && item.sizes.includes(sizeVal)) {
-        updated[item.pieceIndex] = {
-          ...updated[item.pieceIndex],
-          size: sizeVal
-        };
-      }
-    });
-    setPieceSelections(updated);
   };
 
   const handleQuantityChange = (delta) => {
@@ -170,52 +218,64 @@ const ComboDetail = () => {
   const handleAddToCart = () => {
     if (!combo) return;
 
-    // Validate that all pieces have color & size selected
-    for (const item of combo.items || []) {
-      const sel = pieceSelections[item.pieceIndex];
-      if (!sel || !sel.size) {
-        setValidationError(`Please select a size for ${item.name}`);
-        return;
-      }
+    if (includedItems.length === 0) {
+      setValidationError('At least 1 item must remain in the combo.');
+      return;
+    }
 
-      // Check stock
+    // Validate only the INCLUDED pieces
+    for (const item of includedItems) {
+      const pIdx = Number(item.pieceIndex);
+      const sel = pieceSelections[pIdx] || {};
+      const chosenSize = sel.size || item.sizes?.[0] || 'M';
+
+      // Check explicit out of stock if catalog product exists
       const targetProd = productsCatalog.find(p => String(p.id) === String(item.productId) || p.name === item.name);
-      if (targetProd) {
-        const stock = getVariantStock(targetProd, sel.color, sel.size);
-        if (stock <= 0) {
-          setValidationError(`Cannot add to bag: ${item.name} (${sel.size}) is OUT OF STOCK. Please choose an available size.`);
+      if (targetProd && targetProd.inventory && Object.keys(targetProd.inventory).length > 0) {
+        const stock = getVariantStock(targetProd, sel.color || 'Standard', chosenSize);
+        if (stock <= 0 && targetProd.inventory[`Standard-${chosenSize}`] === 0) {
+          setValidationError(`Cannot add to bag: ${item.name} (${chosenSize}) is OUT OF STOCK. Please choose an available size.`);
           return;
         }
       }
     }
 
-    const selectedPiecesSummary = combo.items.map(item => {
-      const sel = pieceSelections[item.pieceIndex];
+    const selectedPiecesSummary = includedItems.map(item => {
+      const pIdx = Number(item.pieceIndex);
+      const sel = pieceSelections[pIdx] || {};
       return {
-        pieceIndex: item.pieceIndex,
-        pieceLabel: item.pieceLabel || `Piece ${item.pieceIndex}`,
+        pieceIndex: pIdx,
+        pieceLabel: item.pieceLabel || `Piece ${pIdx}`,
         productId: item.productId,
         name: item.name,
-        color: sel?.color || 'Standard',
-        size: sel?.size || 'M'
+        color: sel.color || 'Standard',
+        size: sel.size || item.sizes?.[0] || 'M'
       };
     });
 
     const comboCartItem = {
       id: `${combo.id}-${Date.now()}`,
       comboId: combo.id,
-      name: combo.name,
-      price: combo.offer_price,
-      originalPrice: combo.original_price,
+      name: removedPieceIndices.length > 0 
+        ? `${combo.name} (${includedCount}-Piece Set)` 
+        : combo.name,
+      price: activeOfferPrice,
+      originalPrice: activeOriginalPrice,
       image: combo.images?.[0] || '',
       badge: combo.badge || '',
       isCombo: true,
+      isCustomizedCombo: removedPieceIndices.length > 0,
+      removedPiecesCount: removedPieceIndices.length,
+      totalPieces: totalComboPieces,
       selectedPieces: selectedPiecesSummary
     };
 
     addToCart(comboCartItem, quantity);
     setAddedToast(true);
     setTimeout(() => setAddedToast(false), 3500);
+    if (typeof setIsCartOpen === 'function') {
+      setIsCartOpen(true);
+    }
   };
 
   if (loading) {
@@ -239,7 +299,6 @@ const ComboDetail = () => {
 
   const comboImages = combo.images?.length > 0 ? combo.images : [];
   const currentMainImg = comboImages[activeImgIndex] || comboImages[0] || '';
-  const discountPercent = calculateDiscount(combo.original_price, combo.offer_price);
   const isWishlisted = wishlist.some(item => item && String(item.id) === String(combo.id));
   const relatedCombos = allCombos
     .filter(rel => String(rel.id) !== String(combo.id) && String(rel.slug || '') !== String(combo.slug || ''))
@@ -266,6 +325,14 @@ const ComboDetail = () => {
           relatedCombos={relatedCombos}
           productsCatalog={productsCatalog}
           pieceSelections={pieceSelections}
+          removedPieceIndices={removedPieceIndices}
+          toggleRemovePiece={toggleRemovePiece}
+          maxRemovablePieces={maxRemovablePieces}
+          canRemoveMore={canRemoveMore}
+          activeOfferPrice={activeOfferPrice}
+          activeOriginalPrice={activeOriginalPrice}
+          includedCount={includedCount}
+          totalComboPieces={totalComboPieces}
           handleSelectColor={handleSelectColor}
           handleSelectSize={handleSelectSize}
           quantity={quantity}
@@ -274,7 +341,6 @@ const ComboDetail = () => {
           toggleWishlist={toggleWishlist}
           isWishlisted={isWishlisted}
           validationError={validationError}
-          setShowSizeGuide={setShowSizeGuide}
         />
       </div>
 
@@ -284,7 +350,7 @@ const ComboDetail = () => {
         {/* Toast Banner */}
         {addedToast && (
           <div className="combo-added-toast">
-            <FiCheck className="fs-5" /> Added Complete {combo.pieces_count || combo.items?.length || 5}-Piece Combo to Your Bag!
+            <FiCheck className="fs-5" /> Added {includedCount}-Piece Combo Set to Your Bag!
           </div>
         )}
 
@@ -414,12 +480,17 @@ const ComboDetail = () => {
 
               {/* Price Block */}
               <div className="c-pdp-price-block">
-                <span className="c-pdp-current-price">{formatPrice(combo.offer_price)}</span>
-                {combo.original_price && (
-                  <span className="c-pdp-original-price">{formatPrice(combo.original_price)}</span>
+                <span className="c-pdp-current-price">{formatPrice(activeOfferPrice)}</span>
+                {activeOriginalPrice > 0 && (
+                  <span className="c-pdp-original-price">{formatPrice(activeOriginalPrice)}</span>
                 )}
                 {discountPercent > 0 && (
                   <span className="c-pdp-off-tag">{discountPercent}% OFF</span>
+                )}
+                {removedPieceIndices.length > 0 && (
+                  <span className="badge bg-warning text-dark px-2 py-1 ms-2 font-weight-bold">
+                    Custom {includedCount}-Piece Set
+                  </span>
                 )}
               </div>
               <p className="c-pdp-tax-note">Inclusive of all taxes</p>
@@ -437,19 +508,39 @@ const ComboDetail = () => {
                   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
               <div className="c-pdp-includes-card">
                 <div className="c-pdp-includes-header">
-                  <span className="c-pdp-includes-title">
-                    Combo Includes <strong>({combo.items?.length || combo.pieces_count || 5} Items)</strong>
-                  </span>
+                  <div className="c-pdp-includes-header-text">
+                    <span className="c-pdp-includes-title">
+                      Combo Includes <strong>({includedCount}/{totalComboPieces} Items Selected)</strong>
+                    </span>
+                    {totalComboPieces >= 3 && (
+                      <span className="c-pdp-remove-hint">
+                        {removedPieceIndices.length === 0
+                          ? `• You can remove up to ${maxRemovablePieces} item${maxRemovablePieces > 1 ? 's' : ''} if not needed`
+                          : `• ${removedPieceIndices.length}/${maxRemovablePieces} Items Removed (${formatPrice(baseOfferPrice - activeOfferPrice)} reduced)`}
+                      </span>
+                    )}
+                  </div>
+                  {removedPieceIndices.length > 0 && (
+                    <button
+                      type="button"
+                      className="c-pdp-reset-combo-btn"
+                      onClick={() => setRemovedPieceIndices([])}
+                    >
+                      <FiRefreshCw className="me-1" /> Reset All Items
+                    </button>
+                  )}
                 </div>
 
                 <div className="c-pdp-items-list">
                   {combo.items?.map((item, idx) => {
-                    const sel = pieceSelections[item.pieceIndex] || {};
+                    const pIdx = Number(item.pieceIndex);
+                    const isRemoved = removedPieceIndices.includes(pIdx);
+                    const sel = pieceSelections[pIdx] || {};
                     const targetProd = productsCatalog.find(p => String(p.id) === String(item.productId) || p.name === item.name);
                     const itemImg = item.image || (targetProd && targetProd.images?.[0]) || combo.images?.[idx] || '';
 
                     return (
-                      <div key={item.pieceIndex || idx} className="c-pdp-item-row">
+                      <div key={pIdx || idx} className={`c-pdp-item-row ${isRemoved ? 'removed' : ''}`}>
                         {/* Left: Thumbnail & Info */}
                         <div className="c-pdp-item-left">
                           <div className="c-pdp-item-thumb">
@@ -458,73 +549,83 @@ const ComboDetail = () => {
                             ) : (
                               <div className="c-pdp-item-thumb-placeholder" />
                             )}
+                            {isRemoved && (
+                              <div className="c-pdp-item-thumb-removed-overlay">
+                                <FiX />
+                              </div>
+                            )}
                           </div>
                           <div className="c-pdp-item-meta">
-                            <h4 className="c-pdp-item-name">{item.name}</h4>
-                            <div className="c-pdp-item-specs-summary">
-                              <span>Size: <strong>{sel.size || 'M'}</strong></span>
-                              <span className="c-pdp-meta-sep">|</span>
-                              <span>Qty: <strong>1</strong></span>
+                            <div className="d-flex align-items-center gap-2 flex-wrap">
+                              <h4 className={`c-pdp-item-name ${isRemoved ? 'text-decoration-line-through text-muted' : ''}`}>{item.name}</h4>
+                              {isRemoved && <span className="c-pdp-removed-badge">REMOVED FROM SET</span>}
                             </div>
+                            {!isRemoved ? (
+                              <div className="c-pdp-item-specs-summary">
+                                <span>Size: <strong>{sel.size || item.sizes?.[0] || 'M'}</strong></span>
+                                <span className="c-pdp-meta-sep">|</span>
+                                <span>Qty: <strong>1</strong></span>
+                              </div>
+                            ) : (
+                              <div className="c-pdp-item-specs-summary text-muted">
+                                <span>Item excluded from bundle price</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        {/* Right: Per-Item Size Selector Buttons */}
+                        {/* Right: Per-Item Size Selector Buttons or Re-Add Button */}
                         <div className="c-pdp-item-right">
-                          <span className="c-pdp-item-size-lbl">
-                            Size <FiInfo title="Select size for this item" />
-                          </span>
-                          <div className="c-pdp-item-size-pills">
-                            {(item.sizes || ['S', 'M', 'L', 'XL', 'XXL']).map((sz, sIdx) => {
-                              const szStock = targetProd ? getVariantStock(targetProd, sel.color, sz) : 10;
-                              const isOut = szStock <= 0;
-                              return (
-                                <button
-                                  key={sIdx}
-                                  type="button"
-                                  className={`c-pdp-item-size-pill ${sel.size === sz ? 'active' : ''} ${isOut ? 'out-of-stock' : ''}`}
-                                  onClick={() => handleSelectSize(item.pieceIndex, sz)}
-                                  disabled={isOut}
-                                >
-                                  {sz}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {!isRemoved ? (
+                            <>
+                              <div className="d-flex align-items-center justify-content-between w-100 mb-1 gap-3">
+                                <span className="c-pdp-item-size-lbl">
+                                  Size <FiInfo title="Select size for this item" />
+                                </span>
+                                {totalComboPieces >= 3 && (
+                                  <button
+                                    type="button"
+                                    className={`c-pdp-item-remove-btn ${!canRemoveMore ? 'disabled' : ''}`}
+                                    onClick={() => toggleRemovePiece(pIdx)}
+                                    title={canRemoveMore ? "Remove this item from combo" : `Maximum ${maxRemovablePieces} items removed`}
+                                    disabled={!canRemoveMore}
+                                  >
+                                    <FiTrash2 /> Remove Piece
+                                  </button>
+                                )}
+                              </div>
+                              <div className="c-pdp-item-size-pills">
+                                {(item.sizes || ['S', 'M', 'L', 'XL', 'XXL']).map((sz, sIdx) => {
+                                  const szStock = targetProd ? getVariantStock(targetProd, sel.color, sz) : 10;
+                                  const isOut = szStock <= 0;
+                                  const activeSize = sel.size || item.sizes?.[0] || 'M';
+                                  return (
+                                    <button
+                                      key={sIdx}
+                                      type="button"
+                                      className={`c-pdp-item-size-pill ${activeSize === sz ? 'active' : ''} ${isOut ? 'out-of-stock' : ''}`}
+                                      onClick={() => handleSelectSize(pIdx, sz)}
+                                      disabled={isOut}
+                                    >
+                                      {sz}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              className="c-pdp-item-readd-btn"
+                              onClick={() => toggleRemovePiece(pIdx)}
+                            >
+                              <FiPlus /> Include Back to Set
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
                   })}
-                </div>
-              </div>
-
-              {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                  GLOBAL COMBO SIZE SELECTOR (Shortcut)
-                  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-              <div className="c-pdp-global-size-row">
-                <div className="c-pdp-global-size-header">
-                  <span className="c-pdp-global-size-title">
-                    Choose Combo Size <FiInfo title="Applies size to all items in this combo" />
-                  </span>
-                  <button
-                    type="button"
-                    className="c-pdp-size-guide-btn"
-                    onClick={() => setShowSizeGuide(true)}
-                  >
-                    <FiEdit3 /> Size Guide
-                  </button>
-                </div>
-                <div className="c-pdp-global-size-pills">
-                  {['S', 'M', 'L', 'XL', 'XXL'].map(sz => (
-                    <button
-                      key={sz}
-                      type="button"
-                      className={`c-pdp-global-size-pill ${globalComboSize === sz ? 'active' : ''}`}
-                      onClick={() => handleApplyGlobalSize(sz)}
-                    >
-                      {sz}
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -782,43 +883,6 @@ const ComboDetail = () => {
           </div>
         )}
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            SIZE GUIDE MODAL
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {showSizeGuide && (
-          <div className="c-pdp-size-modal-overlay" onClick={() => setShowSizeGuide(false)}>
-            <div className="c-pdp-size-modal-box" onClick={(e) => e.stopPropagation()}>
-              <div className="c-pdp-size-modal-header">
-                <h3>Combo Size Chart Guide</h3>
-                <button
-                  type="button"
-                  className="c-pdp-modal-close-btn"
-                  onClick={() => setShowSizeGuide(false)}
-                >
-                  <FiX />
-                </button>
-              </div>
-              <table className="c-pdp-size-table">
-                <thead>
-                  <tr>
-                    <th>Size</th>
-                    <th>Blazer (Chest)</th>
-                    <th>Shirt (Chest)</th>
-                    <th>Trousers (Waist)</th>
-                    <th>Shoes (UK)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><td>S</td><td>38"</td><td>38"</td><td>30"</td><td>7</td></tr>
-                  <tr><td>M</td><td>40"</td><td>40"</td><td>32"</td><td>8</td></tr>
-                  <tr><td>L</td><td>42"</td><td>42"</td><td>34"</td><td>9</td></tr>
-                  <tr><td>XL</td><td>44"</td><td>44"</td><td>36"</td><td>10</td></tr>
-                  <tr><td>XXL</td><td>46"</td><td>46"</td><td>38"</td><td>11</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   </>

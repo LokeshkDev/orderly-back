@@ -7,66 +7,80 @@ const VIDEO_FILMS_SETTING_KEY = 'video_films';
 export const HOMEPAGE_SECTION_DEFAULTS = [
   {
     section_key: 'hero_carousel',
-    title: 'Hero Carousel & Trust Bar',
+    title: 'Hero Carousel',
     subtitle: 'PREMIUM MEN\'S WEAR',
     is_visible: true,
     display_order: 1
+  },
+  {
+    section_key: 'trust_features',
+    title: 'Trust & Service Features Bar',
+    subtitle: 'Free Shipping, Easy Returns, Premium Quality & Support',
+    is_visible: true,
+    display_order: 2
   },
   {
     section_key: 'shop_by_category',
     title: 'DISCOVER YOUR STYLE',
     subtitle: 'EXPLORE COLLECTIONS',
     is_visible: true,
-    display_order: 2
+    display_order: 3
+  },
+  {
+    section_key: 'combo_categories',
+    title: 'EXPLORE COMBO CATEGORIES',
+    subtitle: 'CURATED COMBO SETS',
+    is_visible: true,
+    display_order: 4
   },
   {
     section_key: 'trending_arrivals',
     title: 'BEST SELLING PRODUCTS',
     subtitle: 'TRENDING NOW',
     is_visible: true,
-    display_order: 3
+    display_order: 5
   },
   {
     section_key: 'promo_offers',
     title: 'Promotional Offers Area',
     subtitle: 'Combo offers, 50% Off banner, New arrivals',
     is_visible: true,
-    display_order: 4
+    display_order: 6
   },
   {
     section_key: 'lookbook_banner',
     title: 'The Lookbook Editorial',
     subtitle: 'Large luxury editorial campaign banner',
     is_visible: true,
-    display_order: 5
+    display_order: 7
   },
   {
     section_key: 'newsletter_section',
     title: 'Newsletter VIP Club',
     subtitle: 'STAY IN THE LOOP',
     is_visible: true,
-    display_order: 6
+    display_order: 8
   },
   {
     section_key: 'video_banner',
     title: 'Video Campaign Banner',
     subtitle: 'Homepage video campaign',
     is_visible: false,
-    display_order: 7
+    display_order: 9
   },
   {
     section_key: 'shop_by_occasion',
     title: 'Shop By Occasion',
     subtitle: 'Occasion-based shopping',
     is_visible: false,
-    display_order: 8
+    display_order: 10
   },
   {
     section_key: 'featured_brands',
     title: 'Catchy Combo Bundles',
     subtitle: 'Curated Multi-Piece Sets',
     is_visible: false,
-    display_order: 9
+    display_order: 11
   }
 ];
 
@@ -78,17 +92,6 @@ const ensureDefaults = async () => {
       const existing = await HomepageSection.findOne({ where: { section_key: defSec.section_key } });
       if (!existing) {
         await HomepageSection.create(defSec);
-      } else {
-        // Sync default sections if order was uninitialized or old defaults
-        if (defSec.section_key === 'trending_arrivals' && existing.display_order > 3) {
-          await existing.update({ display_order: 3 });
-        } else if (defSec.section_key === 'video_banner' && existing.display_order <= 3) {
-          await existing.update({ display_order: 7, is_visible: false });
-        } else if (defSec.section_key === 'shop_by_occasion' && existing.display_order <= 4) {
-          await existing.update({ display_order: 8, is_visible: false });
-        } else if (defSec.section_key === 'featured_brands' && existing.display_order <= 6) {
-          await existing.update({ display_order: 9, is_visible: false });
-        }
       }
     }
   } catch (err) {}

@@ -17,7 +17,7 @@ const DEFAULT_PROMOS = {
     subtitle: 'On Selected Items',
     buttonText: 'SHOP NOW',
     buttonLink: '/shop',
-    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1200&auto=format&fit=crop'
+    image: ''
   },
   block3: {
     title: 'NEW ARRIVALS',
@@ -77,12 +77,20 @@ const PromoSection = () => {
           {/* Block 2: Main Video Banner */}
           <div className="col-lg-6 col-md-12">
             <div className="promo-center-banner">
+              {!b2.image && (
+                <div
+                  className="promo-banner-video orderly-img-fallback"
+                  style={{ position: 'absolute', inset: 0, zIndex: -1 }}
+                >
+                  ORDERLY
+                </div>
+              )}
               <video
                 autoPlay
                 loop
                 muted
                 playsInline
-                poster={b2.image || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1200&auto=format&fit=crop'}
+                poster={b2.image || ''}
                 className="promo-banner-video"
               >
                 <source

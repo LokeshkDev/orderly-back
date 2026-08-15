@@ -47,11 +47,15 @@ const AboutUs = () => {
           <div className="row g-5 align-items-center">
             <div className="col-lg-6 fade-in-left">
               <div className="about-image-card-wrapper position-relative">
-                <img
-                  src={settings?.about_us_image || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1200&auto=format&fit=crop'}
-                  alt="ORDERLY Atelier Studio"
-                  className="about-main-img img-fluid rounded-4 shadow-2xl"
-                />
+                {settings?.about_us_image ? (
+                  <img
+                    src={settings?.about_us_image || ''}
+                    alt="ORDERLY Atelier Studio"
+                    className="about-main-img img-fluid rounded-4 shadow-2xl"
+                  />
+                ) : (
+                  <div className="orderly-img-fallback" style={{ height: '100%', minHeight: '280px' }}>ORDERLY</div>
+                )}
                 <div className="about-img-overlay-card glass-panel">
                   <FiAward className="text-warning fs-1 mb-2" />
                   <h5 className="text-white fw-bold mb-1">100% Handcrafted</h5>

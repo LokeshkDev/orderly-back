@@ -29,11 +29,9 @@ const FeaturedBrands = ({ title, subtitle }) => {
 
     window.addEventListener('orderly_brands_updated', loadBrands);
     window.addEventListener('storage', loadBrands);
-    window.addEventListener('focus', loadBrands);
     return () => {
       window.removeEventListener('orderly_brands_updated', loadBrands);
       window.removeEventListener('storage', loadBrands);
-      window.removeEventListener('focus', loadBrands);
     };
   }, []);
 

@@ -9,7 +9,7 @@
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.3s ease;
-  padding: 12px 0;
+  padding: 1px 0;
 }
 
 @media (max-width: 767px) {
@@ -41,7 +41,7 @@
 }
 
 .brand-logo-img {
-  height: 42px;
+  height: 82px;
   width: auto;
   border-radius: 2px;
   object-fit: contain;

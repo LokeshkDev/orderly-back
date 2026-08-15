@@ -5,7 +5,7 @@
   .mobile-shop-hero {
     position: relative;
     height: 160px;
-    background: url('https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop') no-repeat center center / cover;
+    background: linear-gradient(135deg, #0b0b0f 0%, #1a1d24 100%) no-repeat center center / cover;
     display: flex;
     align-items: center;
     overflow: hidden;
@@ -17,36 +17,39 @@
     inset: 0;
     background: linear-gradient(
       90deg,
-      #050505 0%,
-      rgba(5, 5, 5, 0.88) 60%,
-      rgba(5, 5, 5, 0.5) 100%
+      rgba(5, 5, 5, 0.9) 0%,
+      rgba(5, 5, 5, 0.7) 60%,
+      rgba(5, 5, 5, 0.2) 100%
     );
     z-index: 1;
+    pointer-events: none;
   }
 
   .mobile-shop-hero-content {
     position: relative;
-    z-index: 2;
+    z-index: 10 !important;
     padding: 0 16px;
   }
 
   .mobile-hero-eyebrow {
-    color: #E50914;
-    font-size: 0.72rem;
+    color: #E50914 !important;
+    font-size: 0.76rem;
     font-weight: 800;
     letter-spacing: 0.14em;
     text-transform: uppercase;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   }
 
   .mobile-hero-title {
     font-family: 'Oswald', sans-serif;
-    font-size: 1.8rem;
+    font-size: 1.85rem;
     font-weight: 700;
-    color: #FFFFFF;
+    color: #FFFFFF !important;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     margin: 2px 0 4px;
     line-height: 1.1;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
   }
 
   .mobile-breadcrumb {

@@ -10,7 +10,7 @@
 /* 1. SHOP HERO / PAGE BANNER MATCHING REFERENCE SCREENSHOT */
 .shop-hero-banner {
   position: relative;
-  height: 220px;
+  height: 230px;
   background-color: #080808;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
@@ -23,43 +23,51 @@
   inset: 0;
   background: linear-gradient(
     90deg, 
-    #050505 0%, 
-    rgba(5, 5, 5, 0.9) 40%, 
-    rgba(5, 5, 5, 0.3) 100%
+    rgba(5, 5, 5, 0.95) 0%, 
+    rgba(5, 5, 5, 0.75) 40%, 
+    rgba(5, 5, 5, 0.2) 100%
   );
   z-index: 1;
+  pointer-events: none;
 }
 
 .shop-hero-bg-graphic {
   position: absolute;
   top: 0;
   right: 0;
-  width: 55%;
+  width: 60%;
   height: 100%;
-  background: url('https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1600&auto=format&fit=crop') no-repeat center right / cover;
-  filter: brightness(0.7);
+  background: linear-gradient(135deg, #0b0b0f 0%, #1a1d24 100%) no-repeat center right / cover;
+  filter: brightness(1) contrast(1.05);
   z-index: 0;
 }
 
+.shop-hero-content-wrap {
+  position: relative;
+  z-index: 10 !important;
+}
+
 .shop-hero-eyebrow {
-  color: #E50914;
-  font-size: 0.78rem;
+  color: #E50914 !important;
+  font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   display: block;
   margin-bottom: 4px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
 }
 
 .shop-hero-title {
   font-family: 'Oswald', sans-serif;
   font-size: clamp(2.2rem, 4vw, 3.5rem);
   font-weight: 700;
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  line-height: 1;
+  line-height: 1.05;
   margin-bottom: 8px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
 }
 
 /* Breadcrumb Styling */

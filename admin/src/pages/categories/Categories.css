@@ -36,6 +36,53 @@
   font-weight: 700;
 }
 
+/* ── Category Dual-Tab System ────────────────────────────────────── */
+.cat-tabs-container {
+  display: flex;
+  gap: 12px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0px;
+}
+
+.cat-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+}
+
+.cat-tab-btn:hover {
+  color: #0f172a;
+}
+
+.cat-tab-btn.active {
+  color: var(--admin-red, #e50914);
+  border-bottom-color: var(--admin-red, #e50914);
+}
+
+.cat-tab-counter {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.cat-tab-btn.active .cat-tab-counter {
+  background: rgba(229, 9, 20, 0.1);
+  color: var(--admin-red, #e50914);
+}
+
 /* Modal Popup Overlay - Full Width No Horizontal Scroll */
 .admin-modal-backdrop {
   position: fixed;

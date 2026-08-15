@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiInstagram, FiFacebook, FiYoutube, FiTwitter } from 'react-icons/fi';
 import { FaHeart } from 'react-icons/fa';
 import { getSettings } from '../../services/api';
-import logoImg from '../../assets/logo/logo.jpeg';
+import logoImg from '../../assets/logo/logo.png';
 import './Footer.css';
 
 const Footer = () => {

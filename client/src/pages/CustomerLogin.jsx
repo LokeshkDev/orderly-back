@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import SEO from '../components/common/SEO';
 import { customerLogin } from '../services/api';
-import logoImg from '../assets/logo/logo.jpeg';
+import logoImg from '../assets/logo/logo.png';
 import { FiMail, FiLock, FiArrowRight, FiShield, FiEye, FiEyeOff, FiCheck, FiChevronLeft } from 'react-icons/fi';
 import './AuthPages.css';
 

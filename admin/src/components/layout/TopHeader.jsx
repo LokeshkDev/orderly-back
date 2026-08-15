@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch, FiBell, FiChevronDown, FiUser, FiLogOut, FiShoppingBag, FiCheckCircle, FiX } from 'react-icons/fi';
+import { 
+  FiSearch, FiBell, FiChevronDown, FiUser, FiLogOut, FiShoppingBag, 
+  FiCheckCircle, FiX, FiMenu, FiSidebar
+} from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import './TopHeader.css';
 
-const TopHeader = () => {
+const TopHeader = ({ isSidebarCollapsed, onToggleSidebar, onToggleMobileSidebar }) => {
   const navigate = useNavigate();
   const { admin, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -61,19 +64,40 @@ const TopHeader = () => {
     } catch (e) {}
   };
 
+  const handleToggleClick = () => {
+    if (window.innerWidth < 992) {
+      onToggleMobileSidebar();
+    } else {
+      onToggleSidebar();
+    }
+  };
+
   return (
     <header className="admin-top-header">
-      {/* Search Input Box */}
-      <div className="header-search-container">
-        <FiSearch className="search-icon" />
-        <input 
-          type="text" 
-          placeholder="Search orders, products..."
-          className="header-search-input"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') navigate(`/orders?search=${e.target.value}`);
-          }}
-        />
+      {/* Left Header: Single Toggle Sidebar Button + Search */}
+      <div className="d-flex align-items-center gap-3">
+        <button 
+          type="button" 
+          className="sidebar-toggle-btn"
+          onClick={handleToggleClick}
+          title={isSidebarCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Ctrl+B)"}
+          aria-label="Toggle Sidebar"
+        >
+          <FiMenu />
+        </button>
+
+        {/* Search Input Box */}
+        <div className="header-search-container">
+          <FiSearch className="search-icon" />
+          <input 
+            type="text" 
+            placeholder="Search orders, products..."
+            className="header-search-input"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') navigate(`/orders?search=${e.target.value}`);
+            }}
+          />
+        </div>
       </div>
 
       {/* Right Header Actions */}
@@ -139,28 +163,41 @@ const TopHeader = () => {
           )}
         </div>
 
-        {/* Admin Profile Dropdown */}
-        <div className="admin-user-dropdown-wrapper">
+        {/* User Profile Dropdown */}
+        <div className="position-relative">
           <button 
-            className="user-profile-btn"
+            className="header-profile-btn d-flex align-items-center gap-2"
             onClick={() => setShowProfileMenu(!showProfileMenu)}
           >
-            <div className="avatar-circle">
+            <div className="admin-avatar-circle">
               <FiUser />
             </div>
-            <span className="user-name-text">{admin?.name || 'Super Admin'}</span>
-            <FiChevronDown className="chevron-icon" />
+            <div className="d-none d-sm-flex flex-column text-start">
+              <span className="profile-name">{admin?.name || 'Super Admin'}</span>
+              <span className="profile-role">Administrator</span>
+            </div>
+            <FiChevronDown className="dropdown-arrow" />
           </button>
 
           {showProfileMenu && (
-            <div className="profile-dropdown-menu">
-              <div className="dropdown-user-header">
-                <strong>{admin?.name || 'Super Admin'}</strong>
-                <span className="text-muted small">admin@orderly.com</span>
+            <div className="admin-profile-dropdown-menu shadow-lg p-2 rounded-3">
+              <div className="px-3 py-2 border-bottom mb-1">
+                <strong className="text-dark d-block small">{admin?.name || 'Super Admin'}</strong>
+                <span className="text-muted extra-small">{admin?.email || 'admin@orderly.com'}</span>
               </div>
-              <hr className="my-1 border-secondary" />
-              <button className="dropdown-item text-danger" onClick={logout}>
-                <FiLogOut /> Logout
+              <button 
+                type="button" 
+                className="admin-dropdown-item w-100 text-start d-flex align-items-center gap-2"
+                onClick={() => { setShowProfileMenu(false); navigate('/settings'); }}
+              >
+                <FiUser /> Account Settings
+              </button>
+              <button 
+                type="button" 
+                className="admin-dropdown-item w-100 text-start text-danger d-flex align-items-center gap-2"
+                onClick={() => { setShowProfileMenu(false); logout(); }}
+              >
+                <FiLogOut /> Logout Session
               </button>
             </div>
           )}

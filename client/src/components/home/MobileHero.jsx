@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination } from 'swiper/modules';
 import { getHeroSlides } from '../../services/api';
-import heroAsset from '../../assets/hero.png';
 import 'swiper/css';
 import 'swiper/css/pagination';
 
@@ -13,7 +12,7 @@ const DEFAULT_MOBILE_SLIDES = [
     subtitle: "— PREMIUM MEN'S WEAR",
     title: "OWN YOUR\nSTYLE",
     desc: "Premium menswear crafted for confidence, comfort and timeless style.",
-    image: heroAsset || "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop",
+    image: '',
     ctaPrimary: "SHOP NOW",
     ctaPrimaryLink: "/shop",
     ctaSecondary: "EXPLORE COLLECTIONS",
@@ -24,7 +23,7 @@ const DEFAULT_MOBILE_SLIDES = [
     subtitle: "— NEW SEASON CAPSULE",
     title: "ROYAL FAMILY\nCOMBOS",
     desc: "Create everlasting family memories with coordinated ethnic & wedding combos.",
-    image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop",
+    image: '',
     ctaPrimary: "EXPLORE COMBOS",
     ctaPrimaryLink: "/combos",
     ctaSecondary: "SHOP NOW",
@@ -46,7 +45,7 @@ const MobileHero = () => {
               const rawImg = slide.mobile_image_url || slide.image_url || slide.image;
               const validImg = (rawImg && rawImg.length > 10)
                 ? rawImg
-                : (DEFAULT_MOBILE_SLIDES[idx % DEFAULT_MOBILE_SLIDES.length]?.image || "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop");
+                : (DEFAULT_MOBILE_SLIDES[idx % DEFAULT_MOBILE_SLIDES.length]?.image || '');
 
               return {
                 id: slide.id,
@@ -92,7 +91,11 @@ const MobileHero = () => {
           return (
             <SwiperSlide key={slide.id}>
               <div className="mobile-hero-card">
-                <img src={slide.image} alt={slide.title} className="mobile-hero-img" />
+                {slide.image ? (
+                  <img src={slide.image} alt={slide.title} className="mobile-hero-img" />
+                ) : (
+                  <div className="orderly-hero-fallback">ORDERLY</div>
+                )}
                 <div className="mobile-hero-overlay" />
 
                 <div className="mobile-hero-content">

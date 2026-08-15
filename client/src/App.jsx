@@ -16,6 +16,7 @@ import BottomNavbar from './components/common/BottomNavbar';
 import Footer from './components/common/Footer';
 import CartDrawer from './components/cart/CartDrawer';
 import QuickViewModal from './components/product/QuickViewModal';
+import PageLoader from './components/common/PageLoader';
 
 // Pages
 import Home from './pages/Home';
@@ -86,6 +87,7 @@ function App() {
             <QuickViewProvider>
               <Router>
                 <ScrollToTop />
+                <PageLoader />
                 <AppLayout />
               </Router>
             </QuickViewProvider>

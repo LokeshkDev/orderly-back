@@ -1,57 +1,101 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MobileHeader from '../components/common/MobileHeader';
 import MobileMenu from '../components/common/MobileMenu';
 import MobileHero from '../components/home/MobileHero';
 import MobileTrustFeatures from '../components/home/MobileTrustFeatures';
 import MobileCategories from '../components/home/MobileCategories';
+import MobileComboCategories from '../components/home/MobileComboCategories';
 import MobileProductGrid from '../components/home/MobileProductGrid';
 import MobilePromotions from '../components/home/MobilePromotions';
 import MobileLookbook from '../components/home/MobileLookbook';
 import MobileNewsletter from '../components/home/MobileNewsletter';
-import MobileCustomerReviews from '../components/home/MobileCustomerReviews';
 import MobileFooterAccordion from '../components/common/MobileFooterAccordion';
 import BottomNavbar from '../components/common/BottomNavbar';
+import { getHomepageSections } from '../services/api';
 import '../styles/MobileHomepage.css';
+
+const DEFAULT_MOBILE_SECTIONS = [
+  { section_key: 'hero_carousel', is_visible: true, display_order: 1 },
+  { section_key: 'trust_features', is_visible: true, display_order: 2 },
+  { section_key: 'shop_by_category', is_visible: true, display_order: 3 },
+  { section_key: 'combo_categories', is_visible: true, display_order: 4 },
+  { section_key: 'trending_arrivals', is_visible: true, display_order: 5 },
+  { section_key: 'promo_offers', is_visible: true, display_order: 6 },
+  { section_key: 'lookbook_banner', is_visible: true, display_order: 7 },
+  { section_key: 'newsletter_section', is_visible: true, display_order: 8 }
+];
 
 const MobileHomepage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [sections, setSections] = useState(DEFAULT_MOBILE_SECTIONS);
+
+  const fetchSections = async () => {
+    try {
+      const res = await getHomepageSections();
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const sorted = [...res.data].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+        setSections(sorted);
+      } else {
+        setSections(DEFAULT_MOBILE_SECTIONS);
+      }
+    } catch (err) {
+      setSections(DEFAULT_MOBILE_SECTIONS);
+    }
+  };
+
+  useEffect(() => {
+    fetchSections();
+
+    const handleUpdated = () => fetchSections();
+    window.addEventListener('orderly_homepage_sections_updated', handleUpdated);
+    window.addEventListener('storage', handleUpdated);
+    return () => {
+      window.removeEventListener('orderly_homepage_sections_updated', handleUpdated);
+      window.removeEventListener('storage', handleUpdated);
+    };
+  }, []);
+
+  const visibleSections = sections.filter(sec => sec.is_visible !== false);
+  const renderList = visibleSections.length > 0 ? visibleSections : DEFAULT_MOBILE_SECTIONS;
+
+  const renderMobileComponent = (sec) => {
+    switch (sec.section_key) {
+      case 'hero_carousel':
+        return <MobileHero key={sec.section_key} />;
+      case 'trust_features':
+        return <MobileTrustFeatures key={sec.section_key} />;
+      case 'shop_by_category':
+        return <MobileCategories key={sec.section_key} />;
+      case 'combo_categories':
+        return <MobileComboCategories key={sec.section_key} />;
+      case 'trending_arrivals':
+        return <MobileProductGrid key={sec.section_key} />;
+      case 'promo_offers':
+        return <MobilePromotions key={sec.section_key} />;
+      case 'lookbook_banner':
+        return <MobileLookbook key={sec.section_key} />;
+      case 'newsletter_section':
+        return <MobileNewsletter key={sec.section_key} />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="mobile-app-wrapper mobile-only">
       {/* 1. Mobile App Header */}
       <MobileHeader onOpenMenu={() => setIsMenuOpen(true)} />
 
-      {/* 3. Mobile Slide-Out Drawer */}
+      {/* 2. Mobile Slide-Out Drawer */}
       <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 
-      {/* 4. Mobile Hero Slider */}
-      <MobileHero />
+      {/* 3. Dynamically Ordered & Visible Sections */}
+      {renderList.map(sec => renderMobileComponent(sec))}
 
-      {/* 5. Trust / Service Features */}
-      <MobileTrustFeatures />
-
-      {/* 6. Discover Your Style (Horizontal Category Swipe) */}
-      <MobileCategories />
-
-      {/* 7. Best Selling Products (2-Column Grid) */}
-      <MobileProductGrid />
-
-      {/* 8. Stacked Promotions (Combo Offers, 50% OFF, New Arrivals) */}
-      <MobilePromotions />
-
-      {/* 9. Mobile Lookbook 2026 */}
-      <MobileLookbook />
-
-      {/* 10. Mobile Newsletter VIP Club */}
-      <MobileNewsletter />
-
-      {/* 11. Customer Reviews & Benefits Strips */}
-      <MobileCustomerReviews />
-
-      {/* 12. Mobile Collapsible Footer Accordion */}
+      {/* 4. Mobile Collapsible Footer Accordion */}
       <MobileFooterAccordion />
 
-      {/* 13. Fixed Mobile Bottom Navigation Bar */}
+      {/* 5. Fixed Mobile Bottom Navigation Bar */}
       <BottomNavbar />
     </div>
   );

@@ -10,6 +10,7 @@ export const verifyOrigin = (req, res, next) => {
 
   const origin = req.headers.origin || req.headers.referer;
   
+  // Allow requests without origin (server-to-server, curl, mobile apps)
   if (!origin) {
     return next();
   }
@@ -25,7 +26,19 @@ export const verifyOrigin = (req, res, next) => {
       }
     });
 
-    if (!isAllowed && process.env.NODE_ENV === 'production') {
+    // Also allow if origin hostname matches allowed origins (for subdomains)
+    const isAllowedHostname = allowedOrigins.some(allowed => {
+      try {
+        const allowedUrl = new URL(allowed);
+        return originUrl.hostname === allowedUrl.hostname || 
+               originUrl.hostname.endsWith('.' + allowedUrl.hostname);
+      } catch {
+        return false;
+      }
+    });
+
+    if (!isAllowed && !isAllowedHostname && process.env.NODE_ENV === 'production') {
+      console.warn('Origin blocked:', origin, 'Allowed:', allowedOrigins);
       return res.status(403).json({ 
         success: false, 
         message: 'Request origin not allowed' 

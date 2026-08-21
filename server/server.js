@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { sequelize } from './models/index.js';
 import Product from './models/Product.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -92,10 +93,26 @@ app.use(verifyOrigin);
 app.use(requireHttps);
 
 // Rate Limiting
+// General API limiter (applied first)
 app.use('/api/', apiLimiter);
+
+// Higher limits for admin panel routes (polling every 4s = 15 req/min)
+const adminApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500, // 500 req/15min for admin panel
+  message: { success: false, message: 'Too many admin requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: ipKeyGenerator,
+});
+app.use('/api/admin', adminApiLimiter);
+app.use('/api/orders', adminApiLimiter); // Allow admin to fetch orders frequently
+app.use('/api/dashboard', adminApiLimiter);
+
+// Auth & specific limiters
 app.use('/api/auth/login', authLimiter);
 app.use('/api/admin/login', authLimiter);
-app.use('/api/orders', orderCreateLimiter);
+app.use('/api/orders', orderCreateLimiter); // Only applies to POST (create)
 app.use('/api/upload', uploadLimiter);
 
 // Serve static uploaded media files

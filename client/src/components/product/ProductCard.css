@@ -35,7 +35,16 @@
   padding: 0;
 }
 
+/* Image wrapper for hover swap */
+.product-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .product-card-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -44,11 +53,26 @@
   margin: 0;
   padding: 0;
   border: none;
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .product-card:hover .product-card-img {
   transform: scale(1.06);
+}
+
+/* Hover image swap */
+.product-card-img.hover-hidden {
+  opacity: 0;
+}
+
+.hover-image {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hover-image.hover-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Top-Right Heart Wishlist Button */
@@ -145,7 +169,7 @@
 
 /* Product Card Body Info */
 .product-card-info {
-  padding: 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -154,11 +178,11 @@
 
 .product-name {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 600;
   color: #FFFFFF;
-  margin-bottom: 6px;
-  line-height: 1.3;
+  margin-bottom: 4px;
+  line-height: 1.25;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -168,6 +192,7 @@
 .product-name a {
   color: #FFFFFF;
   transition: color 0.2s ease;
+  text-decoration: none;
 }
 
 .product-name a:hover {
@@ -178,40 +203,40 @@
 .product-rating-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 5px;
+  margin-bottom: 6px;
 }
 
 .stars-gold {
   color: #EAB308;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   display: flex;
   gap: 2px;
 }
 
 .rating-count {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #A0A0A0;
 }
 
 /* Price */
 .product-price-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .current-price {
   font-family: 'Oswald', sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #E50914;
   letter-spacing: 0.02em;
 }
 
 .old-price {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   color: #666666;
   text-decoration: line-through;
 }
@@ -223,11 +248,11 @@
   color: #FFFFFF;
   border: 1px solid rgba(255, 255, 255, 0.15);
   font-family: 'Outfit', sans-serif;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 10px 0;
+  padding: 8px 0;
   border-radius: 2px;
   transition: all 0.2s ease;
   margin-top: auto;
@@ -244,4 +269,71 @@
 .btn-add-to-cart-card.disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Mobile Responsive Card Sizing (<768px) */
+@media (max-width: 767px) {
+  .product-card-media {
+    aspect-ratio: 3 / 4;
+  }
+
+  .card-wishlist-top-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+    top: 8px;
+    right: 8px;
+  }
+
+  .card-top-badge {
+    font-size: 0.58rem;
+    padding: 2px 6px;
+    top: 8px;
+    left: 8px;
+  }
+
+  .card-quickview-btn {
+    display: none !important;
+  }
+
+  .product-card-info {
+    padding: 8px 10px 10px;
+  }
+
+  .product-name {
+    font-size: 0.8rem;
+    margin-bottom: 2px;
+  }
+
+  .product-rating-row {
+    gap: 3px;
+    margin-bottom: 4px;
+  }
+
+  .stars-gold {
+    font-size: 0.65rem;
+  }
+
+  .rating-count {
+    font-size: 0.65rem;
+  }
+
+  .product-price-row {
+    margin-bottom: 6px;
+    gap: 4px;
+  }
+
+  .current-price {
+    font-size: 0.92rem;
+  }
+
+  .old-price {
+    font-size: 0.72rem;
+  }
+
+  .btn-add-to-cart-card {
+    font-size: 0.68rem;
+    padding: 6px 0;
+    letter-spacing: 0.04em;
+  }
 }

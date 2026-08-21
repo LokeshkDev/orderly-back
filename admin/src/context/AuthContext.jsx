@@ -3,7 +3,7 @@ import { api } from '../services/api';
 
 const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext) || { admin: { id: 1, name: 'Super Admin', email: 'admin@orderly.com' }, token: 'demo_admin_jwt_token_2026', loading: false };
+export const useAuth = () => useContext(AuthContext) || { admin: null, token: null, loading: false };
 
 export const AuthProvider = ({ children }) => {
   const [admin, setAdmin] = useState(null);
@@ -17,12 +17,15 @@ export const AuthProvider = ({ children }) => {
           const res = await api.get('/admin/me');
           if (res.data?.success) {
             setAdmin(res.data.data);
+          } else {
+            localStorage.removeItem('admin_token');
+            setToken('');
+            setAdmin(null);
           }
         } catch (error) {
-          // If server is offline or initializing, maintain session safely from token
-          if (token) {
-            setAdmin({ id: 1, name: 'Super Admin', email: 'admin@orderly.com', role: 'admin' });
-          }
+          localStorage.removeItem('admin_token');
+          setToken('');
+          setAdmin(null);
         }
       }
       setLoading(false);
@@ -34,8 +37,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await api.post('/admin/login', { email, password });
       if (res.data?.success) {
-        const newToken = res.data.token || res.data.data?.token || 'demo_admin_jwt_token_2026';
-        const adminData = res.data.data?.admin || { id: 1, name: 'Super Admin', email: 'admin@orderly.com', role: 'admin' };
+        const newToken = res.data.token || res.data.data?.token;
+        const adminData = res.data.data?.admin;
+        if (!newToken || !adminData) {
+          return { success: false, message: 'Invalid response from server' };
+        }
         localStorage.setItem('admin_token', newToken);
         setToken(newToken);
         setAdmin(adminData);
@@ -43,26 +49,28 @@ export const AuthProvider = ({ children }) => {
       }
       return res.data;
     } catch (err) {
-      // Local fallback if backend API server is offline
-      if (email === 'admin@orderly.com' && password === 'admin123') {
-        const fallbackToken = 'demo_admin_jwt_token_2026';
-        const fallbackAdmin = { id: 1, name: 'Super Admin', email: 'admin@orderly.com', role: 'admin' };
-        localStorage.setItem('admin_token', fallbackToken);
-        setToken(fallbackToken);
-        setAdmin(fallbackAdmin);
-        return { success: true, data: fallbackAdmin };
-      }
-      return { success: false, message: 'Invalid credentials or server offline' };
+      return { success: false, message: err.response?.data?.message || 'Login failed. Please check your credentials.' };
     }
   };
 
   const googleLogin = async (credential) => {
-    const fallbackToken = 'demo_admin_jwt_token_2026';
-    const fallbackAdmin = { id: 1, name: 'Super Admin', email: 'admin@orderly.com', role: 'admin' };
-    localStorage.setItem('admin_token', fallbackToken);
-    setToken(fallbackToken);
-    setAdmin(fallbackAdmin);
-    return { success: true, data: fallbackAdmin };
+    try {
+      const res = await api.post('/admin/google', { email: credential });
+      if (res.data?.success) {
+        const newToken = res.data.token || res.data.data?.token;
+        const adminData = res.data.data?.admin;
+        if (!newToken || !adminData) {
+          return { success: false, message: 'Invalid response from server' };
+        }
+        localStorage.setItem('admin_token', newToken);
+        setToken(newToken);
+        setAdmin(adminData);
+        return { success: true, data: adminData };
+      }
+      return res.data;
+    } catch (err) {
+      return { success: false, message: err.response?.data?.message || 'Google login failed' };
+    }
   };
 
   const logout = () => {

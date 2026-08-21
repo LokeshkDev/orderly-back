@@ -4,8 +4,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import { FiShoppingBag, FiArrowRight, FiPercent, FiCheck, FiChevronLeft, FiChevronRight, FiGrid, FiZap } from 'react-icons/fi';
 import { useCart } from '../../context/CartContext';
-import { toast } from 'react-toastify';
-import axios from 'axios';
+import { getCombos } from '../../services/api';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -13,43 +12,43 @@ import './CatchyCombosSection.css';
 
 const DEFAULT_CATCHY_COMBOS = [
   {
-    id: 'combo-1',
+    id: 'combo-001',
     name: 'Resort Linen & Selvedge Denim 2-Piece Bundle',
-    badge: 'SAVE 35% OFF',
+    badge: 'SAVE ₹2,299',
     pieces_count: 2,
-    original_price: 6999,
-    offer_price: 4499,
-    image: '',
+    original_price: 7798,
+    offer_price: 5499,
+    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=1000&auto=format&fit=crop',
     items: [
       { name: 'European Linen Resort Shirt', category: 'Shirts' },
       { name: 'Japanese Selvedge Raw Denim', category: 'Denim' }
     ]
   },
   {
-    id: 2,
-    name: 'Monochrome Oversized Tee & Cargo Pants Outfit',
-    badge: 'HOT BUNDLE DEAL',
-    pieces_count: 2,
-    original_price: 5499,
-    offer_price: 3699,
-    image: '',
+    id: 'combo-002',
+    name: 'Executive 3-Piece Italian Suit & Polo Box',
+    badge: 'LUXURY BUNDLE',
+    pieces_count: 3,
+    original_price: 13997,
+    offer_price: 9999,
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1000&auto=format&fit=crop',
     items: [
-      { name: 'Heavyweight Heavy Cotton Tee', category: 'Tees' },
-      { name: 'Tactical Multi-Pocket Cargo', category: 'Trousers' }
+      { name: 'Italian Merino Wool Blazer', category: 'Blazers' },
+      { name: 'European Linen Resort Shirt', category: 'Shirts' },
+      { name: 'Essential Cotton Crewneck Tee', category: 'Tops & T-Shirts' }
     ]
   },
   {
-    id: 3,
-    name: 'Italian Tailored Blazer & Chino 3-Piece Gentleman Set',
-    badge: 'PREMIUM SUIT DEAL',
-    pieces_count: 3,
-    original_price: 12999,
-    offer_price: 8499,
-    image: '',
+    id: 'combo-003',
+    name: 'Streetwear Graphic Tee & Selvedge Set',
+    badge: 'HOT BUNDLE DEAL',
+    pieces_count: 2,
+    original_price: 6998,
+    offer_price: 4999,
+    image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?q=80&w=1000&auto=format&fit=crop',
     items: [
-      { name: 'Italian Double-Breasted Blazer', category: 'Blazers' },
-      { name: 'Structured Linen Oxford Shirt', category: 'Shirts' },
-      { name: 'Tailored Slim Chino Trousers', category: 'Trousers' }
+      { name: 'Acid Wash Oversized Graphic Tee', category: 'Tops & T-Shirts' },
+      { name: '14oz Japanese Selvedge Denim', category: 'Denim' }
     ]
   }
 ];
@@ -62,9 +61,9 @@ const CatchyCombosSection = ({ title, subtitle }) => {
   useEffect(() => {
     const fetchCombos = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/combos`);
-        if (res.data && res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
-          setCombos(res.data.data.filter(c => c.status !== 'Inactive'));
+        const res = await getCombos();
+        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setCombos(res.data.filter(c => c.status !== 'Inactive'));
         }
       } catch (e) {}
     };

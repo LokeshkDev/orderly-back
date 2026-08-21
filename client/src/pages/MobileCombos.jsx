@@ -21,10 +21,10 @@ import '../styles/MobileHomepage.css';
 import './MobileCombos.css';
 
 const DEFAULT_COMBO_CATEGORIES = [
-  { id: 101, name: 'Executive & Formal Combos', slug: 'formal-combos', image: '', description: 'Tailored 2-piece and 3-piece formal suiting & linen sets' },
-  { id: 102, name: 'Casual Weekend Sets', slug: 'casual-combos', image: '', description: 'Everyday relaxed tees, casual shirts, and comfort trousers' },
-  { id: 103, name: 'Partywear & Evening Sets', slug: 'partywear-combos', image: '', description: 'Bold jackets, satin sheen shirts, and slim chino styling' },
-  { id: 104, name: 'Summer Vacation Outfits', slug: 'summer-combos', image: '', description: 'Lightweight linens, breathable polo shirts, and stretch shorts' }
+  { id: 101, name: 'Executive & Formal Combos', slug: 'formal-combos', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop', description: 'Tailored 2-piece and 3-piece formal suiting & linen sets' },
+  { id: 102, name: 'Casual Weekend Sets', slug: 'casual-combos', image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop', description: 'Everyday relaxed tees, casual shirts, and comfort trousers' },
+  { id: 103, name: 'Partywear & Evening Sets', slug: 'partywear-combos', image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=800&auto=format&fit=crop', description: 'Bold jackets, satin sheen shirts, and slim chino styling' },
+  { id: 104, name: 'Summer Vacation Outfits', slug: 'summer-combos', image: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?q=80&w=800&auto=format&fit=crop', description: 'Lightweight linens, breathable polo shirts, and stretch shorts' }
 ];
 
 const MobileCombos = () => {
@@ -370,18 +370,18 @@ const MobileCombos = () => {
                         </div>
 
                         {/* Split Photo Box */}
-                        <Link to={`/combo/${combo.id}`} className="mobile-combo-split-photos">
-                          <div className="mobile-combo-photo-col">
+                        <Link to={`/combo/${combo.id}`} className="mobile-split-photo-box">
+                          <div className="mobile-photo-col">
                             {img1 ? (
-                              <img src={img1} alt={combo.name} />
+                              <img src={img1} alt={combo.name} className="mobile-item-photo" loading="lazy" />
                             ) : (
                               <div className="orderly-img-fallback">ORDERLY</div>
                             )}
                           </div>
-                          <div className="mobile-combo-plus-circle">+</div>
-                          <div className="mobile-combo-photo-col">
+                          <div className="mobile-plus-circle-badge">+</div>
+                          <div className="mobile-photo-col">
                             {img2 ? (
-                              <img src={img2} alt={combo.name} />
+                              <img src={img2} alt={combo.name} className="mobile-item-photo" loading="lazy" />
                             ) : (
                               <div className="orderly-img-fallback">ORDERLY</div>
                             )}
@@ -389,23 +389,26 @@ const MobileCombos = () => {
                         </Link>
 
                         {/* Info Body */}
-                        <div className="mobile-combo-info-card">
+                        <div className="mobile-combo-info-body">
                           <Link to={`/combo/${combo.id}`} className="mobile-combo-title-link">
-                            <h3 className="mobile-combo-card-title">{combo.name}</h3>
+                            <h3 className="mobile-combo-title">{combo.name}</h3>
                           </Link>
 
                           <div className="mobile-combo-items-summary">
                             {itemSummary}
                           </div>
 
-                          <div className="mobile-combo-pricing-line">
-                            <span className="mobile-combo-offer-price">₹{combo.offer_price?.toLocaleString()}</span>
+                          <div className="mobile-combo-price-row">
+                            <span className="mobile-offer-price">₹{combo.offer_price?.toLocaleString()}</span>
                             {combo.original_price && (
-                              <span className="mobile-combo-old-price">₹{combo.original_price?.toLocaleString()}</span>
+                              <span className="mobile-original-price">₹{combo.original_price?.toLocaleString()}</span>
+                            )}
+                            {combo.original_price && combo.offer_price && combo.original_price > combo.offer_price && (
+                              <span className="mobile-save-tag">SAVE ₹{(combo.original_price - combo.offer_price).toLocaleString()}</span>
                             )}
                           </div>
 
-                          <Link to={`/combo/${combo.id}`} className="mobile-view-combo-action-btn">
+                          <Link to={`/combo/${combo.id}`} className="btn-mobile-view-combo-cta">
                             VIEW COMBO &rarr;
                           </Link>
                         </div>
@@ -505,9 +508,8 @@ const MobileCombos = () => {
           </div>
         )}
 
-        {/* Footer & Bottom Navbar */}
+        {/* Footer */}
         <MobileFooterAccordion />
-        <BottomNavbar />
       </div>
     </>
   );

@@ -6,6 +6,7 @@ import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useQuickView } from '../../context/QuickViewContext';
 import { formatPrice, calculateDiscount, normalizeProduct, colorImages } from '../../utils/formatters';
+import OptimizedImage from '../../components/common/OptimizedImage';
 import './ProductCard.css';
 
 const isProductFullyOutOfStock = (prod) => {
@@ -59,13 +60,28 @@ const ProductCard = ({ product }) => {
       {/* Media Container */}
       <div className="product-card-media">
         <Link to={`/product/${p.slug || p.id}`} className="product-image-link">
-          <img
-            src={isHovered ? (secondaryImg || '/logo.png') : (primaryImg || '/logo.png')}
-            alt={p.name}
-            className="product-card-img"
-            style={isOutOfStock ? { filter: 'grayscale(0.5)', opacity: 0.7 } : {}}
-            onError={(e) => { e.target.src = '/logo.png'; }}
-          />
+          <div className="product-image-wrapper">
+            <img
+              src={primaryImg || '/logo.png'}
+              alt={p.name}
+              className={`product-card-img ${isHovered && secondaryImg && secondaryImg !== primaryImg ? 'hover-hidden' : ''}`}
+              loading="lazy"
+              decoding="async"
+              style={isOutOfStock ? { filter: 'grayscale(0.5)', opacity: 0.7 } : {}}
+              onError={(e) => { e.currentTarget.src = '/logo.png'; }}
+            />
+            {secondaryImg && secondaryImg !== primaryImg && (
+              <img
+                src={secondaryImg}
+                alt={p.name}
+                className={`product-card-img hover-image ${isHovered ? 'hover-visible' : ''}`}
+                loading="lazy"
+                decoding="async"
+                style={isOutOfStock ? { filter: 'grayscale(0.5)', opacity: 0.7 } : {}}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+          </div>
         </Link>
 
         {/* Top-Right Heart Wishlist Button */}

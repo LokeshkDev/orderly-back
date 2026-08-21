@@ -8,7 +8,7 @@ const DEFAULT_LOOKBOOK = {
   description: 'Elevate your wardrobe with the latest trends designed for the modern man.',
   buttonText: 'EXPLORE NOW',
   buttonLink: '/shop',
-  image: ''
+  image: 'https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?q=80&w=1200&auto=format&fit=crop'
 };
 
 const MobileLookbook = () => {

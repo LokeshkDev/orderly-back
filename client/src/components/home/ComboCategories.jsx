@@ -7,32 +7,32 @@ const DEFAULT_COMBO_CATEGORIES = [
   {
     name: 'FORMAL SUITS',
     sub: 'Tailored 2 & 3-Piece Sets',
-    categoryQuery: 'formal',
-    image: ''
+    categoryQuery: 'formal-combos',
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop'
   },
   {
     name: 'CASUAL SETS',
     sub: 'Relaxed Everyday Ensembles',
-    categoryQuery: 'casual',
-    image: ''
+    categoryQuery: 'casual-combos',
+    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop'
   },
   {
     name: 'TROUSER + SHIRT',
     sub: 'Smart Coordinated Looks',
-    categoryQuery: 'trouser',
-    image: ''
+    categoryQuery: 'casual-combos',
+    image: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?q=80&w=800&auto=format&fit=crop'
   },
   {
     name: 'DENIM SETS',
     sub: 'Sharp & Tailored Pairings',
-    categoryQuery: 'denim',
-    image: ''
+    categoryQuery: 'casual-combos',
+    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop'
   },
   {
-    name: 'SHOES & ACCESSORIES',
-    sub: 'Complete The Look',
-    categoryQuery: 'shoe',
-    image: ''
+    name: 'PARTYWEAR & EVENING',
+    sub: 'Exclusive Luxury Ensembles',
+    categoryQuery: 'partywear-combos',
+    image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=800&auto=format&fit=crop'
   }
 ];
 

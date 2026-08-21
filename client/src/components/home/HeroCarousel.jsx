@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { Link } from 'react-router-dom';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, EffectFade, Pagination, Navigation } from 'swiper/modules';
-import { FiArrowRight, FiChevronLeft, FiChevronRight, FiTruck, FiRotateCcw, FiShield, FiHeadphones } from 'react-icons/fi';
+import { FiArrowRight, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { getHeroSlides } from '../../services/api';
+import './HeroCarousel.css';
+
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, EffectFade, Navigation, A11y } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/effect-fade';
-import 'swiper/css/pagination';
 import 'swiper/css/navigation';
-import './HeroCarousel.css';
 
 const DEFAULT_HERO_SLIDES = [
   {
@@ -16,7 +16,7 @@ const DEFAULT_HERO_SLIDES = [
     subtitle: "PREMIUM MEN'S WEAR",
     title: "OWN YOUR\nSTYLE",
     desc: "Discover premium menswear crafted for confidence, comfort and timeless style.",
-    image: '',
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1920&auto=format&fit=crop',
     ctaPrimary: "SHOP NOW",
     ctaPrimaryLink: "/shop",
     ctaSecondary: "EXPLORE COLLECTIONS",
@@ -27,7 +27,7 @@ const DEFAULT_HERO_SLIDES = [
     subtitle: "NEW SEASON CAPSULE",
     title: "ELEVATE YOUR\nLOOK",
     desc: "Bespoke Italian tailoring & contemporary streetwear designed for the modern gentleman.",
-    image: '',
+    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1920&auto=format&fit=crop',
     ctaPrimary: "EXPLORE NOW",
     ctaPrimaryLink: "/shop",
     ctaSecondary: "VIEW COMBOS",
@@ -35,12 +35,40 @@ const DEFAULT_HERO_SLIDES = [
   }
 ];
 
+// Preload critical image for LCP
+const preloadImage = (src) => {
+  if (!src || typeof window === 'undefined') return;
+  const link = document.createElement('link');
+  link.rel = 'preload';
+  link.as = 'image';
+  link.href = src;
+  link.fetchPriority = 'high';
+  document.head.appendChild(link);
+};
+
+// Image optimization helper - convert to WebP if supported
+const getOptimizedImageUrl = (url, options = {}) => {
+  if (!url) return '';
+  
+  const { width, quality = 82, format = 'webp' } = options;
+  
+  // If already optimized (webp/avif from server), return as-is
+  if (url.includes('.webp') || url.includes('.avif')) return url;
+  
+  // For external images, return original (server handles optimization)
+  if (url.startsWith('http') && !url.includes('orderly')) return url;
+  
+  return url;
+};
+
 const HeroCarousel = () => {
   const [slides, setSlides] = useState(DEFAULT_HERO_SLIDES);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
   const swiperRef = useRef(null);
+  const preloadedImages = useRef(new Set());
 
-  const fetchSlides = async () => {
+  const fetchSlides = useCallback(async () => {
     try {
       const res = await getHeroSlides();
       if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
@@ -71,8 +99,10 @@ const HeroCarousel = () => {
       }
     } catch (err) {
       setSlides(DEFAULT_HERO_SLIDES);
+    } finally {
+      setIsLoaded(true);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSlides();
@@ -80,15 +110,34 @@ const HeroCarousel = () => {
     const handleSlidesUpdated = () => {
       fetchSlides();
     };
+
     window.addEventListener('orderly_hero_slides_updated', handleSlidesUpdated);
     window.addEventListener('orderly_settings_updated', handleSlidesUpdated);
     window.addEventListener('storage', handleSlidesUpdated);
+    
     return () => {
       window.removeEventListener('orderly_hero_slides_updated', handleSlidesUpdated);
       window.removeEventListener('orderly_settings_updated', handleSlidesUpdated);
       window.removeEventListener('storage', handleSlidesUpdated);
     };
-  }, []);
+  }, [fetchSlides]);
+
+  // Preload first slide image immediately for LCP
+  useEffect(() => {
+    if (slides.length > 0 && slides[0].image) {
+      preloadImage(slides[0].image);
+      preloadedImages.current.add(slides[0].image);
+    }
+  }, [slides]);
+
+  // Preload next slide on interaction
+  const preloadNextSlide = useCallback((currentIndex) => {
+    const nextIndex = (currentIndex + 1) % slides.length;
+    if (slides[nextIndex]?.image && !preloadedImages.current.has(slides[nextIndex].image)) {
+      preloadImage(slides[nextIndex].image);
+      preloadedImages.current.add(slides[nextIndex].image);
+    }
+  }, [slides]);
 
   const renderTitleWithRedAccent = (titleText) => {
     if (!titleText) return null;
@@ -112,83 +161,164 @@ const HeroCarousel = () => {
     );
   };
 
+  // Render slide with optimized image loading
+  const renderSlide = (slide, idx) => {
+    const isFirstSlide = idx === 0;
+    const optimizedImage = getOptimizedImageUrl(slide.image, { width: 1920, quality: 82 });
+    
+    return (
+      <SwiperSlide key={slide.id || idx}>
+        <div className="hero-slide-item">
+          {/* Background Image - Optimized for LCP */}
+          {slide.image ? (
+            <img 
+              src={optimizedImage}
+              alt={slide.title || 'ORDERLY Menswear'}
+              className="hero-bg-img"
+              // Critical LCP optimizations
+              fetchPriority={isFirstSlide ? 'high' : 'low'}
+              loading={isFirstSlide ? 'eager' : 'lazy'}
+              // Explicit dimensions to prevent layout shift
+              width={1920}
+              height={1080}
+              // Decode asynchronously for non-first slides
+              decoding={isFirstSlide ? 'sync' : 'async'}
+              onLoad={() => preloadNextSlide(idx)}
+            />
+          ) : (
+            <div className="orderly-hero-fallback" aria-hidden="true">ORDERLY</div>
+          )}
+
+          {/* Subtle Cinematic Vignette Overlay */}
+          <div className="hero-dark-overlay" aria-hidden="true" />
+
+          {/* Content Box */}
+          <div className="container hero-content-container">
+            <div className="hero-text-wrapper">
+              {/* Small Eyebrow Label with Red Line */}
+              <div className="hero-eyebrow-label">
+                <span className="hero-red-dash" aria-hidden="true">—</span>
+                <span className="hero-subtitle-text">{slide.subtitle || "PREMIUM MEN'S WEAR"}</span>
+              </div>
+
+              {/* Headline */}
+              <h1 className="hero-title">
+                {renderTitleWithRedAccent(slide.title || "OWN YOUR\nSTYLE")}
+              </h1>
+
+              {/* Supporting Text */}
+              <p className="hero-desc">
+                {slide.desc || "Discover premium menswear crafted for confidence, comfort and timeless style."}
+              </p>
+              
+              {/* Buttons */}
+              <div className="hero-btn-group">
+                <Link 
+                  to={slide.ctaPrimaryLink || '/shop'} 
+                  className="btn-hero-solid-red"
+                  // Preload shop page on hover
+                  onMouseEnter={() => {
+                    const link = document.createElement('link');
+                    link.rel = 'prefetch';
+                    link.href = slide.ctaPrimaryLink || '/shop';
+                    document.head.appendChild(link);
+                  }}
+                >
+                  {slide.ctaPrimary || 'SHOP NOW'}
+                </Link>
+                <Link 
+                  to={slide.ctaSecondaryLink || '/shop'} 
+                  className="btn-hero-outline"
+                  onMouseEnter={() => {
+                    const link = document.createElement('link');
+                    link.rel = 'prefetch';
+                    link.href = slide.ctaSecondaryLink || '/shop';
+                    document.head.appendChild(link);
+                  }}
+                >
+                  {slide.ctaSecondary || 'EXPLORE COLLECTIONS'}
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SwiperSlide>
+    );
+  };
+
+  // Show skeleton while loading
+  if (!isLoaded) {
+    return (
+      <section className="orderly-hero-section" aria-hidden="true">
+        <div className="hero-skeleton">
+          <div className="skeleton-slide">
+            <div className="skeleton-overlay" />
+            <div className="container">
+              <div className="hero-text-wrapper">
+                <div className="skeleton-eyebrow" />
+                <div className="skeleton-title-line-1" />
+                <div className="skeleton-title-line-2" />
+                <div className="skeleton-desc" />
+                <div className="skeleton-buttons">
+                  <div className="skeleton-btn" />
+                  <div className="skeleton-btn" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="orderly-hero-section">
+    <section className="orderly-hero-section" role="region" aria-label="Featured Collections">
+      {/* Preconnect to image domains */}
+      <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href="https://images.unsplash.com" />
+      
       <div className="orderly-hero-carousel position-relative">
         <Swiper
           onSwiper={(swiper) => { swiperRef.current = swiper; }}
-          onSlideChange={(swiper) => setActiveIndex(swiper.realIndex)}
-          modules={[Autoplay, EffectFade, Pagination, Navigation]}
+          onSlideChange={(swiper) => {
+            const newIndex = swiper.realIndex;
+            setActiveIndex(newIndex);
+            preloadNextSlide(newIndex);
+          }}
+          modules={[Autoplay, EffectFade, Navigation, A11y]}
           effect="fade"
           fadeEffect={{ crossFade: true }}
-          speed={900}
+          speed={800}
           autoplay={{
-            delay: 5500,
+            delay: 6000,
             disableOnInteraction: false,
-            pauseOnMouseEnter: false
+            pauseOnMouseEnter: true
           }}
           loop={slides.length > 1}
           className="hero-swiper"
+          // Accessibility
+          a11y={{
+            enabled: true,
+            prevSlideMessage: 'Previous slide',
+            nextSlideMessage: 'Next slide',
+            firstSlideMessage: 'This is the first slide',
+            lastSlideMessage: 'This is the last slide',
+            paginationBulletMessage: 'Go to slide {{index}}'
+          }}
         >
-          {slides.map((slide, idx) => (
-            <SwiperSlide key={slide.id || idx}>
-              <div className="hero-slide-item">
-                {/* Background Image */}
-                {slide.image ? (
-                  <img 
-                    src={slide.image} 
-                    alt={slide.title || 'ORDERLY Menswear'} 
-                    className="hero-bg-img" 
-                  />
-                ) : (
-                  <div className="orderly-hero-fallback">ORDERLY</div>
-                )}
-
-                {/* Subtle Cinematic Vignette Overlay */}
-                <div className="hero-dark-overlay" />
-
-                {/* Content Box */}
-                <div className="container hero-content-container">
-                  <div className="hero-text-wrapper">
-                    {/* Small Eyebrow Label with Red Line */}
-                    <div className="hero-eyebrow-label">
-                      <span className="hero-red-dash">—</span>
-                      <span className="hero-subtitle-text">{slide.subtitle || "PREMIUM MEN'S WEAR"}</span>
-                    </div>
-
-                    {/* Headline */}
-                    <h1 className="hero-title">
-                      {renderTitleWithRedAccent(slide.title || "OWN YOUR\nSTYLE")}
-                    </h1>
-
-                    {/* Supporting Text */}
-                    <p className="hero-desc">
-                      {slide.desc || "Discover premium menswear crafted for confidence, comfort and timeless style."}
-                    </p>
-                    
-                    {/* Buttons */}
-                    <div className="hero-btn-group">
-                      <Link to={slide.ctaPrimaryLink || '/shop'} className="btn-hero-solid-red">
-                        {slide.ctaPrimary || 'SHOP NOW'}
-                      </Link>
-                      <Link to={slide.ctaSecondaryLink || '/shop'} className="btn-hero-outline">
-                        {slide.ctaSecondary || 'EXPLORE COLLECTIONS'}
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </SwiperSlide>
-          ))}
+          {slides.map(renderSlide)}
         </Swiper>
 
         {/* Slide Counter / Indicators Bottom Left */}
         {slides.length > 1 && (
-          <div className="hero-slide-indicators">
+          <div className="hero-slide-indicators" role="tablist" aria-label="Slide navigation">
             {slides.map((_, i) => (
               <button
                 key={i}
                 type="button"
+                role="tab"
+                aria-selected={activeIndex === i}
+                aria-label={`Go to slide ${i + 1}`}
                 className={`indicator-num-btn ${activeIndex === i ? 'active' : ''}`}
                 onClick={() => swiperRef.current?.slideToLoop(i)}
               >
@@ -207,7 +337,7 @@ const HeroCarousel = () => {
               onClick={() => swiperRef.current?.slidePrev()}
               aria-label="Previous Slide"
             >
-              <FiChevronLeft />
+              <FiChevronLeft aria-hidden="true" />
             </button>
             <button 
               type="button" 
@@ -215,7 +345,7 @@ const HeroCarousel = () => {
               onClick={() => swiperRef.current?.slideNext()}
               aria-label="Next Slide"
             >
-              <FiChevronRight />
+              <FiChevronRight aria-hidden="true" />
             </button>
           </>
         )}

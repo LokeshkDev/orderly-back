@@ -60,8 +60,9 @@ const Login = () => {
               type="email" 
               value={email} 
               onChange={(e) => setEmail(e.target.value)} 
-              placeholder="admin@orderly.com" 
+              placeholder="Enter your admin email" 
               required 
+              autoComplete="email"
             />
           </div>
           <div className="input-group">

@@ -309,18 +309,19 @@
   .mobile-creative-combo-card {
     background-color: #0D0D0D;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
+    border-radius: 8px;
     overflow: hidden;
     position: relative;
     display: flex;
     flex-direction: column;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
   }
 
   .mobile-combo-card-top {
     position: absolute;
-    top: 8px;
-    left: 8px;
-    right: 8px;
+    top: 10px;
+    left: 10px;
+    right: 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -333,55 +334,77 @@
     color: #FFFFFF;
     font-family: 'Oswald', sans-serif;
     font-size: 0.72rem;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 2px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
     pointer-events: auto;
+    box-shadow: 0 2px 8px rgba(229, 9, 20, 0.5);
   }
 
   .mobile-wishlist-circle-btn {
-    background: rgba(0, 0, 0, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     color: #FFFFFF;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     cursor: pointer;
     pointer-events: auto;
+    transition: all 0.2s ease;
   }
 
   .mobile-wishlist-circle-btn.active {
     background-color: #E50914;
     border-color: #E50914;
+    color: #FFFFFF;
   }
 
   /* Multi-Product Split Image Box with Central Plus Circle */
   .mobile-split-photo-box {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2px;
+    gap: 3px;
     position: relative;
     width: 100%;
-    height: 220px;
-    background-color: #121212;
+    height: 200px;
+    background-color: #050505;
     overflow: hidden;
     text-decoration: none;
   }
 
   .mobile-photo-col {
+    position: relative;
     width: 100%;
     height: 100%;
     overflow: hidden;
+    background-color: #111111;
   }
 
   .mobile-item-photo {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center top;
+    display: block;
+  }
+
+  .orderly-img-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a1a;
+    color: #555555;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
   }
 
   /* Central Plus Circle Badge */
@@ -390,27 +413,28 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
-    background-color: #000000;
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background-color: #0B0B0B;
+    border: 2px solid #E50914;
     color: #FFFFFF;
-    font-family: 'Oswald', sans-serif;
-    font-size: 1rem;
-    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 5;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.9);
   }
 
   /* Combo Info Body */
   .mobile-combo-info-body {
-    padding: 14px;
+    padding: 14px 16px;
     display: flex;
     flex-direction: column;
+    background-color: #0D0D0D;
   }
 
   .mobile-combo-title-link {
@@ -418,59 +442,76 @@
   }
 
   .mobile-combo-title {
-    font-size: 0.95rem;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.05rem;
     font-weight: 700;
     color: #FFFFFF;
     margin: 0 0 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.25;
   }
 
   .mobile-combo-items-summary {
     font-size: 0.74rem;
-    color: #A0A0A0;
+    color: #94A3B8;
     margin-bottom: 8px;
   }
 
   .mobile-combo-price-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
     margin-bottom: 12px;
   }
 
   .mobile-offer-price {
-    font-size: 1.1rem;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.2rem;
     font-weight: 800;
     color: #E50914;
+    letter-spacing: 0.02em;
   }
 
   .mobile-original-price {
-    font-size: 0.8rem;
-    color: #777777;
+    font-size: 0.82rem;
+    color: #64748B;
     text-decoration: line-through;
+  }
+
+  .mobile-save-tag {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #2ECC71;
+    background: rgba(46, 204, 113, 0.12);
+    border: 1px solid rgba(46, 204, 113, 0.3);
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-left: auto;
+    letter-spacing: 0.04em;
   }
 
   /* CTA Button VIEW COMBO → */
   .btn-mobile-view-combo-cta {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background-color: #E50914;
     color: #FFFFFF;
-    font-family: 'Oswald', sans-serif;
+    font-family: 'Outfit', sans-serif;
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     text-align: center;
-    padding: 8px 0;
-    border-radius: 3px;
+    padding: 9px 0;
+    border-radius: 4px;
     text-decoration: none;
     display: block;
     transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(229, 9, 20, 0.35);
   }
 
   .btn-mobile-view-combo-cta:active {
-    border-color: #E50914;
-    background-color: rgba(229, 9, 20, 0.1);
-    color: #E50914;
+    background-color: #F01822;
+    transform: scale(0.98);
   }
 
   .btn-mobile-load-more {

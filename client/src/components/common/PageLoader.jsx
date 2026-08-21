@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import logoLoader from '../../assets/logo-loader.gif';
 import './PageLoader.css';
 
 const MIN_DISPLAY_MS = 900;
@@ -45,7 +44,11 @@ const PageLoader = () => {
   return (
     <div className={`page-loader-overlay ${isLeaving ? 'page-loader-leaving' : ''}`} aria-hidden="true">
       <div className="page-loader-inner">
-        <img src={logoLoader} alt="ORDERLY" className="page-loader-gif" />
+        <div className="page-loader-logo" aria-hidden="true">
+          <div className="loader-ring" />
+          <div className="loader-ring" />
+          <div className="loader-ring" />
+        </div>
         <span className="page-loader-text">ORDERLY</span>
       </div>
     </div>

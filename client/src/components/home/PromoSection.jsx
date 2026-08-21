@@ -17,7 +17,7 @@ const DEFAULT_PROMOS = {
     subtitle: 'On Selected Items',
     buttonText: 'SHOP NOW',
     buttonLink: '/shop',
-    image: ''
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1000&auto=format&fit=crop'
   },
   block3: {
     title: 'NEW ARRIVALS',

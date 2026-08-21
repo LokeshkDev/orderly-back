@@ -8,31 +8,31 @@ const DEFAULT_CATEGORIES = [
     name: 'SHIRTS',
     sub: 'Everyday Luxury Linen & Oxford',
     categoryQuery: 'Shirts',
-    image: ''
+    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop'
   },
   {
     name: 'DENIM & BOTTOMS',
     sub: 'Sharp & Tailored Fit',
     categoryQuery: 'Denim',
-    image: ''
+    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop'
   },
   {
     name: 'POLOS & TEES',
     sub: 'Urban & Heavyweight Streetwear',
-    categoryQuery: 'Tees',
-    image: ''
+    categoryQuery: 'Tops & T-Shirts',
+    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop'
   },
   {
     name: 'FORMAL SUITS & BLAZERS',
     sub: 'Italian Tailored Precision',
-    categoryQuery: 'Suits',
-    image: ''
+    categoryQuery: 'Blazers',
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop'
   },
   {
-    name: 'HERITAGE & COMBOS',
-    sub: 'Bespoke Coordinated Sets',
-    categoryQuery: 'Ethnic',
-    image: ''
+    name: 'TAILORED TROUSERS',
+    sub: 'Smart Pleated & Chino Trousers',
+    categoryQuery: 'Trousers',
+    image: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?q=80&w=800&auto=format&fit=crop'
   }
 ];
 

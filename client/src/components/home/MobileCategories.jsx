@@ -4,34 +4,34 @@ import { getCategories } from '../../services/api';
 
 const DEFAULT_MOBILE_CATS = [
   {
-    name: 'CASUAL WEAR',
-    sub: 'Everyday Comfort',
-    categoryQuery: 'Casual Shirts',
-    image: ''
+    name: 'SHIRTS',
+    sub: 'Everyday Luxury Linen',
+    categoryQuery: 'Shirts',
+    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop'
   },
   {
-    name: 'FORMAL WEAR',
-    sub: 'Sharp & Sophisticated',
-    categoryQuery: 'Formal Shirts',
-    image: ''
+    name: 'DENIM',
+    sub: 'Japanese Selvedge Fit',
+    categoryQuery: 'Denim',
+    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop'
   },
   {
-    name: 'STREET WEAR',
-    sub: 'Urban & Trendy',
-    categoryQuery: 'Tees',
-    image: ''
+    name: 'TEES & POLOS',
+    sub: 'Urban Streetwear',
+    categoryQuery: 'Tops & T-Shirts',
+    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop'
   },
   {
-    name: 'SPORT WEAR',
-    sub: 'Performance First',
-    categoryQuery: 'Activewear',
-    image: ''
+    name: 'BLAZERS & SUITS',
+    sub: 'Italian Tailored',
+    categoryQuery: 'Blazers',
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop'
   },
   {
-    name: 'ETHNIC WEAR',
-    sub: 'Tradition Reimagined',
-    categoryQuery: 'Ethnic',
-    image: ''
+    name: 'TROUSERS',
+    sub: 'Pleated & Chinos',
+    categoryQuery: 'Trousers',
+    image: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?q=80&w=800&auto=format&fit=crop'
   }
 ];
 

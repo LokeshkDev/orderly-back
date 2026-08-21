@@ -94,9 +94,6 @@ const MobileHomepage = () => {
 
       {/* 4. Mobile Collapsible Footer Accordion */}
       <MobileFooterAccordion />
-
-      {/* 5. Fixed Mobile Bottom Navigation Bar */}
-      <BottomNavbar />
     </div>
   );
 };

@@ -5,6 +5,9 @@ import helmet from 'helmet';
 import { sequelize } from './models/index.js';
 import Product from './models/Product.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { apiLimiter, authLimiter, orderCreateLimiter, uploadLimiter } from './middleware/rateLimiter.js';
+import { sanitizeInput } from './middleware/validation.js';
+import { verifyOrigin, requireHttps } from './middleware/security.js';
 
 // Route imports
 import authRoutes from './routes/auth.routes.js';
@@ -43,7 +46,21 @@ const allowedOrigins = [
   'http://127.0.0.1:5174'
 ].filter(Boolean);
 
-// Middlewares
+// Security Middlewares
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  noSniff: true,
+  xssFilter: true,
+  frameguard: { action: 'deny' }
+}));
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -52,16 +69,34 @@ app.use(cors({
     }
     callback(new Error('CORS blocked for this origin'));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
 app.use(express.json({
-  limit: '50mb',
+  limit: '10mb',
   verify: (req, res, buf) => {
     req.rawBody = buf;
   }
 }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Input sanitization (XSS protection)
+app.use(sanitizeInput);
+
+// Security: Verify request origin
+app.use(verifyOrigin);
+
+// Security: Require HTTPS in production
+app.use(requireHttps);
+
+// Rate Limiting
+app.use('/api/', apiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/admin/login', authLimiter);
+app.use('/api/orders', orderCreateLimiter);
+app.use('/api/upload', uploadLimiter);
 
 // Serve static uploaded media files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

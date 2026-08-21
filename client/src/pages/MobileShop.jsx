@@ -495,9 +495,6 @@ const MobileShop = () => {
         {/* 8. MOBILE FOOTER ACCORDIONS */}
         <MobileFooterAccordion />
 
-        {/* 9. FIXED MOBILE BOTTOM NAVIGATION */}
-        <BottomNavbar />
-
         {/* 10. APP MOBILE FILTER DRAWER MATCHING 2ND REFERENCE SCREENSHOT */}
         {isFilterDrawerOpen && (
           <div className="mobile-app-filter-backdrop" onClick={() => setIsFilterDrawerOpen(false)}>

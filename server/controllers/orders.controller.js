@@ -254,15 +254,44 @@ export const createOrder = async (req, res) => {
 
     let order;
     try {
-      order = await Order.create(orderFields);
+      const dbOrderPayload = {
+        customer_id: (normalizedOrder.customer_id && !isNaN(Number(normalizedOrder.customer_id)) && Number(normalizedOrder.customer_id) > 0) ? Number(normalizedOrder.customer_id) : null,
+        order_number: normalizedOrder.order_number,
+        status: normalizedOrder.status || 'pending',
+        subtotal: Number(normalizedOrder.subtotal) || 0,
+        discount: Number(normalizedOrder.discount) || 0,
+        pricing_breakdown: normalizedOrder.pricing_breakdown || {},
+        shipping_fee: Number(normalizedOrder.shipping_fee) || 0,
+        total: Number(normalizedOrder.total) || 0,
+        shipping_address: normalizedOrder.shipping_address || {},
+        billing_address: normalizedOrder.billing_address || normalizedOrder.shipping_address || {},
+        payment_method: normalizedOrder.payment_method || 'online',
+        payment_status: normalizedOrder.payment_status || 'pending',
+        payment_gateway: normalizedOrder.payment_gateway || 'razorpay',
+        payment_amount: normalizedOrder.payment_amount ? Number(normalizedOrder.payment_amount) : null,
+        cod_advance_percentage: normalizedOrder.cod_advance_percentage ? Number(normalizedOrder.cod_advance_percentage) : null,
+        cod_advance_amount: normalizedOrder.cod_advance_amount ? Number(normalizedOrder.cod_advance_amount) : null,
+        cod_due_amount: normalizedOrder.cod_due_amount ? Number(normalizedOrder.cod_due_amount) : null,
+        delivery_method: normalizedOrder.delivery_method || null,
+        delivery_location_label: normalizedOrder.delivery_location_label || null
+      };
+
+      order = await Order.create(dbOrderPayload);
       if (order?.id && orderItems.length) {
-        await OrderItem.bulkCreate(orderItems.map((item) => ({
-          ...item,
-          order_id: order.id
-        })));
+        const dbItems = orderItems.map((item) => ({
+          order_id: order.id,
+          product_id: item.product_id ? String(item.product_id) : null,
+          combo_id: item.combo_id ? String(item.combo_id) : null,
+          product_name: String(item.product_name || item.name || 'Product'),
+          size: item.size ? String(item.size) : null,
+          color: item.color ? String(item.color) : null,
+          quantity: Math.max(1, Number(item.quantity) || 1),
+          unit_price: Number(item.unit_price ?? item.price ?? 0)
+        }));
+        await OrderItem.bulkCreate(dbItems);
       }
     } catch (err) {
-      console.warn('Order create note:', err.message);
+      console.error('Order DB Save Error:', err);
     }
 
     const shippingAddress = req.body.shippingAddress || {};
@@ -388,16 +417,26 @@ export const getAllOrders = async (req, res) => {
     let dbOrders = [];
     try {
       dbOrders = await Order.findAll({
-        order: [['createdAt', 'DESC']],
+        order: [['id', 'DESC']],
         include: [
           { model: Customer, attributes: ['name', 'email'], required: false },
           { model: OrderItem, as: 'items', required: false }
         ]
       });
-      if (Array.isArray(dbOrders)) {
-        dbOrders = dbOrders.map(normalizeOrder);
+    } catch (includeErr) {
+      console.warn('Orders findAll with include note, falling back to basic query:', includeErr.message);
+      try {
+        dbOrders = await Order.findAll({
+          order: [['id', 'DESC']]
+        });
+      } catch (basicErr) {
+        console.error('Orders basic findAll error:', basicErr.message);
       }
-    } catch (err) {}
+    }
+
+    if (Array.isArray(dbOrders)) {
+      dbOrders = dbOrders.map(normalizeOrder);
+    }
 
     const map = new Map();
     [...RUNTIME_ORDERS, ...dbOrders].forEach(o => {

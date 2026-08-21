@@ -159,30 +159,34 @@ const Checkout = () => {
     setOrderError(null);
 
     const nameParts = formData.fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || formData.fullName.trim() || 'Customer';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : firstName;
+
     const shippingAddress = {
-      firstName: formData.fullName.trim(),
-      lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '',
-      fullName: formData.fullName.trim(),
-      email: formData.email,
-      phone: formData.phone,
-      address: formData.address,
-      city: formData.city,
-      state: formData.state,
-      pincode: formData.pincode,
+      firstName,
+      lastName,
+      fullName: formData.fullName.trim() || `${firstName} ${lastName}`.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      address: formData.address.trim(),
+      city: formData.city.trim(),
+      state: formData.state.trim(),
+      pincode: formData.pincode.trim(),
       addressType: addressType
     };
 
     const orderData = {
       items: cart.map(item => ({
         id: item.id,
-        productId: item.productId,
+        productId: item.productId || item.product_id || item.id,
+        product_id: item.productId || item.product_id || item.id,
         isCombo: Boolean(item.isCombo),
         name: item.name,
         price: item.price,
         originalPrice: item.originalPrice || item.original_price || item.price,
-        quantity: item.quantity,
-        selectedSize: item.selectedSize,
-        selectedColor: item.selectedColor,
+        quantity: item.quantity || 1,
+        selectedSize: item.selectedSize || 'M',
+        selectedColor: item.selectedColor || null,
         selectedPieces: item.selectedPieces || [],
         pairOffer: item.pairOffer || null,
         isPairOffer: Boolean(item.isPairOffer || item.pairOffer?.enabled)
@@ -196,6 +200,7 @@ const Checkout = () => {
       delivery_location_label: deliveryResult?.locationLabel,
       total,
       paymentMethod,
+      payment_method: paymentMethod,
       couponCode: appliedCoupon?.code || '',
       pricingBreakdown
     };

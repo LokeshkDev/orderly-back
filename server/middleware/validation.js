@@ -54,17 +54,29 @@ export const registerValidation = [
 
 export const orderValidation = [
   body('items').isArray({ min: 1 }).withMessage('At least one item required'),
-  body('items.*.product_id').optional().isInt().withMessage('Valid product ID required'),
-  body('items.*.quantity').isInt({ min: 1, max: 99 }).withMessage('Quantity must be 1-99'),
-  body('shippingAddress.firstName').trim().isLength({ min: 1, max: 50 }).escape().withMessage('First name required'),
-  body('shippingAddress.lastName').trim().isLength({ min: 1, max: 50 }).escape().withMessage('Last name required'),
+  body('items.*.quantity').optional().isInt({ min: 1, max: 99 }).withMessage('Quantity must be 1-99'),
+  body('shippingAddress').isObject().withMessage('Shipping address is required'),
   body('shippingAddress.email').isEmail().normalizeEmail().withMessage('Valid email required'),
-  body('shippingAddress.phone').isMobilePhone('en-IN').withMessage('Valid Indian phone required'),
-  body('shippingAddress.address').trim().isLength({ min: 5, max: 500 }).escape().withMessage('Address required (5-500 chars)'),
+  body('shippingAddress.phone')
+    .custom((val) => {
+      const clean = String(val || '').replace(/\D/g, '');
+      return clean.length >= 10 && clean.length <= 13;
+    })
+    .withMessage('Valid phone number required'),
+  body('shippingAddress.address').trim().isLength({ min: 3, max: 500 }).escape().withMessage('Address required (3-500 chars)'),
   body('shippingAddress.city').trim().isLength({ min: 2, max: 100 }).escape().withMessage('City required'),
   body('shippingAddress.state').trim().isLength({ min: 2, max: 100 }).escape().withMessage('State required'),
   body('shippingAddress.pincode').matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
-  body('payment_method').isIn(['cod', 'online', 'card', 'upi']).withMessage('Valid payment method required'),
+  body('payment_method')
+    .optional()
+    .customSanitizer(val => String(val || '').toLowerCase())
+    .isIn(['cod', 'online', 'card', 'upi', 'razorpay'])
+    .withMessage('Valid payment method required'),
+  body('paymentMethod')
+    .optional()
+    .customSanitizer(val => String(val || '').toLowerCase())
+    .isIn(['cod', 'online', 'card', 'upi', 'razorpay'])
+    .withMessage('Valid payment method required'),
   validate
 ];
 

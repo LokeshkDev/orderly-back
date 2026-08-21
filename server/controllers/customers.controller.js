@@ -28,23 +28,60 @@ export const addCustomerRecord = (custData) => {
 export const getCustomers = async (req, res) => {
   try {
     let list = [];
+    let allOrders = [];
     try {
       list = await Customer.findAll({
-        attributes: { exclude: ['password_hash', 'password'] }
+        attributes: { exclude: ['password_hash', 'password'] },
+        order: [['createdAt', 'DESC']]
       });
     } catch (err) {}
+
+    try {
+      allOrders = await Order.findAll({
+        attributes: ['customer_id', 'shipping_address', 'total', 'status']
+      });
+    } catch (err) {}
+
+    // Calculate spent & orders per customer email and customer ID
+    const emailStats = {};
+    const idStats = {};
+    if (Array.isArray(allOrders)) {
+      allOrders.forEach(o => {
+        const orderData = typeof o.toJSON === 'function' ? o.toJSON() : o;
+        const email = (orderData.shipping_address?.email || '').toLowerCase().trim();
+        const cid = orderData.customer_id ? String(orderData.customer_id) : null;
+        const total = Number(orderData.total || 0);
+
+        if (email) {
+          if (!emailStats[email]) emailStats[email] = { totalSpent: 0, ordersCount: 0 };
+          emailStats[email].ordersCount += 1;
+          emailStats[email].totalSpent += total;
+        }
+
+        if (cid) {
+          if (!idStats[cid]) idStats[cid] = { totalSpent: 0, ordersCount: 0 };
+          idStats[cid].ordersCount += 1;
+          idStats[cid].totalSpent += total;
+        }
+      });
+    }
 
     const map = new Map();
     [...RUNTIME_CUSTOMERS, ...(Array.isArray(list) ? list : [])].forEach(c => {
       if (c && c.email) {
-        map.set(c.email.toLowerCase(), {
+        const emailKey = c.email.toLowerCase().trim();
+        const cidKey = c.id ? String(c.id) : null;
+        const stats = emailStats[emailKey] || (cidKey && idStats[cidKey]) || { totalSpent: 0, ordersCount: 0 };
+        
+        map.set(emailKey, {
           id: c.id || Date.now(),
           name: c.name || 'Customer',
           email: c.email,
           phone: c.phone || '',
-          totalSpent: c.totalSpent || 0,
-          ordersCount: c.ordersCount || 0,
-          status: c.status || 'Active',
+          addresses: c.addresses || [],
+          totalSpent: stats.totalSpent || c.totalSpent || 0,
+          ordersCount: stats.ordersCount || c.ordersCount || 0,
+          status: c.is_active === false || c.status === 'Inactive' ? 'Inactive' : 'Active',
           created_at: c.created_at || c.createdAt || new Date().toISOString()
         });
       }

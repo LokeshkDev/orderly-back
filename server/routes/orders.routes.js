@@ -1,7 +1,7 @@
 import express from 'express';
 import { 
   createOrder, getMyOrders, getOrders, getOrderById, 
-  updateOrderStatus, updateTracking, updateOrder, deleteOrder 
+  updateOrderStatus, updateTracking, updateOrder, deleteOrder, clearAllOrders 
 } from '../controllers/orders.controller.js';
 import { customerAuth, optionalCustomerAuth } from '../middleware/auth.js';
 import { adminAuth } from '../middleware/adminAuth.js';
@@ -9,6 +9,7 @@ import { orderValidation, idParamValidation, paginationValidation } from '../mid
 
 const router = express.Router();
 
+router.delete('/clear-all', adminAuth, clearAllOrders);
 router.post('/', optionalCustomerAuth, orderValidation, createOrder);
 router.get('/my', customerAuth, paginationValidation, getMyOrders);
 

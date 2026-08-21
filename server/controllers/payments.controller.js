@@ -379,3 +379,22 @@ export const handleRazorpayWebhook = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const reportRazorpayFailure = async (req, res) => {
+  try {
+    const { orderId, orderNumber, failureMessage } = req.body;
+    const orderRef = orderId || orderNumber;
+    const order = await findOrder(orderRef);
+
+    if (order) {
+      await updateOrderPayment(order, {
+        payment_status: 'failed',
+        notes: failureMessage || 'Payment failed or cancelled by user.'
+      });
+    }
+
+    res.status(200).json({ success: true, message: 'Failure recorded.' });
+  } catch (err) {
+    res.status(200).json({ success: true });
+  }
+};

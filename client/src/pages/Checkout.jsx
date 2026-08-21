@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/common/SEO';
 import { useCart } from '../context/CartContext';
-import { createOrder, createRazorpayOrder, getPaymentConfig, getSettings, verifyRazorpayPayment, getActiveCoupons } from '../services/api';
+import { createOrder, createRazorpayOrder, getPaymentConfig, getSettings, verifyRazorpayPayment, reportRazorpayFailure, getActiveCoupons } from '../services/api';
 import { formatPrice } from '../utils/formatters';
 import { 
   FiLock, FiCheckCircle, FiCreditCard, FiTruck, FiHome, FiBriefcase, FiMapPin, FiShield, FiAlertCircle, FiTag, FiCopy, FiCheck
@@ -277,6 +277,14 @@ const Checkout = () => {
       const finishFailure = (message = 'Payment failed or was cancelled. Your order remains pending.') => {
         if (paymentHandled) return;
         paymentHandled = true;
+        try {
+          reportRazorpayFailure({
+            orderId: createdOrder.id,
+            orderNumber: createdOrder.order_number,
+            failureMessage: message
+          });
+        } catch (e) {}
+
         navigate('/order-failure', {
           state: {
             orderId: createdOrder.order_number,
@@ -630,19 +638,30 @@ const Checkout = () => {
                         </button>
                       </div>
                     ) : (
-                      <form onSubmit={handleCouponSubmit} className="checkout-coupon-form">
+                      <div className="checkout-coupon-form">
                         <input
                           type="text"
                           className="checkout-coupon-input"
                           placeholder="Enter coupon code"
                           value={couponInput}
                           onChange={(e) => setCouponInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCouponSubmit(e);
+                            }
+                          }}
                           disabled={couponLoading}
                         />
-                        <button type="submit" className="checkout-coupon-apply" disabled={couponLoading || !couponInput.trim()}>
+                        <button 
+                          type="button" 
+                          className="checkout-coupon-apply" 
+                          onClick={handleCouponSubmit}
+                          disabled={couponLoading || !couponInput.trim()}
+                        >
                           {couponLoading ? 'Applying...' : 'Apply'}
                         </button>
-                      </form>
+                      </div>
                     )}
 
                     {couponMsg && !appliedCoupon && (

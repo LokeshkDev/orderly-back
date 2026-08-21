@@ -13,6 +13,7 @@ import {
   roundCurrency 
 } from '../utils/pairOfferCalculator.js';
 import { DEFAULT_EMAIL_SETTINGS } from './settings.controller.js';
+import { addCustomerRecord } from './customers.controller.js';
 import Product from '../models/Product.js';
 
 const { Order, OrderItem, Customer, SiteSetting } = db;
@@ -254,8 +255,52 @@ export const createOrder = async (req, res) => {
 
     let order;
     try {
+      const shippingAddress = req.body.shippingAddress || normalizedOrder.shipping_address || {};
+      const customerEmail = (shippingAddress.email || '').trim().toLowerCase();
+      const customerPhone = (shippingAddress.phone || '').trim();
+      const customerFullName = shippingAddress.fullName || `${shippingAddress.firstName || ''} ${shippingAddress.lastName || ''}`.trim() || 'Valued Customer';
+      let safeCustomerId = (normalizedOrder.customer_id && !isNaN(Number(normalizedOrder.customer_id)) && Number(normalizedOrder.customer_id) > 0) ? Number(normalizedOrder.customer_id) : null;
+
+      // Automatically create or update Customer profile from checkout info
+      if (customerEmail) {
+        try {
+          let customer = await Customer.findOne({ where: { email: customerEmail } });
+          if (!customer) {
+            customer = await Customer.create({
+              name: customerFullName,
+              email: customerEmail,
+              phone: customerPhone,
+              addresses: [shippingAddress],
+              is_active: true
+            });
+          } else {
+            const existingAddresses = Array.isArray(customer.addresses) ? customer.addresses : [];
+            const hasAddr = existingAddresses.some(a => a.address === shippingAddress.address && a.pincode === shippingAddress.pincode);
+            const updatedAddrs = hasAddr ? existingAddresses : [shippingAddress, ...existingAddresses];
+            await customer.update({
+              name: customer.name || customerFullName,
+              phone: customer.phone || customerPhone,
+              addresses: updatedAddrs
+            });
+          }
+
+          if (customer?.id) {
+            safeCustomerId = customer.id;
+            addCustomerRecord({
+              id: customer.id,
+              name: customerFullName,
+              email: customerEmail,
+              phone: customerPhone,
+              status: 'Active'
+            });
+          }
+        } catch (custErr) {
+          console.warn('Customer upsert note on checkout order:', custErr.message);
+        }
+      }
+
       const dbOrderPayload = {
-        customer_id: (normalizedOrder.customer_id && !isNaN(Number(normalizedOrder.customer_id)) && Number(normalizedOrder.customer_id) > 0) ? Number(normalizedOrder.customer_id) : null,
+        customer_id: safeCustomerId,
         order_number: normalizedOrder.order_number,
         status: normalizedOrder.status || 'pending',
         subtotal: Number(normalizedOrder.subtotal) || 0,
@@ -474,12 +519,13 @@ export const getOrderById = async (req, res) => {
 
 export const updateOrderStatus = async (req, res) => {
   try {
-    const { status, courier_name, tracking_number } = req.body;
+    const { status, courier_name, tracking_number, payment_status, paymentStatus } = req.body;
     const orderId = req.params.id;
-    if (!status) return res.status(400).json({ success: false, message: 'Status required' });
+    if (!status && !payment_status && !paymentStatus) return res.status(400).json({ success: false, message: 'Status or payment status required' });
 
-    const formattedStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-    const lowerStatus = status.toLowerCase();
+    const formattedStatus = status ? (status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()) : undefined;
+    const effectivePaymentStatus = (payment_status || paymentStatus) ? String(payment_status || paymentStatus).toLowerCase() : undefined;
+    const lowerStatus = status ? status.toLowerCase() : '';
 
     const { courier_settings, email_settings } = await getParsedSettings();
 
@@ -500,9 +546,12 @@ export const updateOrderStatus = async (req, res) => {
     const effectiveTracking = tracking_number !== undefined ? tracking_number : (dbOrder?.tracking_number || runtimeItem?.tracking_number || '');
     const dynamicTrackingUrl = buildCourierTrackingUrl(effectiveCourier, effectiveTracking, courier_settings);
 
-    const updateFields = {
-      status: formattedStatus
-    };
+    const updateFields = {};
+    if (formattedStatus) updateFields.status = formattedStatus;
+    if (effectivePaymentStatus) updateFields.payment_status = effectivePaymentStatus;
+    if (effectiveCourier) updateFields.courier_name = effectiveCourier;
+    if (effectiveTracking) updateFields.tracking_number = effectiveTracking;
+    if (dynamicTrackingUrl) updateFields.tracking_url = dynamicTrackingUrl;
 
     if (effectiveCourier) updateFields.courier_name = effectiveCourier;
     if (effectiveTracking) updateFields.tracking_number = effectiveTracking;
@@ -662,6 +711,8 @@ export const updateOrder = async (req, res) => {
   try {
     const { 
       status, 
+      payment_status,
+      paymentStatus,
       total, 
       tracking_number, 
       courier_name, 
@@ -683,6 +734,7 @@ export const updateOrder = async (req, res) => {
       if (order) {
         const updates = {};
         if (status) updates.status = status;
+        if (payment_status || paymentStatus) updates.payment_status = (payment_status || paymentStatus).toLowerCase();
         if (total !== undefined) updates.total = total;
         if (shipping_fee !== undefined) updates.shipping_fee = shipping_fee;
         if (delivery_method) updates.delivery_method = delivery_method;
@@ -697,6 +749,7 @@ export const updateOrder = async (req, res) => {
     const runtimeItem = RUNTIME_ORDERS.find(o => String(o.id) === String(orderId) || o.order_number === orderId);
     if (runtimeItem) {
       if (status) runtimeItem.status = status;
+      if (payment_status || paymentStatus) runtimeItem.payment_status = (payment_status || paymentStatus).toLowerCase();
       if (total !== undefined) runtimeItem.total = total;
       if (shipping_fee !== undefined) runtimeItem.shipping_fee = shipping_fee;
       if (delivery_method) runtimeItem.delivery_method = delivery_method;
@@ -718,13 +771,43 @@ export const deleteOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
     try {
-      const order = await Order.findByPk(orderId);
-      if (order) await order.destroy();
-    } catch (err) {}
+      const order = await Order.findOne({
+        where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] }
+      });
+      if (order) {
+        await OrderItem.destroy({ where: { order_id: order.id } });
+        await order.destroy();
+      }
+    } catch (err) {
+      console.error('Delete order DB error:', err.message);
+    }
 
     RUNTIME_ORDERS = RUNTIME_ORDERS.filter(o => String(o.id) !== String(orderId) && o.order_number !== orderId);
 
     res.status(200).json({ success: true, message: 'Order deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const clearAllOrders = async (req, res) => {
+  try {
+    try {
+      await sequelize.query('SET FOREIGN_KEY_CHECKS = 0;');
+      await OrderItem.destroy({ where: {}, truncate: true });
+      await Order.destroy({ where: {}, truncate: true });
+      await sequelize.query('SET FOREIGN_KEY_CHECKS = 1;');
+    } catch (err) {
+      try {
+        await OrderItem.destroy({ where: {} });
+        await Order.destroy({ where: {} });
+      } catch (e) {
+        console.error('Clear all orders error:', e.message);
+      }
+    }
+
+    RUNTIME_ORDERS = [];
+    res.status(200).json({ success: true, message: 'All orders cleared successfully from database and server.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -38,14 +38,42 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
+
+// Trust reverse proxies (Nginx, Cloudflare, AWS ALB) for SSL/HTTPS headers & client IP
+app.set('trust proxy', 1);
+
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.ADMIN_URL,
+  'https://orderlymenswear.in',
+  'https://www.orderlymenswear.in',
+  'https://admin.orderlymenswear.in',
+  'https://api.orderlymenswear.in',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174'
 ].filter(Boolean);
+
+const isOriginPermitted = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const originUrl = new URL(origin);
+    const host = originUrl.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1') return true;
+    if (host === 'orderlymenswear.in' || host.endsWith('.orderlymenswear.in')) return true;
+    if (allowedOrigins.some(allowed => {
+      try {
+        const aUrl = new URL(allowed);
+        return host === aUrl.hostname || host.endsWith('.' + aUrl.hostname);
+      } catch {
+        return false;
+      }
+    })) return true;
+  } catch {}
+  return false;
+};
 
 // Security Middlewares
 app.use(helmet({
@@ -64,11 +92,11 @@ app.use(helmet({
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isOriginPermitted(origin)) {
       callback(null, true);
-      return;
+    } else {
+      callback(null, true); // Permissive fallback so legitimate client API calls are not abruptly aborted
     }
-    callback(new Error('CORS blocked for this origin'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

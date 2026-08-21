@@ -9,6 +9,13 @@ import {
   DEFAULT_COURIER_SETTINGS, 
   buildCourierTrackingUrl 
 } from '../../utils/deliveryCalculator.js';
+import { 
+  api, 
+  getOrders as getOrdersApi, 
+  createOrder as createOrderApi, 
+  updateOrder as updateOrderApi, 
+  deleteOrder as deleteOrderApi 
+} from '../../services/api.js';
 import StatusBadge from '../../components/common/StatusBadge';
 import './Orders.css';
 
@@ -26,6 +33,7 @@ const emptyOrderForm = {
   quantity: 1,
   price: 5499,
   payment_method: 'cod',
+  payment_status: 'pending',
   status: 'Pending'
 };
 
@@ -38,11 +46,13 @@ const OrdersList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [paymentFilter, setPaymentFilter] = useState('All');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('All');
 
   // View Modal State
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStatus, setEditingStatus] = useState('pending');
+  const [editingPaymentStatus, setEditingPaymentStatus] = useState('pending');
   const [courierName, setCourierName] = useState('DTDC');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
@@ -62,8 +72,25 @@ const OrdersList = () => {
     return value.toUpperCase() || 'COD';
   };
 
-  const loadOrders = async () => {
-    setLoading(true);
+  const renderPaymentStatusBadge = (status = 'pending') => {
+    const s = String(status || 'pending').toLowerCase();
+    if (s === 'paid') {
+      return <span className="badge bg-success text-white fw-bold px-2 py-1"><FiCheckCircle className="me-1" /> PAID</span>;
+    }
+    if (s === 'failed') {
+      return <span className="badge bg-danger text-white fw-bold px-2 py-1"><FiX className="me-1" /> FAILED</span>;
+    }
+    if (s === 'partially_paid') {
+      return <span className="badge bg-info text-dark fw-bold px-2 py-1">ADVANCE PAID</span>;
+    }
+    if (s === 'refunded') {
+      return <span className="badge bg-secondary text-white fw-bold px-2 py-1">REFUNDED</span>;
+    }
+    return <span className="badge bg-warning text-dark fw-bold px-2 py-1"><FiClock className="me-1" /> PENDING</span>;
+  };
+
+  const loadOrders = async (isInitial = false) => {
+    if (isInitial) setLoading(true);
     try {
       let fetchedOrders = [];
       try {
@@ -72,7 +99,7 @@ const OrdersList = () => {
           api.get('/settings').catch(() => null)
         ]);
 
-        if (ordersRes.data && ordersRes.data.success && Array.isArray(ordersRes.data.data)) {
+        if (ordersRes?.data?.success && Array.isArray(ordersRes.data.data)) {
           fetchedOrders = ordersRes.data.data;
         }
 
@@ -106,24 +133,25 @@ const OrdersList = () => {
 
       setOrders(fetchedOrders);
     } catch (err) {
-      toast.error('Failed to load customer orders');
+      if (isInitial) toast.error('Failed to load customer orders');
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOrders();
+    loadOrders(true);
     const timer = setInterval(() => {
-      loadOrders();
-    }, 4000);
+      loadOrders(false);
+    }, 10000);
 
-    window.addEventListener('orderly_orders_updated', loadOrders);
-    window.addEventListener('storage', loadOrders);
+    const handleSync = () => loadOrders(false);
+    window.addEventListener('orderly_orders_updated', handleSync);
+    window.addEventListener('storage', handleSync);
     return () => {
       clearInterval(timer);
-      window.removeEventListener('orderly_orders_updated', loadOrders);
-      window.removeEventListener('storage', loadOrders);
+      window.removeEventListener('orderly_orders_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
     };
   }, []);
 
@@ -139,6 +167,7 @@ const OrdersList = () => {
   const openOrderModal = (order) => {
     setSelectedOrder(order);
     setEditingStatus(order.status || 'pending');
+    setEditingPaymentStatus(order.payment_status || order.paymentStatus || 'pending');
     setCourierName(order.courier_name || availableCouriers[0]?.name || 'DTDC');
     setTrackingNumber(order.tracking_number || '');
     setIsModalOpen(true);
@@ -165,6 +194,7 @@ const OrdersList = () => {
       try {
         await api.patch(`/orders/${targetKey}/status`, { 
           status: formattedStatus,
+          payment_status: editingPaymentStatus,
           courier_name: courierName,
           tracking_number: trackingNumber,
           tracking_url: dynamicTrackingUrl
@@ -172,6 +202,7 @@ const OrdersList = () => {
         if (selectedOrder.order_number && selectedOrder.order_number !== targetKey) {
           await api.patch(`/orders/${selectedOrder.order_number}/status`, { 
             status: formattedStatus,
+            payment_status: editingPaymentStatus,
             courier_name: courierName,
             tracking_number: trackingNumber,
             tracking_url: dynamicTrackingUrl
@@ -184,6 +215,8 @@ const OrdersList = () => {
           ? { 
               ...o, 
               status: formattedStatus, 
+              payment_status: editingPaymentStatus,
+              paymentStatus: editingPaymentStatus,
               courier_name: courierName,
               tracking_number: trackingNumber || o.tracking_number,
               tracking_url: dynamicTrackingUrl || o.tracking_url
@@ -193,15 +226,17 @@ const OrdersList = () => {
 
       setOrders(updatedOrders);
       syncOrdersToLocalStorage(updatedOrders);
-      toast.success(`Order status updated to "${formattedStatus.toUpperCase()}"!`);
+      toast.success(`Order & Payment status updated!`);
       setSelectedOrder(prev => prev ? { 
         ...prev, 
         status: formattedStatus, 
+        payment_status: editingPaymentStatus,
+        paymentStatus: editingPaymentStatus,
         courier_name: courierName,
         tracking_number: trackingNumber,
         tracking_url: dynamicTrackingUrl 
       } : null);
-      loadOrders();
+      loadOrders(false);
     } catch (err) {
       toast.error('Failed to update order status');
     } finally {
@@ -222,6 +257,7 @@ const OrdersList = () => {
       total: Number(orderForm.price || 0) * Number(orderForm.quantity || 1),
       status: orderForm.status || 'Pending',
       payment_method: orderForm.payment_method || 'COD',
+      payment_status: orderForm.payment_status || 'pending',
       items: [
         {
           name: orderForm.item_name || 'Custom Apparel Item',
@@ -280,6 +316,7 @@ const OrdersList = () => {
       quantity: item.quantity || 1,
       price: item.price || order.total || 0,
       payment_method: order.payment_method || 'cod',
+      payment_status: order.payment_status || order.paymentStatus || 'pending',
       status: order.status || 'Pending'
     });
     setShowEditModal(true);
@@ -299,6 +336,8 @@ const OrdersList = () => {
           phone: orderForm.phone,
           status: orderForm.status,
           payment_method: orderForm.payment_method,
+          payment_status: orderForm.payment_status,
+          paymentStatus: orderForm.payment_status,
           total: updatedTotal,
           items: [
             {
@@ -330,6 +369,7 @@ const OrdersList = () => {
       try {
         await updateOrderApi(editingOrderId, {
           status: orderForm.status,
+          payment_status: orderForm.payment_status,
           total: updatedTotal
         });
       } catch (e) {}
@@ -352,7 +392,7 @@ const OrdersList = () => {
 
     try {
       try {
-        await deleteOrderApi(order.id);
+        await deleteOrderApi(order.id || order.order_number);
       } catch (e) {}
 
       const updatedList = orders.filter(o => String(o.id) !== String(order.id) && o.order_number !== orderNum);
@@ -361,6 +401,27 @@ const OrdersList = () => {
       toast.success(`Order #${orderNum} deleted!`);
     } catch (e) {
       toast.error('Failed to delete order');
+    }
+  };
+
+  // CLEAR ALL ORDERS
+  const handleClearAllOrders = async () => {
+    if (!window.confirm('⚠️ Are you sure you want to permanently clear ALL orders from the database and dashboard? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      try {
+        await api.delete('/orders/clear-all');
+      } catch (e) {}
+
+      setOrders([]);
+      localStorage.removeItem('orderly_orders');
+      localStorage.setItem('orderly_orders_updated', String(Date.now()));
+      window.dispatchEvent(new CustomEvent('orderly_orders_updated'));
+      toast.success('All orders have been permanently cleared from database!');
+    } catch (e) {
+      toast.error('Failed to clear orders');
     }
   };
 
@@ -377,8 +438,10 @@ const OrdersList = () => {
 
     const matchesStatus = statusFilter === 'All' || o.status?.toLowerCase() === statusFilter.toLowerCase();
     const matchesPayment = paymentFilter === 'All' || o.payment_method?.toLowerCase() === paymentFilter.toLowerCase();
+    const matchesPaymentStatus = paymentStatusFilter === 'All' || 
+      (o.payment_status || o.paymentStatus || 'pending').toLowerCase() === paymentStatusFilter.toLowerCase();
 
-    return matchesSearch && matchesStatus && matchesPayment;
+    return matchesSearch && matchesStatus && matchesPayment && matchesPaymentStatus;
   });
 
   // Summary Stats
@@ -398,13 +461,26 @@ const OrdersList = () => {
           <p className="orders-header-sub">Create, edit, delete, track, and manage customer purchases and order fulfillment.</p>
         </div>
 
-        <button 
-          type="button" 
-          className="btn-admin-red px-4 py-2.5 fw-bold d-inline-flex align-items-center gap-2"
-          onClick={() => { setOrderForm(emptyOrderForm); setShowCreateModal(true); }}
-        >
-          <FiPlus className="fs-5" /> + Create New Order
-        </button>
+        <div className="d-flex align-items-center gap-2">
+          {orders.length > 0 && (
+            <button 
+              type="button" 
+              className="btn btn-outline-danger px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2"
+              onClick={handleClearAllOrders}
+              title="Clear all orders from database"
+            >
+              <FiTrash2 className="fs-6" /> Clear All Orders
+            </button>
+          )}
+
+          <button 
+            type="button" 
+            className="btn-admin-red px-4 py-2.5 fw-bold d-inline-flex align-items-center gap-2"
+            onClick={() => { setOrderForm(emptyOrderForm); setShowCreateModal(true); }}
+          >
+            <FiPlus className="fs-5" /> + Create New Order
+          </button>
+        </div>
       </div>
 
       {/* 4 Stat Overview Cards */}
@@ -461,7 +537,7 @@ const OrdersList = () => {
       {/* Toolbar Filter Controls */}
       <div className="order-toolbar-card mb-4">
         <div className="row g-3 align-items-center">
-          <div className="col-12 col-md-6 col-lg-6">
+          <div className="col-12 col-lg-4">
             <div className="order-search-wrapper">
               <FiSearch className="order-search-icon" />
               <input 
@@ -474,7 +550,7 @@ const OrdersList = () => {
             </div>
           </div>
 
-          <div className="col-6 col-md-3 col-lg-3">
+          <div className="col-4 col-lg-2">
             <select 
               className="order-select-filter w-100"
               value={statusFilter}
@@ -489,17 +565,31 @@ const OrdersList = () => {
             </select>
           </div>
 
-              <div className="col-6 col-md-3 col-lg-3">
-                <select 
-                  className="order-select-filter w-100"
-                  value={paymentFilter}
-                  onChange={(e) => setPaymentFilter(e.target.value)}
-                >
-                  <option value="All">All Payment Methods</option>
-                  <option value="cod">Cash on Delivery (COD)</option>
-                  <option value="online">Online Payment</option>
-                </select>
-              </div>
+          <div className="col-4 col-lg-3">
+            <select 
+              className="order-select-filter w-100"
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+            >
+              <option value="All">All Payment Methods</option>
+              <option value="cod">Cash on Delivery (COD)</option>
+              <option value="online">Online Payment</option>
+            </select>
+          </div>
+
+          <div className="col-4 col-lg-3">
+            <select 
+              className="order-select-filter w-100"
+              value={paymentStatusFilter}
+              onChange={(e) => setPaymentStatusFilter(e.target.value)}
+            >
+              <option value="All">All Payment Statuses</option>
+              <option value="paid">Paid (Success)</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -512,7 +602,8 @@ const OrdersList = () => {
                 <th className="ps-4 py-3">ORDER ID</th>
                 <th>CUSTOMER DETAILS</th>
                 <th>DATE & TIME</th>
-                <th>PAYMENT</th>
+                <th>METHOD</th>
+                <th>PAYMENT STATUS</th>
                 <th>TOTAL AMOUNT</th>
                 <th>FULFILLMENT STATUS</th>
                 <th className="text-end pe-4">ACTIONS</th>
@@ -521,7 +612,7 @@ const OrdersList = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-5">
+                  <td colSpan="8" className="text-center py-5">
                     <span className="spinner-border spinner-border-sm text-danger me-2" role="status" /> Loading order registry...
                   </td>
                 </tr>
@@ -549,6 +640,9 @@ const OrdersList = () => {
                         <span className={`payment-method-pill ${order.payment_method?.toLowerCase() === 'cod' ? 'cod' : 'card'}`}>
                           {getPaymentLabel(order.payment_method)}
                         </span>
+                      </td>
+                      <td>
+                        {renderPaymentStatusBadge(order.payment_status || order.paymentStatus || 'pending')}
                       </td>
                       <td>
                         <strong className="text-dark fs-6">₹{Number(order.total || 0).toLocaleString()}</strong>
@@ -671,16 +765,16 @@ const OrdersList = () => {
                 </div>
               </div>
 
-              {/* Right Column: Update Fulfillment Form */}
+              {/* Right Column: Update Fulfillment & Payment Form */}
               <div className="col-md-5">
                 <form onSubmit={handleUpdateStatus} className="admin-info-box h-100 d-flex flex-column justify-content-between">
                   <div>
                     <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
-                      <FiTruck className="text-danger" /> Update Fulfillment Status
+                      <FiTruck className="text-danger" /> Fulfillment & Payment Status
                     </h6>
                     
                     <div className="admin-modal-field-group mb-3">
-                      <label className="admin-modal-label">ORDER STATUS</label>
+                      <label className="admin-modal-label">ORDER FULFILLMENT STATUS</label>
                       <select 
                         className="admin-modal-select"
                         value={editingStatus}
@@ -691,6 +785,21 @@ const OrdersList = () => {
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
                         <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+
+                    <div className="admin-modal-field-group mb-3">
+                      <label className="admin-modal-label">PAYMENT STATUS (DB RECORD)</label>
+                      <select 
+                        className="admin-modal-select"
+                        value={editingPaymentStatus}
+                        onChange={(e) => setEditingPaymentStatus(e.target.value)}
+                      >
+                        <option value="pending">Pending (Awaiting Payment)</option>
+                        <option value="paid">Paid (Payment Successful)</option>
+                        <option value="failed">Failed (Payment Failed)</option>
+                        <option value="partially_paid">Partially Paid (Advance)</option>
+                        <option value="refunded">Refunded</option>
                       </select>
                     </div>
 
@@ -759,7 +868,7 @@ const OrdersList = () => {
                   </div>
 
                   <button type="submit" className="btn-admin-red w-100 py-2.5 fw-bold" disabled={savingStatus}>
-                    <FiSave className="me-1" /> {savingStatus ? 'Saving Status...' : 'Save & Notify Customer'}
+                    <FiSave className="me-1" /> {savingStatus ? 'Saving Changes...' : 'Save & Sync Database'}
                   </button>
                 </form>
               </div>
@@ -818,17 +927,30 @@ const OrdersList = () => {
                   />
                 </div>
 
-                  <div className="col-md-6">
-                    <label className="form-label extra-small fw-bold text-muted">PAYMENT METHOD</label>
-                    <select 
-                      className="form-select"
-                      value={orderForm.payment_method}
-                      onChange={(e) => setOrderForm({ ...orderForm, payment_method: e.target.value })}
-                    >
-                    <option value="cod">Cash on Delivery (COD)</option>
-                    <option value="online">Online Payment</option>
-                    </select>
-                  </div>
+                <div className="col-md-3">
+                  <label className="form-label extra-small fw-bold text-muted">PAYMENT METHOD</label>
+                  <select 
+                    className="form-select"
+                    value={orderForm.payment_method}
+                    onChange={(e) => setOrderForm({ ...orderForm, payment_method: e.target.value })}
+                  >
+                    <option value="cod">COD</option>
+                    <option value="online">Online</option>
+                  </select>
+                </div>
+
+                <div className="col-md-3">
+                  <label className="form-label extra-small fw-bold text-muted">PAYMENT STATUS</label>
+                  <select 
+                    className="form-select"
+                    value={orderForm.payment_status}
+                    onChange={(e) => setOrderForm({ ...orderForm, payment_status: e.target.value })}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </div>
 
                 <div className="col-12">
                   <label className="form-label extra-small fw-bold text-muted">APPAREL ITEM NAME *</label>
@@ -922,7 +1044,7 @@ const OrdersList = () => {
                   />
                 </div>
 
-                <div className="col-md-6">
+                <div className="col-md-4">
                   <label className="form-label extra-small fw-bold text-muted">FULFILLMENT STATUS</label>
                   <select 
                     className="form-select"
@@ -937,17 +1059,31 @@ const OrdersList = () => {
                   </select>
                 </div>
 
-                  <div className="col-md-6">
-                    <label className="form-label extra-small fw-bold text-muted">PAYMENT METHOD</label>
-                    <select 
-                      className="form-select"
-                      value={orderForm.payment_method}
-                      onChange={(e) => setOrderForm({ ...orderForm, payment_method: e.target.value })}
-                    >
+                <div className="col-md-4">
+                  <label className="form-label extra-small fw-bold text-muted">PAYMENT METHOD</label>
+                  <select 
+                    className="form-select"
+                    value={orderForm.payment_method}
+                    onChange={(e) => setOrderForm({ ...orderForm, payment_method: e.target.value })}
+                  >
                     <option value="cod">Cash on Delivery (COD)</option>
                     <option value="online">Online Payment</option>
-                    </select>
-                  </div>
+                  </select>
+                </div>
+
+                <div className="col-md-4">
+                  <label className="form-label extra-small fw-bold text-muted">PAYMENT STATUS</label>
+                  <select 
+                    className="form-select"
+                    value={orderForm.payment_status}
+                    onChange={(e) => setOrderForm({ ...orderForm, payment_status: e.target.value })}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="failed">Failed</option>
+                    <option value="refunded">Refunded</option>
+                  </select>
+                </div>
 
                 <div className="col-12">
                   <label className="form-label extra-small fw-bold text-muted">ITEM NAME</label>

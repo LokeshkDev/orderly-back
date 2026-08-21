@@ -186,6 +186,14 @@ export const verifyRazorpayPayment = async (payload) => {
   return { success: false, message: 'Unable to verify Razorpay payment.' };
 };
 
+export const reportRazorpayFailure = async (payload) => {
+  try {
+    const res = await api.post('/payments/razorpay/failure', payload);
+    if (res.data && res.data.success) return res.data;
+  } catch (error) {}
+  return { success: true };
+};
+
 export const createOrder = async (orderData) => {
   const newOrderNumber = `ORD-${Date.now().toString().slice(-6)}`;
   let createdOrderObj = null;

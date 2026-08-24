@@ -358,3 +358,18 @@ textarea:focus,
   inset: 0;
   background: radial-gradient(circle at 50% 50%, rgba(229, 9, 20, 0.18) 0%, transparent 65%);
 }
+
+/* High-Contrast Dark-Theme Typography Overrides (Prevent dark gray on black) */
+.text-muted,
+.text-body-secondary {
+  color: #a3a3a3 !important;
+}
+
+.text-secondary {
+  color: #cbd5e1 !important;
+}
+
+del,
+s {
+  color: #94a3b8 !important;
+}

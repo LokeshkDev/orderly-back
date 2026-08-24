@@ -233,6 +233,37 @@ const ProductDetail = () => {
     };
   }, [id]);
 
+  /* ── Size-wise price helpers ─────────────────────────────────────── */
+  const getSizePrice = (product, size) => {
+    if (!product || !size) return product?.price ?? 0;
+    if (product.sizePrices && product.sizePrices[size] !== undefined && product.sizePrices[size] !== null) {
+      return Number(product.sizePrices[size]);
+    }
+    return product.price ?? 0;
+  };
+
+  const getSizeOriginalPrice = (prod, size, sizePrice) => {
+    if (!prod) return 0;
+    const basePrice = Number(prod.price) || 0;
+    const baseOrigPrice = Number(prod.originalPrice ?? prod.original_price) || 0;
+
+    if (prod.sizeOriginalPrices && prod.sizeOriginalPrices[size] !== undefined && prod.sizeOriginalPrices[size] !== null) {
+      return Number(prod.sizeOriginalPrices[size]);
+    }
+
+    if (!baseOrigPrice) return 0;
+    if (!size || !prod.sizePrices || prod.sizePrices[size] === undefined || prod.sizePrices[size] === null) {
+      return baseOrigPrice;
+    }
+
+    // Scale original compare price proportionally with the size variant price if base prices exist
+    if (basePrice > 0) {
+      const ratio = baseOrigPrice / basePrice;
+      return Math.max(Number(sizePrice), Math.round(Number(sizePrice) * ratio));
+    }
+    return baseOrigPrice;
+  };
+
   /* ── Derived values ────────────────────────────────────────────── */
   const activeProduct = product;
   const activeColorObj = activeProduct?.colors?.find(c => c && c.name === selectedColor) || activeProduct?.colors?.[0];
@@ -241,11 +272,15 @@ const ProductDetail = () => {
     : (activeProduct?.images && activeProduct.images.length > 0 ? activeProduct.images : []);
   const currentMainImg = galleryImages[selectedImgIndex] || galleryImages[0] || '';
   const isWishlisted = wishlist.some(item => item && String(item.id) === String(activeProduct?.id));
-  const discountPercent = calculateDiscount(activeProduct?.originalPrice, activeProduct?.price);
+  const isMainProductInCart = cart.some(item => String(item.productId || item.product_id || item.id) === String(activeProduct?.id));
+  const currentPrice = getSizePrice(activeProduct, selectedSize);
+  const currentOriginalPrice = getSizeOriginalPrice(activeProduct, selectedSize, currentPrice);
+  const discountPercent = calculateDiscount(currentOriginalPrice, currentPrice);
   const stockCount = activeProduct ? getVariantStock(activeProduct, selectedColor, selectedSize) : 0;
-  
-  // Checks if main product is in the cart
-  const isMainProductInCart = cart.some(item => String(item.id) === String(activeProduct?.id));
+   
+  // Popover states
+  const [showAddedPopover, setShowAddedPopover] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
 
   // Find pair items that are already in cart
   const pairItemsInCart = cart.filter(item => Boolean(item.isPairOffer || item.pairOffer?.enabled));
@@ -322,15 +357,23 @@ const ProductDetail = () => {
   };
 
   /* ── Handlers ──────────────────────────────────────────────────── */
-  const handleAddToCart = () => {
+  const handleAddToCart = (e) => {
     if (!activeProduct || stockCount <= 0) return;
     setIsAddingToCart(true);
 
+    // Show popover near the button
+    if (e && e.currentTarget) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setPopoverPosition({ x: rect.left + rect.width / 2, y: rect.top });
+    }
+
     setTimeout(() => {
-      addToCart(activeProduct, selectedSize, activeColorObj, quantity);
+      const sizePrice = getSizePrice(activeProduct, selectedSize);
+      const sizeOriginalPrice = getSizeOriginalPrice(activeProduct, selectedSize, sizePrice);
+      addToCart(activeProduct, selectedSize, activeColorObj, quantity, sizePrice, sizeOriginalPrice);
       setIsAddingToCart(false);
-      setAddedToast(true);
-      setTimeout(() => setAddedToast(false), 4000);
+      setShowAddedPopover(true);
+      setTimeout(() => setShowAddedPopover(false), 3000);
       
       // Auto scroll smoothly to Pair Well With section on desktop
       setTimeout(() => {
@@ -578,9 +621,9 @@ const ProductDetail = () => {
 
                 {/* 4. MRP & Current Selling Price */}
                 <div className="pdp-price-row">
-                  <span className="pdp-price-main">{formatPrice(activeProduct.price)}</span>
-                  {Number(activeProduct.originalPrice || 0) > Number(activeProduct.price || 0) && (
-                    <del className="pdp-price-original">{formatPrice(activeProduct.originalPrice)}</del>
+                  <span className="pdp-price-main">{formatPrice(currentPrice)}</span>
+                  {Number(currentOriginalPrice || 0) > Number(currentPrice || 0) && (
+                    <del className="pdp-price-original">{formatPrice(currentOriginalPrice)}</del>
                   )}
                   {discountPercent > 0 && (
                     <span className="pdp-off-tag">{discountPercent}% OFF</span>
@@ -742,6 +785,27 @@ const ProductDetail = () => {
                     <FiHeart />
                   </button>
                 </div>
+
+                {/* Added to Cart Popover */}
+                {showAddedPopover && (
+                  <div 
+                    className="pdp-added-popover"
+                    style={{ 
+                      left: popoverPosition.x, 
+                      top: popoverPosition.y - 60 
+                    }}
+                  >
+                    <div className="pdp-popover-arrow" />
+                    <div className="pdp-popover-content">
+                      <FiCheckCircle className="text-success" size={20} />
+                      <span className="fw-medium">{activeProduct?.name}</span>
+                      <span className="text-muted extra-small">
+                        {selectedSize && `Size: ${selectedSize}  •  `}
+                        Qty: {quantity}  •  {formatPrice(currentPrice)}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Main Product In Cart Feedback Pill */}
                 {isMainProductInCart && (

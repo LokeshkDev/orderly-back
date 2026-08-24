@@ -524,7 +524,7 @@ const Checkout = () => {
                   {codEnabled ? (
                     <div className="payment-note mb-3">
                       <FiShield className="me-2" />
-                      COD requires a {codAdvancePercentage}% advance of subtotal plus delivery charges. You will pay the balance on delivery.
+                      COD requires a {codAdvancePercentage}% advance of subtotal + delivery charges. You will pay the balance on delivery.
                     </div>
                   ) : (
                     <div className="payment-note mb-3 text-warning">
@@ -544,8 +544,8 @@ const Checkout = () => {
                       <div className="d-flex align-items-center gap-3">
                         <FiCreditCard className="pay-icon" />
                         <div>
-                          <strong>Online Payment</strong>
-                          <span className="d-block small text-muted">Pay securely with Razorpay using card, UPI, wallet, or netbanking</span>
+                          <strong className="payment-title">Online Payment</strong>
+                          <span className="d-block payment-desc">Pay securely with Razorpay using card, UPI, wallet, or netbanking</span>
                         </div>
                       </div>
                     </label>
@@ -560,8 +560,8 @@ const Checkout = () => {
                         <div className="d-flex align-items-center gap-3">
                           <FiTruck className="pay-icon" />
                           <div>
-                            <strong>Cash On Delivery (COD)</strong>
-                            <span className="d-block small text-muted">
+                            <strong className="payment-title">Cash On Delivery (COD)</strong>
+                            <span className="d-block payment-desc">
                               Pay {formatPrice(paymentDueNow)} now, then {formatPrice(codBalanceDue)} on delivery
                             </span>
                           </div>
@@ -590,13 +590,13 @@ const Checkout = () => {
                               </span>
                             )}
                           </div>
-                          <div className="small text-muted">
-                            <span>Qty: <strong className="text-white">{item.quantity}</strong></span>
+                          <div className="summary-item-meta">
+                            <span>Qty: <strong className="meta-val-qty">{item.quantity}</strong></span>
                             {(item.selectedSize || item.size) && (
-                              <span className="ms-2">| Size: <strong className="text-warning">{item.selectedSize || item.size}</strong></span>
+                              <span className="ms-2">| Size: <strong className="meta-val-highlight">{item.selectedSize || item.size}</strong></span>
                             )}
                             {(item.selectedColor || item.color) && (
-                              <span className="ms-2">| Color: <strong className="text-warning">{item.selectedColor || item.color}</strong></span>
+                              <span className="ms-2">| Color: <strong className="meta-val-highlight">{item.selectedColor || item.color}</strong></span>
                             )}
                           </div>
 

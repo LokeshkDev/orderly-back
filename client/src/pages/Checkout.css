@@ -108,11 +108,37 @@
 
 .payment-radio-card.active {
   border-color: var(--accent-red);
+  background: rgba(229, 9, 20, 0.05);
   box-shadow: 0 0 15px var(--accent-red-glow);
 }
 
 .payment-radio-card input {
   accent-color: var(--accent-red);
+}
+
+.payment-title {
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: block;
+}
+
+.payment-desc {
+  color: #cbd5e1 !important;
+  font-size: 0.84rem;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.payment-note {
+  font-size: 0.85rem;
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
 }
 
 .pay-icon {
@@ -143,9 +169,31 @@
   margin: 0;
 }
 
+.summary-item-meta {
+  font-size: 0.84rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.summary-item-meta .meta-val-qty {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.summary-item-meta .meta-val-highlight {
+  color: #facc15;
+  font-weight: 700;
+}
+
 .summary-item-price {
   font-weight: 700;
   font-size: 0.9rem;
+  color: #ffffff;
+}
+
+.summary-item-price del {
+  color: #94a3b8 !important;
+  font-size: 0.82rem;
 }
 
 /* ── Coupon Apply Box ────────────────────────────────────────────── */

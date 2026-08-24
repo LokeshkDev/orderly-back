@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiCheck, 
-  FiPackage, FiImage, FiGrid, FiTag, FiLink2 
+  FiPackage, FiImage, FiGrid, FiTag, FiLink2, FiCopy
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
@@ -96,7 +96,8 @@ const ProductsList = () => {
     stock: 0,
     suggested_products: [],
     pair_offers: {},
-    inventory: {}
+    inventory: {},
+    sizePrices: {}
   });
 
   const getPairBasePrice = (product) => Number(product?.originalPrice ?? product?.price ?? 0);
@@ -177,8 +178,8 @@ const ProductsList = () => {
       id: `prod-${Date.now()}`,
       name: '',
       sku: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
-      category: '',
-      brand: '',
+      category: categoryOptions[0] || 'Apparel',
+      brand: brandOptions[0] || 'ORDERLY STUDIO',
       price: 0,
       originalPrice: 0,
       badge: '',
@@ -191,7 +192,8 @@ const ProductsList = () => {
       stock: 0,
       suggested_products: [],
       pair_offers: {},
-      inventory: {}
+      inventory: {},
+      sizePrices: {}
     });
     setIsModalOpen(true);
   };
@@ -202,16 +204,52 @@ const ProductsList = () => {
     setNewSizeName('');
 
     const initialInventory = { ...(p.inventory || {}) };
-    p.colors?.forEach(c => {
-      p.sizes?.forEach(s => {
-        const k = `${c.name}-${s}`;
-        if (initialInventory[k] === undefined) {
-          initialInventory[k] = 0;
-        }
-      });
-    });
+    const pColors = Array.isArray(p.colors) && p.colors.length > 0 ? p.colors : [];
+    const pSizes = Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : [];
 
-    const calculatedStock = Object.values(initialInventory).reduce((a, b) => a + Number(b || 0), 0);
+    if (pColors.length > 0 && pSizes.length > 0) {
+      pColors.forEach(c => {
+        pSizes.forEach(s => {
+          const k = `${c.name}-${s}`;
+          if (initialInventory[k] === undefined) {
+            initialInventory[k] = 0;
+          }
+        });
+      });
+    } else if (pSizes.length > 0) {
+      pSizes.forEach(s => {
+        const val = initialInventory[s] ?? initialInventory[`Standard-${s}`] ?? 0;
+        initialInventory[s] = val;
+        initialInventory[`Standard-${s}`] = val;
+      });
+    } else if (pColors.length > 0) {
+      pColors.forEach(c => {
+        const val = initialInventory[c.name] ?? initialInventory[`${c.name}-Standard`] ?? 0;
+        initialInventory[c.name] = val;
+        initialInventory[`${c.name}-Standard`] = val;
+      });
+    } else {
+      initialInventory['default'] = initialInventory['default'] ?? initialInventory['Standard'] ?? p.stock ?? 0;
+    }
+
+    let calculatedStock = 0;
+    if (pColors.length > 0 && pSizes.length > 0) {
+      pColors.forEach(c => {
+        pSizes.forEach(s => {
+          calculatedStock += Number(initialInventory[`${c.name}-${s}`] || 0);
+        });
+      });
+    } else if (pSizes.length > 0) {
+      pSizes.forEach(s => {
+        calculatedStock += Number(initialInventory[s] ?? initialInventory[`Standard-${s}`] ?? 0);
+      });
+    } else if (pColors.length > 0) {
+      pColors.forEach(c => {
+        calculatedStock += Number(initialInventory[c.name] ?? initialInventory[`${c.name}-Standard`] ?? 0);
+      });
+    } else {
+      calculatedStock = Number(initialInventory['default'] ?? initialInventory['Standard'] ?? p.stock ?? 0);
+    }
 
     setFormData({
       id: p.id,
@@ -235,7 +273,8 @@ const ProductsList = () => {
         Array.isArray(p.suggested_products) ? p.suggested_products : [],
         p.pair_offers || {}
       ),
-      inventory: initialInventory
+      inventory: initialInventory,
+      sizePrices: p.sizePrices || {}
     });
     setIsModalOpen(true);
   };
@@ -260,17 +299,33 @@ const ProductsList = () => {
   };
 
   const handleRemoveColor = (colorName) => {
-    if (formData.colors.length <= 1) {
-      toast.error('At least one color variant is required');
-      return;
-    }
     setFormData(prev => {
       const updatedColors = prev.colors.filter(c => c.name !== colorName);
       const updatedInv = { ...prev.inventory };
       Object.keys(updatedInv).forEach(k => {
-        if (k.startsWith(`${colorName}-`)) delete updatedInv[k];
+        if (k.startsWith(`${colorName}-`) || k === colorName || k === `${colorName}-Standard`) delete updatedInv[k];
       });
-      const totalStock = Object.values(updatedInv).reduce((a, b) => a + Number(b || 0), 0);
+
+      let totalStock = 0;
+      const sizes = prev.sizes || [];
+      if (updatedColors.length > 0 && sizes.length > 0) {
+        updatedColors.forEach(c => {
+          sizes.forEach(s => {
+            totalStock += Number(updatedInv[`${c.name}-${s}`] || 0);
+          });
+        });
+      } else if (sizes.length > 0) {
+        sizes.forEach(s => {
+          totalStock += Number(updatedInv[s] ?? updatedInv[`Standard-${s}`] ?? 0);
+        });
+      } else if (updatedColors.length > 0) {
+        updatedColors.forEach(c => {
+          totalStock += Number(updatedInv[c.name] ?? updatedInv[`${c.name}-Standard`] ?? 0);
+        });
+      } else {
+        totalStock = Number(updatedInv['default'] ?? updatedInv['Standard'] ?? 0);
+      }
+
       return { ...prev, colors: updatedColors, inventory: updatedInv, stock: totalStock };
     });
     toast.info(`Color "${colorName}" removed`);
@@ -296,18 +351,38 @@ const ProductsList = () => {
   };
 
   const handleRemoveSize = (sizeLabel) => {
-    if (formData.sizes.length <= 1) {
-      toast.error('At least one size option is required');
-      return;
-    }
     setFormData(prev => {
       const updatedSizes = prev.sizes.filter(s => s !== sizeLabel);
       const updatedInv = { ...prev.inventory };
+      delete updatedInv[sizeLabel];
+      delete updatedInv[`Standard-${sizeLabel}`];
       Object.keys(updatedInv).forEach(k => {
         if (k.endsWith(`-${sizeLabel}`)) delete updatedInv[k];
       });
-      const totalStock = Object.values(updatedInv).reduce((a, b) => a + Number(b || 0), 0);
-      return { ...prev, sizes: updatedSizes, inventory: updatedInv, stock: totalStock };
+      const updatedSizePrices = { ...prev.sizePrices };
+      delete updatedSizePrices[sizeLabel];
+
+      let totalStock = 0;
+      const colors = prev.colors || [];
+      if (colors.length > 0 && updatedSizes.length > 0) {
+        colors.forEach(c => {
+          updatedSizes.forEach(s => {
+            totalStock += Number(updatedInv[`${c.name}-${s}`] || 0);
+          });
+        });
+      } else if (updatedSizes.length > 0) {
+        sizes.forEach(s => {
+          totalStock += Number(updatedInv[s] ?? updatedInv[`Standard-${s}`] ?? 0);
+        });
+      } else if (colors.length > 0) {
+        colors.forEach(c => {
+          totalStock += Number(updatedInv[c.name] ?? updatedInv[`${c.name}-Standard`] ?? 0);
+        });
+      } else {
+        totalStock = Number(updatedInv['default'] ?? updatedInv['Standard'] ?? 0);
+      }
+
+      return { ...prev, sizes: updatedSizes, inventory: updatedInv, sizePrices: updatedSizePrices, stock: totalStock };
     });
     toast.info(`Size "${sizeLabel}" removed`);
   };
@@ -319,18 +394,52 @@ const ProductsList = () => {
       return;
     }
 
-    // Default missing keys to 0 (NOT 10) so zeroing out stocks is strictly respected!
     const fullInventory = { ...formData.inventory };
-    formData.colors.forEach(c => {
-      formData.sizes.forEach(s => {
-        const k = `${c.name}-${s}`;
-        if (fullInventory[k] === undefined) {
-          fullInventory[k] = 0;
-        }
-      });
-    });
+    const colorsList = Array.isArray(formData.colors) && formData.colors.length > 0 ? formData.colors : [];
+    const sizesList = Array.isArray(formData.sizes) && formData.sizes.length > 0 ? formData.sizes : [];
 
-    const totalStock = Object.values(fullInventory).reduce((a, b) => a + Number(b || 0), 0);
+    if (colorsList.length > 0 && sizesList.length > 0) {
+      colorsList.forEach(c => {
+        sizesList.forEach(s => {
+          const k = `${c.name}-${s}`;
+          if (fullInventory[k] === undefined) fullInventory[k] = 0;
+        });
+      });
+    } else if (sizesList.length > 0) {
+      sizesList.forEach(s => {
+        const val = fullInventory[s] ?? fullInventory[`Standard-${s}`] ?? 0;
+        fullInventory[s] = val;
+        fullInventory[`Standard-${s}`] = val;
+      });
+    } else if (colorsList.length > 0) {
+      colorsList.forEach(c => {
+        const val = fullInventory[c.name] ?? fullInventory[`${c.name}-Standard`] ?? 0;
+        fullInventory[c.name] = val;
+        fullInventory[`${c.name}-Standard`] = val;
+      });
+    } else {
+      fullInventory['default'] = fullInventory['default'] ?? fullInventory['Standard'] ?? formData.stock ?? 0;
+    }
+
+    let totalStock = 0;
+    if (colorsList.length > 0 && sizesList.length > 0) {
+      colorsList.forEach(c => {
+        sizesList.forEach(s => {
+          totalStock += Number(fullInventory[`${c.name}-${s}`] || 0);
+        });
+      });
+    } else if (sizesList.length > 0) {
+      sizesList.forEach(s => {
+        totalStock += Number(fullInventory[s] ?? fullInventory[`Standard-${s}`] ?? 0);
+      });
+    } else if (colorsList.length > 0) {
+      colorsList.forEach(c => {
+        totalStock += Number(fullInventory[c.name] ?? fullInventory[`${c.name}-Standard`] ?? 0);
+      });
+    } else {
+      totalStock = Number(fullInventory['default'] ?? fullInventory['Standard'] ?? 0);
+    }
+
     const cleanPairOffers = cleanupPairOffers(formData.suggested_products, formData.pair_offers);
     const finalFormData = { 
       ...formData, 
@@ -384,13 +493,68 @@ const ProductsList = () => {
     }
   };
 
-  const handleInventoryChange = (key, val) => {
+  const handleDuplicateProduct = async (product) => {
+    try {
+      const duplicateData = {
+        ...product,
+        id: `prod-${Date.now()}`,
+        sku: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
+        name: `${product.name} (Copy)`,
+        slug: `${product.slug || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-copy-${Date.now()}`,
+        status: 'Draft'
+      };
+      
+      delete duplicateData.createdAt;
+      delete duplicateData.updatedAt;
+      delete duplicateData.deleted;
+
+      const res = await api.post('/products', duplicateData);
+      if (res.data && res.data.success && res.data.data) {
+        const savedProduct = res.data.data;
+        const updatedList = [savedProduct, ...products];
+        saveProductsToStorage(updatedList);
+        toast.success(`Product "${savedProduct.name}" duplicated successfully!`);
+      } else {
+        toast.error('Failed to duplicate product');
+      }
+    } catch (err) {
+      console.warn('Duplicate product error:', err.message);
+      toast.error(err.response?.data?.message || 'Failed to duplicate product');
+    }
+  };
+
+  const handleInventoryChange = (key, val, altKey) => {
     setFormData(prev => {
+      const numVal = Math.max(0, Number(val) || 0);
       const updatedInv = {
         ...prev.inventory,
-        [key]: Math.max(0, Number(val))
+        [key]: numVal
       };
-      const totalStock = Object.values(updatedInv).reduce((a, b) => a + Number(b || 0), 0);
+      if (altKey) {
+        updatedInv[altKey] = numVal;
+      }
+
+      let totalStock = 0;
+      const colors = prev.colors || [];
+      const sizes = prev.sizes || [];
+      if (colors.length > 0 && sizes.length > 0) {
+        colors.forEach(c => {
+          sizes.forEach(s => {
+            totalStock += Number(updatedInv[`${c.name}-${s}`] || 0);
+          });
+        });
+      } else if (sizes.length > 0) {
+        sizes.forEach(s => {
+          totalStock += Number(updatedInv[s] ?? updatedInv[`Standard-${s}`] ?? 0);
+        });
+      } else if (colors.length > 0) {
+        colors.forEach(c => {
+          totalStock += Number(updatedInv[c.name] ?? updatedInv[`${c.name}-Standard`] ?? 0);
+        });
+      } else {
+        totalStock = Number(updatedInv['default'] ?? updatedInv['Standard'] ?? 0);
+      }
+
       return {
         ...prev,
         inventory: updatedInv,
@@ -398,6 +562,63 @@ const ProductsList = () => {
       };
     });
   };
+
+  // Compute active matrix rows based on colors & sizes
+  const matrixRows = useMemo(() => {
+    const colors = formData.colors || [];
+    const sizes = formData.sizes || [];
+
+    if (colors.length > 0 && sizes.length > 0) {
+      const rows = [];
+      colors.forEach(color => {
+        sizes.forEach(size => {
+          rows.push({
+            key: `${color.name}-${size}`,
+            colorName: color.name,
+            colorHex: color.hex,
+            size: size,
+            hasColor: true,
+            hasSize: true
+          });
+        });
+      });
+      return rows;
+    }
+
+    if (sizes.length > 0) {
+      return sizes.map(size => ({
+        key: size,
+        altKey: `Standard-${size}`,
+        colorName: 'Standard',
+        colorHex: null,
+        size: size,
+        hasColor: false,
+        hasSize: true
+      }));
+    }
+
+    if (colors.length > 0) {
+      return colors.map(color => ({
+        key: color.name,
+        altKey: `${color.name}-Standard`,
+        colorName: color.name,
+        colorHex: color.hex,
+        size: 'Standard / Free',
+        hasColor: true,
+        hasSize: false
+      }));
+    }
+
+    return [{
+      key: 'default',
+      altKey: 'Standard',
+      colorName: 'Standard',
+      colorHex: null,
+      size: 'Standard',
+      hasColor: false,
+      hasSize: false
+    }];
+  }, [formData.colors, formData.sizes]);
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -425,8 +646,8 @@ const ProductsList = () => {
           <div className="col-md-6">
             <div className="position-relative">
               <input 
-                type="text"
-                placeholder="Search products by name or SKU..."
+                type="text" 
+                placeholder="Search products by name or SKU..." 
                 className="admin-input ps-5"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -518,6 +739,13 @@ const ProductsList = () => {
                           <FiEdit /> Edit
                         </button>
                         <button 
+                          className="btn-admin-outline py-1 px-2"
+                          onClick={() => handleDuplicateProduct(p)}
+                          title="Duplicate Product"
+                        >
+                          <FiCopy /> Duplicate
+                        </button>
+                        <button 
                           className="btn-admin-outline py-1 px-2 text-danger"
                           onClick={() => handleDeleteProduct(p.id, p.name)}
                           title="Delete Product"
@@ -603,7 +831,7 @@ const ProductsList = () => {
 
                 {/* Pricing in ₹ INR */}
                 <div className="col-md-6 px-1">
-                  <label className="admin-form-label">SELLING PRICE (₹ INR) *</label>
+                  <label className="admin-form-label">BASE SELLING PRICE (₹ INR) *</label>
                   <input 
                     type="number" 
                     className="admin-input" 
@@ -614,7 +842,7 @@ const ProductsList = () => {
                 </div>
 
                 <div className="col-md-6 px-1">
-                  <label className="admin-form-label">ORIGINAL COMPARE PRICE (₹ INR)</label>
+                  <label className="admin-form-label">BASE ORIGINAL COMPARE PRICE (₹ INR)</label>
                   <input 
                     type="number" 
                     className="admin-input" 
@@ -656,7 +884,7 @@ const ProductsList = () => {
                               };
                               setFormData(prev => ({ ...prev, colors: updatedColors }));
                             }}
-                            type="image"
+                            type="image" 
                             folder="products"
                             label={`Image for ${color.name} Color Variant`}
                             placeholder={`Upload or paste image URL for ${color.name}...`}
@@ -742,50 +970,129 @@ const ProductsList = () => {
 
                 {/* Size & Color Stock Matrix Management */}
                 <div className="col-12 px-1">
-                  <label className="admin-form-label mb-2">INVENTORY STOCK MATRIX</label>
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <label className="admin-form-label mb-0">INVENTORY STOCK MATRIX</label>
+                    <span className="text-muted extra-small">
+                      Configure selling prices and stock per variant
+                    </span>
+                  </div>
                   <div className="p-3 border rounded bg-light" style={{ overflowX: 'hidden' }}>
                     <table className="admin-matrix-table" style={{ width: '100%' }}>
                       <thead>
                         <tr>
                           <th>COLOR</th>
                           <th>SIZE</th>
+                          <th>ORIGINAL PRICE (₹)</th>
+                          <th>SELLING PRICE (₹)</th>
                           <th>STOCK QUANTITY</th>
                           <th>STATUS</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {formData.colors.map(color => (
-                          formData.sizes.map(size => {
-                            const key = `${color.name}-${size}`;
-                            const stock = formData.inventory[key] ?? 0;
-                            return (
-                              <tr key={key}>
-                                <td>
+                        {matrixRows.map(row => {
+                          const stock = formData.inventory[row.key] ?? (row.altKey ? formData.inventory[row.altKey] : undefined) ?? 0;
+                          const baseOriginalPrice = formData.originalPrice || 0;
+                          const baseSellingPrice = formData.price || 0;
+                          const sizeSellingPrice = row.hasSize && formData.sizePrices?.[row.size] !== undefined && formData.sizePrices?.[row.size] !== null
+                            ? formData.sizePrices[row.size]
+                            : baseSellingPrice;
+                          const sizeOriginalPrice = row.hasSize && formData.sizePrices?.[row.size] !== undefined && formData.sizePrices?.[row.size] !== null && formData.originalPrice && formData.price
+                            ? Math.round(formData.originalPrice * (formData.sizePrices[row.size] / formData.price))
+                            : baseOriginalPrice;
+
+                          return (
+                            <tr key={row.key}>
+                              <td>
+                                {row.hasColor ? (
                                   <div className="d-flex align-items-center gap-2">
-                                    <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: color.hex, border: '1px solid #ccc' }} />
-                                    <strong>{color.name}</strong>
+                                    <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: row.colorHex, border: '1px solid #ccc' }} />
+                                    <strong>{row.colorName}</strong>
                                   </div>
-                                </td>
-                                <td><span className="cat-slug-badge">{size}</span></td>
-                                <td>
-                                  <input 
-                                    type="number"
-                                    min="0"
-                                    className="admin-input py-1 px-2"
-                                    style={{ width: '90px' }}
-                                    value={stock}
-                                    onChange={(e) => handleInventoryChange(key, e.target.value)}
-                                  />
-                                </td>
-                                <td>
-                                  <span className={`status-badge-pill ${stock > 0 ? 'active' : 'draft'}`}>
-                                    {stock > 0 ? `In Stock (${stock})` : 'OUT OF STOCK'}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        ))}
+                                ) : (
+                                  <span className="text-muted fst-italic">Standard</span>
+                                )}
+                              </td>
+                              <td>
+                                {row.hasSize ? (
+                                  <span className="cat-slug-badge">{row.size}</span>
+                                ) : (
+                                  <span className="text-muted fst-italic">Standard</span>
+                                )}
+                              </td>
+                              <td>
+                                <input 
+                                  type="number" 
+                                  min="0" 
+                                  step="1" 
+                                  className="admin-input py-1 px-2" 
+                                  style={{ width: '100px' }}
+                                  value={sizeOriginalPrice || ''}
+                                  onChange={(e) => {
+                                    if (row.hasSize && baseOriginalPrice && baseSellingPrice) {
+                                      const newSellingPrice = Number(e.target.value) * (baseSellingPrice / baseOriginalPrice);
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        sizePrices: {
+                                          ...prev.sizePrices,
+                                          [row.size]: Math.round(newSellingPrice)
+                                        }
+                                      }));
+                                    } else {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        originalPrice: Number(e.target.value)
+                                      }));
+                                    }
+                                  }}
+                                  placeholder={String(baseOriginalPrice)}
+                                />
+                              </td>
+                              <td>
+                                <input 
+                                  type="number" 
+                                  min="0" 
+                                  step="1" 
+                                  className="admin-input py-1 px-2" 
+                                  style={{ width: '100px' }}
+                                  value={sizeSellingPrice || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value === '' ? undefined : Number(e.target.value);
+                                    if (row.hasSize) {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        sizePrices: {
+                                          ...prev.sizePrices,
+                                          [row.size]: val
+                                        }
+                                      }));
+                                    } else {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        price: val ?? 0
+                                      }));
+                                    }
+                                  }}
+                                  placeholder={String(baseSellingPrice)}
+                                />
+                              </td>
+                              <td>
+                                <input 
+                                  type="number" 
+                                  min="0" 
+                                  className="admin-input py-1 px-2" 
+                                  style={{ width: '90px' }}
+                                  value={stock}
+                                  onChange={(e) => handleInventoryChange(row.key, e.target.value, row.altKey)}
+                                />
+                              </td>
+                              <td>
+                                <span className={`status-badge-pill ${stock > 0 ? 'active' : 'draft'}`}>
+                                  {stock > 0 ? `In Stock (${stock})` : 'OUT OF STOCK'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -802,16 +1109,16 @@ const ProductsList = () => {
                       Selected: {formData.suggested_products.length} product(s).
                     </p>
                     <div className="d-flex align-items-center justify-content-between gap-3 mb-2">
-                      <input
-                        type="text"
+                      <input 
+                        type="text" 
                         className="admin-input py-1 px-2"
                         placeholder="Search products to suggest..."
                         value={suggestedSearch}
                         onChange={(e) => setSuggestedSearch(e.target.value)}
                       />
                       {formData.suggested_products.length > 0 && (
-                        <button
-                          type="button"
+                        <button 
+                          type="button" 
                           className="btn-admin-outline py-1 text-nowrap"
                           onClick={() => setFormData(prev => ({ ...prev, suggested_products: [], pair_offers: {} }))}
                         >
@@ -829,13 +1136,13 @@ const ProductsList = () => {
                         .map(p => {
                           const isChecked = formData.suggested_products.some(sp => String(sp) === String(p.id));
                           return (
-                            <label
-                              key={p.id}
+                            <label 
+                              key={p.id} 
                               className="d-flex align-items-center gap-2 px-3 py-2 border-bottom cursor-pointer"
                               style={{ color: '#0f172a', fontSize: '0.88rem' }}
                             >
-                              <input
-                                type="checkbox"
+                              <input 
+                                type="checkbox" 
                                 checked={isChecked}
                                 onChange={() => {
                                   setFormData(prev => {
@@ -887,8 +1194,8 @@ const ProductsList = () => {
                                     </div>
                                   </div>
                                   <label className="d-flex align-items-center gap-2 text-dark small mb-0">
-                                    <input
-                                      type="checkbox"
+                                    <input 
+                                      type="checkbox" 
                                       checked={Boolean(offer.enabled)}
                                       onChange={(e) => togglePairOffer(selectedProduct, pairId, e.target.checked)}
                                     />
@@ -899,11 +1206,11 @@ const ProductsList = () => {
                                   <div className="row g-2">
                                     <div className="col-md-3">
                                       <label className="admin-form-label mb-1">Discount %</label>
-                                      <input
-                                        type="number"
+                                      <input 
+                                        type="number" 
                                         className="admin-input py-1 px-2"
-                                        min="0"
-                                        max="90"
+                                        min="0" 
+                                        max="90" 
                                         value={offer.discount_percent || ''}
                                         onChange={(e) => applyPairPercentageDeal(selectedProduct, pairId, Number(e.target.value))}
                                         placeholder="e.g. 20"
@@ -911,8 +1218,8 @@ const ProductsList = () => {
                                     </div>
                                     <div className="col-md-3">
                                       <label className="admin-form-label mb-1">Offer Price (₹)</label>
-                                      <input
-                                        type="text"
+                                      <input 
+                                        type="text" 
                                         className="admin-input py-1 px-2"
                                         value={`₹${Number(offer.offer_price || 0).toLocaleString()}`}
                                         readOnly
@@ -921,8 +1228,8 @@ const ProductsList = () => {
                                     </div>
                                     <div className="col-md-3">
                                       <label className="admin-form-label mb-1">Badge</label>
-                                      <input
-                                        type="text"
+                                      <input 
+                                        type="text" 
                                         className="admin-input py-1 px-2"
                                         value={offer.badge || ''}
                                         onChange={(e) => updatePairOffer(pairId, { badge: e.target.value })}
@@ -931,8 +1238,8 @@ const ProductsList = () => {
                                     </div>
                                     <div className="col-md-3">
                                       <label className="admin-form-label mb-1">Promo Note</label>
-                                      <input
-                                        type="text"
+                                      <input 
+                                        type="text" 
                                         className="admin-input py-1 px-2"
                                         value={offer.note || ''}
                                         onChange={(e) => updatePairOffer(pairId, { note: e.target.value })}
@@ -958,7 +1265,7 @@ const ProductsList = () => {
                       ...prev, 
                       images: url ? [url, ...(prev.images?.slice(1) || [])] : prev.images 
                     }))}
-                    type="image"
+                    type="image" 
                     folder="products"
                     label="PRODUCT MAIN COVER IMAGE (Upload)"
                     recommendedSize="Recommended: 800 x 1000 px (4:5 Aspect Ratio)"

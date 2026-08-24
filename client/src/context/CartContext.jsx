@@ -47,7 +47,7 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('orderly_cart', JSON.stringify(cart));
   }, [cart]);
 
-  const addToCart = (product, selectedSize = 'M', selectedColor = null, quantity = 1) => {
+  const addToCart = (product, selectedSize = 'M', selectedColor = null, quantity = 1, sizeSpecificPrice = null, sizeSpecificOriginalPrice = null) => {
     setCart((prevCart) => {
       if (product && product.isCombo) {
         const itemKey = product.id || `combo-${Date.now()}`;
@@ -65,8 +65,8 @@ export const CartProvider = ({ children }) => {
         updated[existingIndex].quantity += (typeof selectedSize === 'number' ? selectedSize : quantity) || 1;
         return updated;
       } else {
-        const baseSellingPrice = roundCurrency(Number(product.price ?? product.unit_price ?? 0));
-        const baseMrp = roundCurrency(Number(product.originalPrice ?? product.original_price ?? product.price ?? 0));
+        const baseSellingPrice = roundCurrency(Number(sizeSpecificPrice ?? product.price ?? product.unit_price ?? 0));
+        const baseMrp = roundCurrency(Number(sizeSpecificOriginalPrice ?? product.originalPrice ?? product.original_price ?? product.price ?? 0));
         return [
           ...prevCart,
           {

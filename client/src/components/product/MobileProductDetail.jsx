@@ -129,12 +129,44 @@ const MobileProductDetail = ({
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
+  /* Size-wise price helpers */
+  const getSizePrice = (prod, size) => {
+    if (!prod || !size) return prod?.price ?? 0;
+    if (prod.sizePrices && prod.sizePrices[size] !== undefined && prod.sizePrices[size] !== null) {
+      return Number(prod.sizePrices[size]);
+    }
+    return prod.price ?? 0;
+  };
+
+  const getSizeOriginalPrice = (prod, size, sizePrice) => {
+    if (!prod) return 0;
+    const basePrice = Number(prod.price) || 0;
+    const baseOrigPrice = Number(prod.originalPrice ?? prod.original_price) || 0;
+
+    if (prod.sizeOriginalPrices && prod.sizeOriginalPrices[size] !== undefined && prod.sizeOriginalPrices[size] !== null) {
+      return Number(prod.sizeOriginalPrices[size]);
+    }
+
+    if (!baseOrigPrice) return 0;
+    if (!size || !prod.sizePrices || prod.sizePrices[size] === undefined || prod.sizePrices[size] === null) {
+      return baseOrigPrice;
+    }
+
+    if (basePrice > 0) {
+      const ratio = baseOrigPrice / basePrice;
+      return Math.max(Number(sizePrice), Math.round(Number(sizePrice) * ratio));
+    }
+    return baseOrigPrice;
+  };
+
   const activeColorObj = activeProduct?.colors?.find(c => c && c.name === selectedColor) || activeProduct?.colors?.[0];
   const galleryImages = (activeColorObj?.images && activeColorObj.images.length > 0)
     ? activeColorObj.images
     : (activeProduct?.images && activeProduct.images.length > 0 ? activeProduct.images : []);
   const currentMainImg = galleryImages[selectedImgIndex] || galleryImages[0] || '';
-  const discountPercent = calculateDiscount(activeProduct?.originalPrice, activeProduct?.price);
+  const currentPrice = getSizePrice(activeProduct, selectedSize);
+  const currentOriginalPrice = getSizeOriginalPrice(activeProduct, selectedSize, currentPrice);
+  const discountPercent = calculateDiscount(currentOriginalPrice, currentPrice);
   const stockCount = activeProduct ? getVariantStock(activeProduct, selectedColor, selectedSize) : 0;
 
   const goToPrevImage = () => setSelectedImgIndex(prev => prev > 0 ? prev - 1 : galleryImages.length - 1);
@@ -330,9 +362,9 @@ const MobileProductDetail = ({
 
       {/* ── 5. PRICE SECTION ─────────────────────────────────────── */}
       <div className="m-pdp-price-row">
-        <span className="m-pdp-price-current">{formatPrice(activeProduct.price)}</span>
-        {activeProduct.originalPrice && (
-          <span className="m-pdp-price-original">{formatPrice(activeProduct.originalPrice)}</span>
+        <span className="m-pdp-price-current">{formatPrice(currentPrice)}</span>
+        {currentOriginalPrice && Number(currentOriginalPrice) > Number(currentPrice) && (
+          <span className="m-pdp-price-original">{formatPrice(currentOriginalPrice)}</span>
         )}
         {discountPercent > 0 && (
           <span className="m-pdp-discount-tag">{discountPercent}% OFF</span>
@@ -461,24 +493,6 @@ const MobileProductDetail = ({
         >
           <FiShoppingBag />
           {stockCount > 0 ? 'ADD TO CART' : 'OUT OF STOCK'}
-        </button>
-      </div>
-
-      {/* ── 11. WISHLIST + COMPARE ───────────────────────────────── */}
-      <div className="m-pdp-secondary-actions">
-        <button
-          type="button"
-          className={`m-pdp-sec-btn ${isWishlisted ? 'active' : ''}`}
-          onClick={() => toggleWishlist(activeProduct)}
-        >
-          <FiHeart /> {isWishlisted ? 'WISHLISTED' : 'WISHLIST'}
-        </button>
-        <button
-          type="button"
-          className={`m-pdp-sec-btn ${isCompared ? 'active' : ''}`}
-          onClick={() => setIsCompared(prev => !prev)}
-        >
-          <FiRefreshCw /> {isCompared ? 'COMPARING' : 'COMPARE'}
         </button>
       </div>
 
@@ -865,7 +879,7 @@ addToCart({ ...item, originalPrice: mrp, price: item.price || mrp, isPairOffer: 
         <div className="m-pdp-sticky-purchase-bar">
           <div className="m-pdp-sticky-info">
             <span className="m-pdp-sticky-name">{activeProduct.name}</span>
-            <span className="m-pdp-sticky-price">{formatPrice(activeProduct.price)}</span>
+            <span className="m-pdp-sticky-price">{formatPrice(currentPrice)}</span>
           </div>
           <button
             type="button"

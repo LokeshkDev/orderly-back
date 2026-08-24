@@ -3149,3 +3149,59 @@
   background: #334155;
   color: #94A3B8;
 }
+
+/* ── Popover for Added to Cart ───────────────────────────────────── */
+.pdp-added-popover {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: pdpPopoverIn 0.2s ease;
+}
+
+@keyframes pdpPopoverIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.pdp-popover-arrow {
+  width: 12px;
+  height: 12px;
+  background: var(--bg-card, #141722);
+  border: 1px solid rgba(229, 9, 20, 0.5);
+  border-right: none;
+  border-bottom: none;
+  transform: rotate(45deg) translateX(-50%);
+  margin: 0 auto;
+}
+
+.pdp-popover-content {
+  background: var(--bg-card, #141722);
+  border: 1px solid rgba(229, 9, 20, 0.5);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  max-width: 300px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(229, 9, 20, 0.2);
+}
+
+.pdp-popover-content svg {
+  flex-shrink: 0;
+}
+
+.pdp-popover-content span {
+  font-size: 0.82rem;
+  color: var(--text-white, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pdp-popover-content .text-muted {
+  color: var(--text-muted, #94a3b8) !important;
+  font-size: 0.72rem;
+  font-weight: 500;
+}

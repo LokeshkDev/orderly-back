@@ -18,12 +18,43 @@ const QuickViewModal = () => {
   const [quantity, setQuantity] = useState(1);
   const [addedNotice, setAddedNotice] = useState(false);
 
+  const getSizePrice = (prod, size) => {
+    if (!prod || !size) return prod?.price ?? 0;
+    if (prod.sizePrices && prod.sizePrices[size] !== undefined && prod.sizePrices[size] !== null) {
+      return Number(prod.sizePrices[size]);
+    }
+    return prod.price ?? 0;
+  };
+
+  const getSizeOriginalPrice = (prod, size, sizePrice) => {
+    if (!prod) return 0;
+    const basePrice = Number(prod.price) || 0;
+    const baseOrigPrice = Number(prod.originalPrice ?? prod.original_price) || 0;
+
+    if (prod.sizeOriginalPrices && prod.sizeOriginalPrices[size] !== undefined && prod.sizeOriginalPrices[size] !== null) {
+      return Number(prod.sizeOriginalPrices[size]);
+    }
+
+    if (!baseOrigPrice) return 0;
+    if (!size || !prod.sizePrices || prod.sizePrices[size] === undefined || prod.sizePrices[size] === null) {
+      return baseOrigPrice;
+    }
+
+    if (basePrice > 0) {
+      const ratio = baseOrigPrice / basePrice;
+      return Math.max(Number(sizePrice), Math.round(Number(sizePrice) * ratio));
+    }
+    return baseOrigPrice;
+  };
+
   if (!quickViewProduct) return null;
 
   const product = normalizeProduct(quickViewProduct);
   const activeColor = selectedColor || product.colors?.[0];
   const isWishlisted = wishlist.some(item => item.id === product.id);
-  const discountPercent = calculateDiscount(product.originalPrice || product.original_price, product.price);
+  const currentPrice = getSizePrice(product, selectedSize);
+  const currentOriginalPrice = getSizeOriginalPrice(product, selectedSize, currentPrice);
+  const discountPercent = calculateDiscount(currentOriginalPrice, currentPrice);
 
   const galleryImages = colorImages(product, activeColor?.name);
   const images = galleryImages.length > 0
@@ -31,7 +62,7 @@ const QuickViewModal = () => {
     : (product.images && product.images.length > 0 ? product.images : []);
 
   const handleAddToCart = () => {
-    addToCart(product, selectedSize, activeColor, quantity);
+    addToCart(product, selectedSize, activeColor, quantity, currentPrice, currentOriginalPrice);
     setAddedNotice(true);
     setTimeout(() => setAddedNotice(false), 2000);
   };
@@ -103,9 +134,9 @@ const QuickViewModal = () => {
 
             {/* Pricing */}
             <div className="qv-price-box">
-              <span className="qv-price">{formatPrice(product.price)}</span>
-              {(product.originalPrice || product.original_price) && (
-                <span className="qv-original-price">{formatPrice(product.originalPrice || product.original_price)}</span>
+              <span className="qv-price">{formatPrice(currentPrice)}</span>
+              {currentOriginalPrice && Number(currentOriginalPrice) > Number(currentPrice) && (
+                <span className="qv-original-price">{formatPrice(currentOriginalPrice)}</span>
               )}
               {discountPercent > 0 && (
                 <span className="qv-discount-badge">{discountPercent}% OFF</span>

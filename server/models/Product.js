@@ -77,6 +77,10 @@ const Product = sequelize.define('Product', {
   inventory: {
     type: DataTypes.JSON
   },
+  sizePrices: {
+    type: DataTypes.JSON,
+    comment: 'Size-wise pricing override, keyed by size label'
+  },
   suggested_products: {
     type: DataTypes.JSON,
     comment: 'Array of product IDs shown in the PDP "Pairs Well With" section (admin-managed)'

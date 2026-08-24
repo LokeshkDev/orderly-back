@@ -371,7 +371,7 @@ const ProductsList = () => {
           });
         });
       } else if (updatedSizes.length > 0) {
-        sizes.forEach(s => {
+        updatedSizes.forEach(s => {
           totalStock += Number(updatedInv[s] ?? updatedInv[`Standard-${s}`] ?? 0);
         });
       } else if (colors.length > 0) {

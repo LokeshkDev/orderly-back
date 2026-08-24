@@ -38,6 +38,7 @@ const AboutUs = lazy(() => import('./pages/AboutUs'));
 const ContactUs = lazy(() => import('./pages/ContactUs'));
 const ShippingPolicy = lazy(() => import('./pages/ShippingPolicy'));
 const ReturnsPolicy = lazy(() => import('./pages/ReturnsPolicy'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Mobile views (separate chunk)
 const MobileHomepage = lazy(() => import('./pages/MobileHomepage'));
@@ -97,6 +98,7 @@ const AppLayout = () => {
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/shipping-policy" element={<ShippingPolicy />} />
           <Route path="/returns-policy" element={<ReturnsPolicy />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
 

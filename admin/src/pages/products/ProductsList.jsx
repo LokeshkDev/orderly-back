@@ -97,8 +97,10 @@ const ProductsList = () => {
     suggested_products: [],
     pair_offers: {},
     inventory: {},
-    sizePrices: {},
-    sizeOriginalPrices: {}
+    sizeOriginalPrices: {},
+    metaTitle: '',
+    metaDescription: '',
+    metaKeywords: ''
   });
 
   const getPairBasePrice = (product) => Number(product?.originalPrice ?? product?.price ?? 0);
@@ -195,7 +197,10 @@ const ProductsList = () => {
       pair_offers: {},
       inventory: {},
       sizePrices: {},
-      sizeOriginalPrices: {}
+      sizeOriginalPrices: {},
+      metaTitle: '',
+      metaDescription: '',
+      metaKeywords: ''
     });
     setIsModalOpen(true);
   };
@@ -277,7 +282,10 @@ const ProductsList = () => {
       ),
       inventory: initialInventory,
       sizePrices: p.sizePrices || {},
-      sizeOriginalPrices: p.sizeOriginalPrices || {}
+      sizeOriginalPrices: p.sizeOriginalPrices || {},
+      metaTitle: p.metaTitle || '',
+      metaDescription: p.metaDescription || '',
+      metaKeywords: p.metaKeywords || ''
     });
     setIsModalOpen(true);
   };
@@ -542,6 +550,37 @@ const ProductsList = () => {
       console.warn('Duplicate product error:', err.message);
       toast.error(err.response?.data?.message || 'Failed to duplicate product');
     }
+  };
+
+  
+  const handleAutoGenerateSEO = () => {
+    const prodName = formData.name ? formData.name.trim() : 'Product';
+    const prodCat = formData.category ? formData.category.trim() : 'Apparel';
+    const prodBrand = formData.brand ? formData.brand.trim() : 'ORDERLY';
+
+    const generatedTitle = `Buy ${prodName} Online | Men's ${prodCat} | ${prodBrand}`.slice(0, 65);
+    const plainDesc = (formData.description || '').replace(/<[^>]*>?/gm, '').slice(0, 100);
+    const generatedDesc = `Shop ${prodName} online at ${prodBrand}. Premium ${prodCat.toLowerCase()} featuring ${plainDesc || 'refined luxury fit, breathable fabric, and tailored comfort'}. Free delivery & COD across India.`.slice(0, 160);
+    
+    const keywordsArr = [
+      prodName,
+      `men's ${prodCat.toLowerCase()}`,
+      `buy ${prodCat.toLowerCase()} online`,
+      `${prodBrand.toLowerCase()} menswear`,
+      `luxury ${prodCat.toLowerCase()} india`,
+      'streetwear india',
+      'premium menswear',
+      'oversized fashion'
+    ];
+
+    setFormData(prev => ({
+      ...prev,
+      metaTitle: generatedTitle,
+      metaDescription: generatedDesc,
+      metaKeywords: keywordsArr.join(', ')
+    }));
+
+    toast.success('✨ SEO Meta Title, Description & Keywords auto-generated!');
   };
 
   const handleInventoryChange = (key, val, altKey) => {
@@ -1293,7 +1332,80 @@ const ProductsList = () => {
                   />
                 </div>
 
-                {/* Status Toggle */}
+                
+                {/* SEO & Meta Tags Section */}
+                <div className="col-12 px-1">
+                  <div className="p-3 border rounded-3 bg-white shadow-sm mb-3">
+                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+                      <div>
+                        <strong className="d-block text-dark small">SEARCH ENGINE OPTIMIZATION (SEO)</strong>
+                        <span className="text-muted extra-small">Optimize Google search ranking, rich snippets, and social previews</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        className="btn-admin-solid py-1 px-3 extra-small"
+                        onClick={handleAutoGenerateSEO}
+                        style={{ fontSize: '0.78rem' }}
+                      >
+                        ✨ AI Auto-Generate SEO
+                      </button>
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <label className="admin-form-label mb-0">SEO META TITLE</label>
+                        <span className="text-muted extra-small">{(formData.metaTitle || '').length}/65 chars</span>
+                      </div>
+                      <input 
+                        type="text" 
+                        className="admin-input" 
+                        placeholder="e.g. Buy Essential Cotton Crewneck Tee Online | Men's Shirts | ORDERLY"
+                        value={formData.metaTitle || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, metaTitle: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <label className="admin-form-label mb-0">SEO META DESCRIPTION</label>
+                        <span className="text-muted extra-small">{(formData.metaDescription || '').length}/160 chars</span>
+                      </div>
+                      <textarea 
+                        rows={2}
+                        className="admin-input" 
+                        placeholder="e.g. Shop Luxury Essential Crewneck Tee online at ORDERLY. 100% combed cotton, relaxed silhouette, free delivery in India."
+                        value={formData.metaDescription || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, metaDescription: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="admin-form-label mb-1">TARGET SEARCH KEYWORDS (Comma separated)</label>
+                      <input 
+                        type="text" 
+                        className="admin-input" 
+                        placeholder="e.g. men's t-shirt, buy cotton tees, oversized streetwear, ORDERLY"
+                        value={formData.metaKeywords || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, metaKeywords: e.target.value }))}
+                      />
+                    </div>
+
+                    {/* Google SERP Live Preview */}
+                    <div className="p-3 bg-light rounded border">
+                      <span className="text-muted extra-small fw-bold d-block mb-1">GOOGLE SEARCH PREVIEW</span>
+                      <div className="text-primary small fw-bold line-clamp-1" style={{ fontSize: '0.95rem' }}>
+                        {formData.metaTitle || (formData.name ? `Buy ${formData.name} Online | ORDERLY` : 'Product Title | ORDERLY Mens Wear')}
+                      </div>
+                      <div className="text-success extra-small">
+                        https://orderlymenswear.in/product/{formData.name ? formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'product-slug'}
+                      </div>
+                      <div className="text-muted extra-small line-clamp-2 mt-1">
+                        {formData.metaDescription || (formData.description ? formData.description.replace(/<[^>]*>?/gm, '').slice(0, 150) : 'Shop premium luxury menswear online at ORDERLY. Refined fit, breathable fabrics, and fast shipping across India.')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+\n                {/* Status Toggle */}
                 <div className="col-12 px-1">
                   <label className="admin-form-label">CATALOG VISIBILITY STATUS</label>
                   <div className="d-flex gap-4">

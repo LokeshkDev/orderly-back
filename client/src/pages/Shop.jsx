@@ -1,3 +1,4 @@
+import SEOHead from '../components/common/SEOHead';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { FiX, FiSliders, FiChevronRight, FiChevronLeft, FiHeart, FiShoppingBag } from 'react-icons/fi';

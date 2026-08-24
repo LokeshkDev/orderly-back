@@ -57,6 +57,11 @@ const Combo = sequelize.define('Combo', {
   items: {
     type: DataTypes.JSON
   },
+  last_updated_by: {
+    type: DataTypes.STRING,
+    defaultValue: 'Super Admin',
+    comment: 'Admin user who last modified this record'
+  },
   deleted: {
     type: DataTypes.BOOLEAN,
     defaultValue: false

@@ -1,6 +1,6 @@
 .admin-sidebar {
   width: 250px;
-  background-color: var(--admin-sidebar-bg, #0f172a);
+  background-color: #0b0f19;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -12,13 +12,12 @@
   position: relative;
 }
 
-/* Collapsed Sidebar Mode */
 .admin-sidebar.collapsed {
   width: 74px;
 }
 
 .sidebar-brand-box {
-  padding: 20px 16px 18px;
+  padding: 18px 16px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -46,27 +45,31 @@
   color: #94a3b8;
   font-weight: 600;
   display: block;
-  margin-top: 1px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .brand-collapsed-logo {
-  width: 38px;
-  height: 38px;
-  background: #c5221f;
-  color: #ffffff;
+  width: 40px;
+  height: 40px;
+  background: #000000;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 900;
-  font-size: 1.25rem;
-  box-shadow: 0 4px 12px rgba(197, 34, 31, 0.35);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
   cursor: pointer;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  overflow: hidden;
+  padding: 4px;
 }
 
-/* Collapse Toggle Button inside Sidebar */
+.collapsed-brand-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .sidebar-collapse-toggle-btn {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -84,8 +87,8 @@
 }
 
 .sidebar-collapse-toggle-btn:hover {
-  background: #c5221f;
-  border-color: #c5221f;
+  background: #DC2626;
+  border-color: #DC2626;
   color: #ffffff;
 }
 
@@ -93,7 +96,6 @@
   display: none !important;
 }
 
-/* Mobile Close Button (Hidden by default on desktop) */
 .sidebar-mobile-close-btn {
   display: none;
   background: transparent;
@@ -108,15 +110,24 @@
   color: #ffffff;
 }
 
+/* Hide scrollbars cleanly */
 .sidebar-nav-container {
   flex: 1;
-  padding: 14px 10px 0;
+  padding: 12px 10px 0;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE & Edge */
+}
+
+.sidebar-nav-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
 }
 
 .admin-sidebar.collapsed .sidebar-nav-container {
-  padding: 14px 8px 0;
+  padding: 12px 8px 0;
 }
 
 .sidebar-menu-list {
@@ -125,7 +136,7 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .sidebar-menu-link {
@@ -133,52 +144,56 @@
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  color: #94a3b8;
-  font-size: 0.9rem;
+  color: #94a3b8 !important;
+  font-size: 0.88rem;
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: none !important;
   border-radius: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   position: relative;
 }
 
 .admin-sidebar.collapsed .sidebar-menu-link {
   justify-content: center;
-  padding: 12px 0;
+  padding: 11px 0;
   gap: 0;
 }
 
 .sidebar-menu-link:hover {
-  color: #ffffff;
+  color: #ffffff !important;
   background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-menu-link.active {
-  color: #ffffff;
-  background: #c5221f;
+  color: #ffffff !important;
+  background: #DC2626 !important;
   font-weight: 700;
-  box-shadow: 0 4px 12px rgba(197, 34, 31, 0.3);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
 }
 
 .sidebar-menu-link .link-icon {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: inherit;
+}
+
+.sidebar-menu-link .link-text {
+  color: inherit;
 }
 
 .sidebar-footer {
-  padding: 14px 10px 20px;
+  padding: 12px 10px 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .admin-sidebar.collapsed .sidebar-footer {
-  padding: 14px 8px 20px;
+  padding: 12px 8px 18px;
 }
 
-/* Mobile Screen Behavior: Off-canvas Drawer */
 @media (max-width: 991px) {
   .sidebar-collapse-toggle-btn {
     display: none !important;
@@ -194,10 +209,24 @@
     top: 0;
     bottom: 0;
     transform: translateX(-100%);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
   }
 
   .admin-sidebar.mobile-open {
     transform: translateX(0);
   }
+}
+\n
+.sidebar-brand-expanded {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.sidebar-brand-logo-img {
+  height: 40px;
+  max-width: 145px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }

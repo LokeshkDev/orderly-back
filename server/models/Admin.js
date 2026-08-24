@@ -21,9 +21,10 @@ const Admin = sequelize.define('Admin', {
     allowNull: true,
   },
   role: {
-    type: DataTypes.ENUM('admin', 'editor'),
+    type: DataTypes.STRING(50),
     allowNull: false,
     defaultValue: 'admin',
+    comment: 'superadmin, admin, manager, editor, staff'
   },
   google_id: {
     type: DataTypes.STRING,

@@ -27,6 +27,7 @@ import uploadRoutes from './routes/upload.routes.js';
 import customersRoutes from './routes/customers.routes.js';
 import productsRoutes from './routes/products.routes.js';
 import combosRoutes from './routes/combos.routes.js';
+import sitemapRoutes from './routes/sitemap.routes.js';
 import Combo from './models/Combo.js';
 
 import path from 'path';
@@ -168,6 +169,8 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/combos', combosRoutes);
+app.use('/', sitemapRoutes);
+app.use('/api', sitemapRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

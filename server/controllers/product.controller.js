@@ -68,6 +68,8 @@ export const getProductById = async (req, res) => {
 export const createProduct = async (req, res) => {
   try {
     const productData = req.body;
+    const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : (req.body.last_updated_by || 'Admin');
+    productData.last_updated_by = authorName;
     if (!productData.id) {
       productData.id = 'prod-' + Date.now();
     }
@@ -87,7 +89,8 @@ export const updateProduct = async (req, res) => {
     const product = await Product.findByPk(id);
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
 
-    await product.update(req.body);
+    const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : (req.body.last_updated_by || 'Admin');
+    await product.update({ ...req.body, last_updated_by: authorName });
     return res.json({ success: true, data: product });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

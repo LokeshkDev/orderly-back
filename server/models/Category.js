@@ -32,6 +32,11 @@ const Category = sequelize.define('Category', {
     type: DataTypes.STRING,
     defaultValue: 'product', // 'product' or 'combo'
   },
+  last_updated_by: {
+    type: DataTypes.STRING,
+    defaultValue: 'Super Admin',
+    comment: 'Admin user who last modified this record'
+  },
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

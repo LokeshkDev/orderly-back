@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /checkout
+Disallow: /order-success
+Disallow: /order-failure
+
+Sitemap: https://orderlymenswear.in/sitemap.xml

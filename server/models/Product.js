@@ -93,6 +93,23 @@ const Product = sequelize.define('Product', {
     type: DataTypes.JSON,
     comment: 'Offer setup keyed by paired product ID for PDP "Pairs Well With" products'
   },
+  metaTitle: {
+    type: DataTypes.STRING,
+    comment: 'SEO meta title'
+  },
+  metaDescription: {
+    type: DataTypes.TEXT,
+    comment: 'SEO meta description'
+  },
+  metaKeywords: {
+    type: DataTypes.TEXT,
+    comment: 'SEO meta keywords comma-separated'
+  },
+  last_updated_by: {
+    type: DataTypes.STRING,
+    defaultValue: 'Super Admin',
+    comment: 'Admin user who last modified this record'
+  },
   deleted: {
     type: DataTypes.BOOLEAN,
     defaultValue: false

@@ -9,6 +9,15 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  try {
+    const adminUser = localStorage.getItem('orderly_admin_user');
+    if (adminUser) {
+      const parsed = JSON.parse(adminUser);
+      if (parsed?.name) {
+        config.headers['x-admin-name'] = encodeURIComponent(parsed.name);
+      }
+    }
+  } catch (e) {}
   return config;
 });
 

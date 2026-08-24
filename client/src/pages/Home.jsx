@@ -1,3 +1,4 @@
+import SEOHead from '../components/common/SEOHead';
 import React, { useState, useEffect } from 'react';
 import SEO from '../components/common/SEO';
 import HeroCarousel from '../components/home/HeroCarousel';

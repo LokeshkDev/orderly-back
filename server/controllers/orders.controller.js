@@ -582,7 +582,67 @@ export const updateOrderStatus = async (req, res) => {
     const orderRecord = dbOrder ? normalizeOrder(dbOrder) : normalizeOrder(runtimeItem);
 
     // Check status-specific email trigger (deduplicated)
-    if (lowerStatus === 'shipped') {
+    if (lowerStatus === 'cancelled' || lowerStatus === 'canceled') {
+      const alreadySent = dbOrder ? dbOrder.cancelled_email_sent : runtimeItem.cancelled_email_sent;
+      if (!alreadySent) {
+        try {
+          await sendOrderEmail({
+            orderNumber: orderRecord.order_number,
+            customerName: orderRecord.customer_name || 'Customer',
+            customerEmail: orderRecord.email,
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'admin@orderlymenswear.in',
+            status: 'Cancelled',
+            type: 'order_cancelled',
+            paymentStatus: orderRecord.payment_status || 'refund_initiated',
+            paymentMethod: orderRecord.payment_method,
+            subtotal: orderRecord.subtotal,
+            discount: orderRecord.discount,
+            deliveryCharge: orderRecord.shipping_fee,
+            amount: orderRecord.total,
+            items: orderRecord.items,
+            shippingAddress: orderRecord.shippingAddress,
+            emailSettings: email_settings,
+            courierSettings: courier_settings
+          });
+          if (dbOrder) {
+            try { await dbOrder.update({ cancelled_email_sent: true }); } catch (e) {}
+          }
+          runtimeItem.cancelled_email_sent = true;
+        } catch (emailError) {
+          console.warn('Cancelled email notification note:', emailError.message);
+        }
+      }
+    } else if (lowerStatus === 'failed') {
+      const alreadySent = dbOrder ? dbOrder.failed_email_sent : runtimeItem.failed_email_sent;
+      if (!alreadySent) {
+        try {
+          await sendOrderEmail({
+            orderNumber: orderRecord.order_number,
+            customerName: orderRecord.customer_name || 'Customer',
+            customerEmail: orderRecord.email,
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'admin@orderlymenswear.in',
+            status: 'Failed',
+            type: 'order_failed',
+            paymentStatus: 'failed',
+            paymentMethod: orderRecord.payment_method,
+            subtotal: orderRecord.subtotal,
+            discount: orderRecord.discount,
+            deliveryCharge: orderRecord.shipping_fee,
+            amount: orderRecord.total,
+            items: orderRecord.items,
+            shippingAddress: orderRecord.shippingAddress,
+            emailSettings: email_settings,
+            courierSettings: courier_settings
+          });
+          if (dbOrder) {
+            try { await dbOrder.update({ failed_email_sent: true }); } catch (e) {}
+          }
+          runtimeItem.failed_email_sent = true;
+        } catch (emailError) {
+          console.warn('Failed email notification note:', emailError.message);
+        }
+      }
+    } else if (lowerStatus === 'shipped') {
       const alreadySent = dbOrder ? dbOrder.shipped_email_sent : runtimeItem.shipped_email_sent;
       if (!alreadySent && email_settings?.order_shipped?.enabled !== false) {
         try {

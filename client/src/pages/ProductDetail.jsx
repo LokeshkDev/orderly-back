@@ -1,3 +1,4 @@
+import SEOHead from '../components/common/SEOHead';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -119,6 +120,7 @@ const renderStars = (rating = 5) => {
   const full = Math.floor(r);
   const hasHalf = r % 1 >= 0.3;
   const empty = 5 - full - (hasHalf ? 1 : 0);
+
   return (
     <>
       {[...Array(Math.max(0, full))].map((_, i) => <FaStar key={`f${i}`} />)}
@@ -438,9 +440,19 @@ const ProductDetail = () => {
      ══════════════════════════════════════════════════════════════════ */
   return (
     <>
-      <SEO
-        title={`${activeProduct.name} | ORDERLY Menswear`}
-        description={activeProduct.description}
+      <SEOHead
+        title={activeProduct.metaTitle || `${activeProduct.name} | Premium Men's Apparel | ORDERLY`}
+        description={activeProduct.metaDescription || activeProduct.description || "Shop premium luxury menswear at ORDERLY. Free shipping and cash on delivery in India."}
+        keywords={activeProduct.metaKeywords || `${activeProduct.name}, men's apparel, luxury menswear, ORDERLY`}
+        canonicalPath={`/product/${activeProduct.slug || activeProduct.id}`}
+        image={activeProduct.images?.[0] || 'https://orderlymenswear.in/assets/media/logo-07E_iIRS.png'}
+        type="product"
+        product={activeProduct}
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: activeProduct.category || 'Shop', url: `/shop?category=${activeProduct.category || ''}` },
+          { name: activeProduct.name, url: `/product/${activeProduct.slug || activeProduct.id}` }
+        ]}
       />
 
       {/* ── Mobile PDP (<= 767px) ────────────────────────────────── */}

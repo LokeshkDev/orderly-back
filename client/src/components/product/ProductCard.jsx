@@ -183,19 +183,7 @@ const ProductCard = ({ product }) => {
           </div>
         </Link>
 
-        {/* Top-Right Heart Wishlist Button */}
-        <button 
-          type="button"
-          className={`card-wishlist-top-btn ${isWishlisted ? 'active' : ''}`}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleWishlist(product);
-          }}
-          title={isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
-        >
-          <FiHeart />
-        </button>
+        {/* Wishlist button removed per design */}
 
         {/* Top-Left Badges Stack (Discount / Out of Stock / Color Badges) */}
         <div className="card-badges-stack">

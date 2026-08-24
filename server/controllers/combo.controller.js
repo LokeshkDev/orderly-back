@@ -64,6 +64,8 @@ export const createCombo = async (req, res) => {
       comboData.slug = comboData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     }
 
+    const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : 'Admin';
+    comboData.last_updated_by = authorName;
     const combo = await Combo.create(comboData);
     return res.status(201).json({ success: true, data: combo });
   } catch (err) {
@@ -77,7 +79,8 @@ export const updateCombo = async (req, res) => {
     const combo = await Combo.findByPk(id);
     if (!combo) return res.status(404).json({ success: false, message: 'Combo not found' });
 
-    await combo.update(req.body);
+    const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : 'Admin';
+    await combo.update({ ...req.body, last_updated_by: authorName });
     return res.json({ success: true, data: combo });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

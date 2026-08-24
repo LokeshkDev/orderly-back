@@ -334,7 +334,7 @@ const CouponsList = () => {
       </div>
 
       {/* Modal: Add/Edit Coupon */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingCoupon ? 'Edit Promo Coupon' : 'Create New Promo Coupon'}>
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingCoupon ? 'Edit Promo Coupon' : 'Create New Promo Coupon'} width="640px">
         <form onSubmit={handleSaveCoupon}>
           <div className="row g-3">
             <div className="col-md-6">

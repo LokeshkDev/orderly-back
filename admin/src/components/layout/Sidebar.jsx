@@ -1,14 +1,22 @@
+import logoImg from '../../assets/logo/logo.png';
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   FiGrid, FiTag, FiPackage, FiLayers, FiShoppingCart, FiSettings, 
-  FiSliders, FiCalendar, FiUsers, FiTruck, FiChevronLeft, FiChevronRight, FiX
+  FiSliders, FiCalendar, FiUsers, FiTruck, FiChevronLeft, FiChevronRight, 
+  FiX, FiShield, FiTrendingUp 
 } from 'react-icons/fi';
+import { useAuth } from '../../context/AuthContext';
+import { canAccessRoute, getRoleConfig } from '../../utils/rbac';
 import './Sidebar.css';
 
 const Sidebar = ({ isCollapsed, isMobileOpen, onToggleCollapse, onCloseMobile }) => {
-  const navItems = [
+  const { admin } = useAuth();
+  const roleConfig = getRoleConfig(admin?.role);
+
+  const rawNavItems = [
     { path: '/', icon: <FiGrid />, label: 'Dashboard', exact: true },
+    { path: '/bi-reports', icon: <FiTrendingUp />, label: 'BI & Analytics', exact: false },
     { path: '/homepage-settings', icon: <FiSliders />, label: 'Homepage CMS', exact: false },
     { path: '/categories', icon: <FiTag />, label: 'Categories', exact: false },
     { path: '/products', icon: <FiPackage />, label: 'Products', exact: false },
@@ -17,23 +25,41 @@ const Sidebar = ({ isCollapsed, isMobileOpen, onToggleCollapse, onCloseMobile })
     { path: '/settings/delivery', icon: <FiTruck />, label: 'Delivery Settings', exact: false },
     { path: '/coupons', icon: <FiTag />, label: 'Promo Coupons', exact: false },
     { path: '/customers', icon: <FiUsers />, label: 'Customers', exact: false },
+    { path: '/admin-users', icon: <FiShield />, label: 'Admin Users & Roles', exact: false },
   ];
 
+  // Dynamically filter nav items according to logged-in user's role permissions
+  const navItems = rawNavItems.filter(item => canAccessRoute(admin?.role, item.path));
+
   return (
-    <aside className={`admin-sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
+    <aside className={"admin-sidebar" + (isCollapsed ? " collapsed" : "") + (isMobileOpen ? " mobile-open" : "")}>
       {/* Brand Header */}
       <div className="sidebar-brand-box">
         <div className="sidebar-brand-info">
           {!isCollapsed ? (
-            <>
-              <h1 className="brand-title">
-                Orders<span className="text-danger">ly</span>
-              </h1>
-              <span className="brand-sub">Admin Panel</span>
-            </>
+            <div className="sidebar-brand-expanded">
+              <NavLink to="/" className="sidebar-brand-link d-inline-block">
+                <img src={logoImg} alt="ORDERLY" className="sidebar-brand-logo-img" />
+              </NavLink>
+              <div className="d-flex align-items-center gap-1 mt-1">
+                <span className="brand-sub">Admin Panel</span>
+                <span 
+                  className="badge rounded-pill extra-small px-2 py-0"
+                  style={{ 
+                    background: roleConfig.bg, 
+                    color: roleConfig.color, 
+                    border: "1px solid " + roleConfig.color + "40",
+                    fontSize: '0.62rem',
+                    fontWeight: '700'
+                  }}
+                >
+                  {roleConfig.label}
+                </span>
+              </div>
+            </div>
           ) : (
             <div className="brand-collapsed-logo" title="Ordersly Admin Panel">
-              <span>O</span>
+              <img src="/favicon.png" alt="Ordersly" className="collapsed-brand-img" />
             </div>
           )}
         </div>
@@ -60,16 +86,20 @@ const Sidebar = ({ isCollapsed, isMobileOpen, onToggleCollapse, onCloseMobile })
         </button>
       </div>
 
-      {/* Main Nav Items */}
-      <div className="sidebar-nav-container">
+      {/* Navigation List */}
+      <nav className="sidebar-nav-container">
         <ul className="sidebar-menu-list">
-          {navItems.map((item, idx) => (
-            <li key={idx}>
-              <NavLink 
-                to={item.path} 
+          {navItems.map((item) => (
+            <li key={item.path} className="sidebar-menu-item">
+              <NavLink
+                to={item.path}
                 end={item.exact}
-                onClick={onCloseMobile}
-                className={({ isActive }) => `sidebar-menu-link ${isActive ? 'active' : ''}`}
+                className={({ isActive }) => "sidebar-menu-link" + (isActive ? " active" : "")}
+                onClick={() => {
+                  if (window.innerWidth < 992 && onCloseMobile) {
+                    onCloseMobile();
+                  }
+                }}
                 title={isCollapsed ? item.label : undefined}
               >
                 <span className="link-icon">{item.icon}</span>
@@ -78,20 +108,21 @@ const Sidebar = ({ isCollapsed, isMobileOpen, onToggleCollapse, onCloseMobile })
             </li>
           ))}
         </ul>
-      </div>
+      </nav>
 
-      {/* Settings at Bottom */}
-      <div className="sidebar-footer">
-        <NavLink 
-          to="/settings" 
-          onClick={onCloseMobile}
-          className={({ isActive }) => `sidebar-menu-link ${isActive ? 'active' : ''}`}
-          title={isCollapsed ? "Settings" : undefined}
-        >
-          <span className="link-icon"><FiSettings /></span>
-          {!isCollapsed && <span className="link-text">Settings</span>}
-        </NavLink>
-      </div>
+      {/* Bottom Settings Link (If permitted) */}
+      {canAccessRoute(admin?.role, '/settings') && (
+        <div className="sidebar-footer">
+          <NavLink
+            to="/settings"
+            className={({ isActive }) => "sidebar-menu-link" + (isActive ? " active" : "")}
+            title={isCollapsed ? "Site Settings" : undefined}
+          >
+            <span className="link-icon"><FiSettings /></span>
+            {!isCollapsed && <span className="link-text">Settings</span>}
+          </NavLink>
+        </div>
+      )}
     </aside>
   );
 };

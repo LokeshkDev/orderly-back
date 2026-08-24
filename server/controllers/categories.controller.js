@@ -64,7 +64,8 @@ export const createCategory = async (req, res) => {
   try {
     let category;
     try {
-      category = await Category.create(req.body);
+      const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : 'Admin';
+    category = await Category.create({ ...req.body, last_updated_by: authorName });
     } catch (err) {
       category = { id: Date.now(), ...req.body };
     }
@@ -78,7 +79,8 @@ export const updateCategory = async (req, res) => {
   try {
     const category = await Category.findByPk(req.params.id);
     if (!category) return res.status(404).json({ success: false, message: 'Category not found' });
-    await category.update(req.body);
+    const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : 'Admin';
+    await category.update({ ...req.body, last_updated_by: authorName });
     res.status(200).json({ success: true, data: category });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

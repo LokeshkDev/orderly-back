@@ -81,6 +81,10 @@ const Product = sequelize.define('Product', {
     type: DataTypes.JSON,
     comment: 'Size-wise pricing override, keyed by size label'
   },
+  sizeOriginalPrices: {
+    type: DataTypes.JSON,
+    comment: 'Size-wise original compare pricing override, keyed by size label'
+  },
   suggested_products: {
     type: DataTypes.JSON,
     comment: 'Array of product IDs shown in the PDP "Pairs Well With" section (admin-managed)'

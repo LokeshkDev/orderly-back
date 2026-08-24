@@ -52,7 +52,7 @@ const CombosList = () => {
     try {
       const [combosRes, productsRes, catsRes] = await Promise.all([
         api.get('/combos?includeDeleted=true'),
-        api.get('/products'),
+        api.get('/products?all=true'),
         api.get('/categories?type=combo')
       ]);
 

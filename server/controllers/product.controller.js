@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 
 export const getProducts = async (req, res) => {
   try {
-    const { category, occasion, brand, search, status, includeDeleted } = req.query;
+    const { category, occasion, brand, search, status, includeDeleted, includeDrafts, all } = req.query;
     const where = {};
 
     // Soft-deleted products are hidden by default (from website and admin).
@@ -12,7 +12,14 @@ export const getProducts = async (req, res) => {
     if (category && category !== 'All') where.category = category;
     if (occasion && occasion !== 'All') where.occasion = occasion;
     if (brand && brand !== 'All') where.brand = brand;
-    if (status) where.status = status;
+
+    // If all or includeDrafts is true (admin requests), show all or filter by requested status.
+    // Otherwise, on public website, strictly filter to Active products only!
+    if (all === 'true' || includeDrafts === 'true') {
+      if (status && status !== 'All') where.status = status;
+    } else {
+      where.status = status || 'Active';
+    }
 
     if (search) {
       where[Op.or] = [
@@ -32,11 +39,19 @@ export const getProducts = async (req, res) => {
 export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { includeDrafts, all } = req.query;
+    const where = {
+      [Op.or]: [{ id }, { slug: id }],
+      deleted: false
+    };
+
+    // On public website, draft products cannot be viewed
+    if (all !== 'true' && includeDrafts !== 'true') {
+      where.status = 'Active';
+    }
+
     const product = await Product.findOne({
-      where: {
-        [Op.or]: [{ id }, { slug: id }],
-        deleted: false
-      }
+      where
     });
 
     if (!product) {

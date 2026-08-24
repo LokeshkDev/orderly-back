@@ -93,7 +93,10 @@ export const getVideoFilms = async () => {
 export const getProducts = async (params = {}) => {
   try {
     const res = await api.get('/products', { params });
-    if (res.data && res.data.success) return res.data;
+    if (res.data && res.data.success && Array.isArray(res.data.data)) {
+      const activeOnly = res.data.data.filter(p => !p.status || p.status.toLowerCase() === 'active');
+      return { ...res.data, data: activeOnly, count: activeOnly.length };
+    }
   } catch {}
   return { success: true, data: [] };
 };
@@ -101,7 +104,12 @@ export const getProducts = async (params = {}) => {
 export const getProductById = async (id) => {
   try {
     const res = await api.get(`/products/${id}`);
-    if (res.data && res.data.success) return res.data;
+    if (res.data && res.data.success && res.data.data) {
+      if (res.data.data.status && res.data.data.status.toLowerCase() !== 'active') {
+        return { success: false, data: null };
+      }
+      return res.data;
+    }
   } catch {}
   return { success: false, data: null };
 };

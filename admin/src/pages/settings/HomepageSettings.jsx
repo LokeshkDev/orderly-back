@@ -190,7 +190,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         api.get('/homepage/sections/all'),
         api.get('/hero-slides/all'),
         api.get('/categories'),
-        api.get('/products'),
+        api.get('/products?all=true'),
         api.get('/settings')
       ]);
 

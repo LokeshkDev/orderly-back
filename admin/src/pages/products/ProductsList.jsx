@@ -20,7 +20,7 @@ const ProductsList = () => {
   useEffect(() => {
     const loadFromDB = async () => {
       try {
-        const res = await api.get('/products');
+        const res = await api.get('/products?all=true');
         if (res.data && res.data.success && Array.isArray(res.data.data)) {
           const dbList = res.data.data;
           setProducts(dbList);
@@ -97,7 +97,8 @@ const ProductsList = () => {
     suggested_products: [],
     pair_offers: {},
     inventory: {},
-    sizePrices: {}
+    sizePrices: {},
+    sizeOriginalPrices: {}
   });
 
   const getPairBasePrice = (product) => Number(product?.originalPrice ?? product?.price ?? 0);
@@ -193,7 +194,8 @@ const ProductsList = () => {
       suggested_products: [],
       pair_offers: {},
       inventory: {},
-      sizePrices: {}
+      sizePrices: {},
+      sizeOriginalPrices: {}
     });
     setIsModalOpen(true);
   };
@@ -274,7 +276,8 @@ const ProductsList = () => {
         p.pair_offers || {}
       ),
       inventory: initialInventory,
-      sizePrices: p.sizePrices || {}
+      sizePrices: p.sizePrices || {},
+      sizeOriginalPrices: p.sizeOriginalPrices || {}
     });
     setIsModalOpen(true);
   };
@@ -361,6 +364,8 @@ const ProductsList = () => {
       });
       const updatedSizePrices = { ...prev.sizePrices };
       delete updatedSizePrices[sizeLabel];
+      const updatedSizeOriginalPrices = { ...prev.sizeOriginalPrices };
+      delete updatedSizeOriginalPrices[sizeLabel];
 
       let totalStock = 0;
       const colors = prev.colors || [];
@@ -382,7 +387,7 @@ const ProductsList = () => {
         totalStock = Number(updatedInv['default'] ?? updatedInv['Standard'] ?? 0);
       }
 
-      return { ...prev, sizes: updatedSizes, inventory: updatedInv, sizePrices: updatedSizePrices, stock: totalStock };
+      return { ...prev, sizes: updatedSizes, inventory: updatedInv, sizePrices: updatedSizePrices, sizeOriginalPrices: updatedSizeOriginalPrices, stock: totalStock };
     });
     toast.info(`Size "${sizeLabel}" removed`);
   };
@@ -440,11 +445,27 @@ const ProductsList = () => {
       totalStock = Number(fullInventory['default'] ?? fullInventory['Standard'] ?? 0);
     }
 
+    const cleanSizePrices = {};
+    Object.entries(formData.sizePrices || {}).forEach(([sz, pr]) => {
+      if (pr !== '' && pr !== null && pr !== undefined && !isNaN(Number(pr))) {
+        cleanSizePrices[sz] = Number(pr);
+      }
+    });
+
+    const cleanSizeOriginalPrices = {};
+    Object.entries(formData.sizeOriginalPrices || {}).forEach(([sz, pr]) => {
+      if (pr !== '' && pr !== null && pr !== undefined && !isNaN(Number(pr))) {
+        cleanSizeOriginalPrices[sz] = Number(pr);
+      }
+    });
+
     const cleanPairOffers = cleanupPairOffers(formData.suggested_products, formData.pair_offers);
     const finalFormData = { 
       ...formData, 
       inventory: fullInventory, 
       stock: totalStock,
+      sizePrices: cleanSizePrices,
+      sizeOriginalPrices: cleanSizeOriginalPrices,
       pair_offers: cleanPairOffers,
       slug: formData.slug || formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
     };
@@ -991,14 +1012,14 @@ const ProductsList = () => {
                       <tbody>
                         {matrixRows.map(row => {
                           const stock = formData.inventory[row.key] ?? (row.altKey ? formData.inventory[row.altKey] : undefined) ?? 0;
-                          const baseOriginalPrice = formData.originalPrice || 0;
-                          const baseSellingPrice = formData.price || 0;
-                          const sizeSellingPrice = row.hasSize && formData.sizePrices?.[row.size] !== undefined && formData.sizePrices?.[row.size] !== null
-                            ? formData.sizePrices[row.size]
-                            : baseSellingPrice;
-                          const sizeOriginalPrice = row.hasSize && formData.sizePrices?.[row.size] !== undefined && formData.sizePrices?.[row.size] !== null && formData.originalPrice && formData.price
-                            ? Math.round(formData.originalPrice * (formData.sizePrices[row.size] / formData.price))
-                            : baseOriginalPrice;
+                          const baseOriginalPrice = formData.originalPrice !== undefined ? formData.originalPrice : 0;
+                          const baseSellingPrice = formData.price !== undefined ? formData.price : 0;
+
+                          const rawSellingPrice = row.hasSize ? formData.sizePrices?.[row.size] : formData.price;
+                          const sizeSellingPrice = rawSellingPrice !== undefined && rawSellingPrice !== null ? rawSellingPrice : baseSellingPrice;
+
+                          const rawOriginalPrice = row.hasSize ? formData.sizeOriginalPrices?.[row.size] : formData.originalPrice;
+                          const sizeOriginalPrice = rawOriginalPrice !== undefined && rawOriginalPrice !== null ? rawOriginalPrice : baseOriginalPrice;
 
                           return (
                             <tr key={row.key}>
@@ -1026,25 +1047,25 @@ const ProductsList = () => {
                                   step="1" 
                                   className="admin-input py-1 px-2" 
                                   style={{ width: '100px' }}
-                                  value={sizeOriginalPrice || ''}
+                                  value={sizeOriginalPrice === '' ? '' : sizeOriginalPrice}
                                   onChange={(e) => {
-                                    if (row.hasSize && baseOriginalPrice && baseSellingPrice) {
-                                      const newSellingPrice = Number(e.target.value) * (baseSellingPrice / baseOriginalPrice);
+                                    const val = e.target.value === '' ? '' : Number(e.target.value);
+                                    if (row.hasSize) {
                                       setFormData(prev => ({
                                         ...prev,
-                                        sizePrices: {
-                                          ...prev.sizePrices,
-                                          [row.size]: Math.round(newSellingPrice)
+                                        sizeOriginalPrices: {
+                                          ...(prev.sizeOriginalPrices || {}),
+                                          [row.size]: val
                                         }
                                       }));
                                     } else {
                                       setFormData(prev => ({
                                         ...prev,
-                                        originalPrice: Number(e.target.value)
+                                        originalPrice: val === '' ? 0 : val
                                       }));
                                     }
                                   }}
-                                  placeholder={String(baseOriginalPrice)}
+                                  placeholder={String(baseOriginalPrice || '')}
                                 />
                               </td>
                               <td>
@@ -1054,25 +1075,25 @@ const ProductsList = () => {
                                   step="1" 
                                   className="admin-input py-1 px-2" 
                                   style={{ width: '100px' }}
-                                  value={sizeSellingPrice || ''}
+                                  value={sizeSellingPrice === '' ? '' : sizeSellingPrice}
                                   onChange={(e) => {
-                                    const val = e.target.value === '' ? undefined : Number(e.target.value);
+                                    const val = e.target.value === '' ? '' : Number(e.target.value);
                                     if (row.hasSize) {
                                       setFormData(prev => ({
                                         ...prev,
                                         sizePrices: {
-                                          ...prev.sizePrices,
+                                          ...(prev.sizePrices || {}),
                                           [row.size]: val
                                         }
                                       }));
                                     } else {
                                       setFormData(prev => ({
                                         ...prev,
-                                        price: val ?? 0
+                                        price: val === '' ? 0 : val
                                       }));
                                     }
                                   }}
-                                  placeholder={String(baseSellingPrice)}
+                                  placeholder={String(baseSellingPrice || '')}
                                 />
                               </td>
                               <td>

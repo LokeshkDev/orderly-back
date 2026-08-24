@@ -340,25 +340,7 @@ const MobileProductDetail = ({
       {/* ── 3. PRODUCT TITLE ─────────────────────────────────────── */}
       <h1 className="m-pdp-product-name">{activeProduct.name}</h1>
 
-      {/* ── 4. RATING ────────────────────────────────────────────── */}
-      {(activeProduct.rating || activeProduct.reviewsCount) && (
-        <div className="m-pdp-rating-row">
-          <div className="m-pdp-rating-stars">
-            {renderStars(activeProduct.rating || 4.8)}
-          </div>
-          <span className="m-pdp-rating-count">
-            ({activeProduct.reviewsCount || 128} Reviews)
-          </span>
-          <span className="m-pdp-rating-divider">|</span>
-          <button
-            type="button"
-            className="m-pdp-add-review-link"
-            onClick={() => setOpenAccordions(prev => ({ ...prev, reviews: true }))}
-          >
-            Add Your Review
-          </button>
-        </div>
-      )}
+      
 
       {/* ── 5. PRICE SECTION ─────────────────────────────────────── */}
       <div className="m-pdp-price-row">

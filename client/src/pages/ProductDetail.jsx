@@ -612,24 +612,7 @@ const ProductDetail = () => {
                 {/* 2. Product Title */}
                 <h1 className="pdp-product-name">{activeProduct.name}</h1>
 
-                {/* 3. Rating & Reviews */}
-                <div className="pdp-rating-row">
-                  <div className="pdp-rating-stars">
-                    {renderStars(activeProduct.rating || 4.8)}
-                  </div>
-                  <span className="pdp-rating-score">{activeProduct.rating || 4.8}</span>
-                  <span className="pdp-rating-count">
-                    ({activeProduct.reviewsCount || 24} Reviews)
-                  </span>
-                  <span className="pdp-rating-divider">|</span>
-                  <button
-                    type="button"
-                    className="pdp-add-review-link"
-                    onClick={() => setActiveTab('reviews')}
-                  >
-                    Add Your Review
-                  </button>
-                </div>
+                
 
                 {/* 4. MRP & Current Selling Price */}
                 <div className="pdp-price-row">

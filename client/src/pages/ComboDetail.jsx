@@ -461,22 +461,7 @@ const ComboDetail = () => {
               {/* Title */}
               <h1 className="c-pdp-title">{combo.name}</h1>
 
-              {/* Rating Row */}
-              <div className="c-pdp-rating-row">
-                <div className="c-pdp-stars">
-                  {renderStars(combo.rating || 4.9)}
-                </div>
-                <span className="c-pdp-rating-score">{combo.rating || 4.9}</span>
-                <span className="c-pdp-rating-count">({combo.reviewsCount || 236} Reviews)</span>
-                <span className="c-pdp-rating-divider">|</span>
-                <button
-                  type="button"
-                  className="c-pdp-add-review-link"
-                  onClick={() => setActiveTab('reviews')}
-                >
-                  Add Your Review
-                </button>
-              </div>
+              
 
               {/* Price Block */}
               <div className="c-pdp-price-block">

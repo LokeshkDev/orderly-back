@@ -7,7 +7,7 @@ import './AnnouncementBar.css';
 const AnnouncementBar = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [announcements, setAnnouncements] = useState([]);
-  const [config, setConfig] = useState({ enabled: true, backgroundColor: '#000000', textColor: '#ffffff', accentColor: '#e11d48' });
+  const [config, setConfig] = useState({ enabled: true, backgroundColor: '#000000', textColor: '#ffffff', accentColor: '#dc2626' });
   const [socialLinks, setSocialLinks] = useState({});
 
   useEffect(() => {
@@ -21,23 +21,31 @@ const AnnouncementBar = () => {
             enabled: cfg.enabled !== false,
             backgroundColor: cfg.backgroundColor || '#000000',
             textColor: cfg.textColor || '#ffffff',
-            accentColor: cfg.accentColor || '#e11d48'
+            accentColor: cfg.accentColor || '#dc2626'
           });
 
+          // Support new announcements array format (preferred) and legacy single message format
           let items = [];
-          if (cfg.message) {
-            items.push(cfg.message);
+          if (Array.isArray(cfg.announcements) && cfg.announcements.length > 0) {
+            items = cfg.announcements
+              .filter(a => a && (typeof a === 'string' ? a.trim() : (a.message && a.message.trim())))
+              .map(a => typeof a === 'string' ? { message: a, highlightedText: '', link: '' } : a);
           }
-          if (typeof res.data.announcements === 'string') {
-            const split = res.data.announcements.split('|').filter(Boolean);
-            items.push(...split);
-          } else if (Array.isArray(res.data.announcements)) {
-            items.push(...res.data.announcements);
+          // Fallback to legacy single message
+          if (items.length === 0 && cfg.message) {
+            items.push({ message: cfg.message, highlightedText: cfg.highlightedText || '', link: cfg.link || '' });
+          }
+          // Fallback to old announcements field
+          if (items.length === 0) {
+            if (typeof res.data.announcements === 'string') {
+              const split = res.data.announcements.split('|').filter(Boolean);
+              items = split.map(msg => ({ message: msg, highlightedText: '', link: '' }));
+            } else if (Array.isArray(res.data.announcements)) {
+              items = res.data.announcements.map(a => typeof a === 'string' ? { message: a, highlightedText: '', link: '' } : a);
+            }
           }
 
-          const uniqueItems = Array.from(new Set(items)).filter(Boolean);
-          const defaultText = "COMPLIMENTARY EXPRESS SHIPPING ON ALL ORDERS ABOVE ₹2,500";
-          setAnnouncements(uniqueItems.length > 0 ? uniqueItems : [defaultText]);
+          setAnnouncements(items);
 
           setSocialLinks({
             facebook_url: res.data.facebook_url || '',
@@ -46,10 +54,10 @@ const AnnouncementBar = () => {
           });
           setCurrentIndex(0);
         } else {
-          setAnnouncements(["COMPLIMENTARY EXPRESS SHIPPING ON ALL ORDERS ABOVE ₹2,500"]);
+          setAnnouncements([]);
         }
       } catch (err) {
-        setAnnouncements(["COMPLIMENTARY EXPRESS SHIPPING ON ALL ORDERS ABOVE ₹2,500"]);
+        setAnnouncements([]);
       }
     };
     loadSettings();
@@ -71,17 +79,50 @@ const AnnouncementBar = () => {
     return () => clearInterval(timer);
   }, [announcements.length]);
 
-  if (!config.enabled) return null;
-
-  const currentText = announcements[currentIndex] || "COMPLIMENTARY EXPRESS SHIPPING ON ALL ORDERS ABOVE ₹2,500";
+  if (!config.enabled || announcements.length === 0) return null;
   
-  // Helper to highlight currency amounts in RED (e.g. ₹2,500)
-  const renderHighlightedAnnouncement = (text) => {
-    if (!text) return null;
-    const parts = text.split(/(₹\d+[\d,]*|\b\d+\s*%|\b\d+\s*DAYS\b)/gi);
+  const currentItem = announcements[currentIndex] || announcements[0];
+  
+  // Helper to highlight multiple custom words/phrases + fallback currency in RED
+  const renderHighlightedAnnouncement = (item) => {
+    if (!item) return null;
+    const message = typeof item === 'string' ? item : (item.message || '');
+    const customHighlights = typeof item === 'object' && item.highlightedText ? item.highlightedText : '';
+    
+    // Parse custom tokens (comma, pipe, or semicolon separated)
+    const customTokens = customHighlights
+      ? customHighlights.split(/[,|;]+/).map(s => s.trim()).filter(Boolean)
+      : [];
+
+    const escapeRegex = (s) => s.replace(/[.*+?^$\{\}()|[\]\\\\]/g, '\\$&');
+
+    const regexParts = [];
+    customTokens.forEach(tok => {
+      regexParts.push(escapeRegex(tok));
+    });
+    // Add standard currency amounts / % / DAYS patterns
+    regexParts.push('₹\\d+[\\d,]*');
+    regexParts.push('\\b\\d+\\s*%');
+    regexParts.push('\\b\\d+\\s*DAYS\\b');
+
+    const combinedRegex = new RegExp(`(${regexParts.join('|')})`, 'gi');
+    const parts = message.split(combinedRegex);
+
     return parts.map((part, index) => {
-      if (/^(₹\d+[\d,]*|\d+\s*%|\d+\s*DAYS)$/i.test(part)) {
-        return <span key={index} className="announcement-red-highlight" style={{ color: config.accentColor }}>{part}</span>;
+      if (!part) return null;
+      const isCustomMatch = customTokens.some(tok => tok.toLowerCase() === part.toLowerCase());
+      const isPatternMatch = /^(₹\d+[\d,]*|\d+\s*%|\d+\s*DAYS)$/i.test(part);
+
+      if (isCustomMatch || isPatternMatch) {
+        return (
+          <span 
+            key={index} 
+            className="announcement-red-highlight" 
+            style={{ color: config.accentColor || '#dc2626', fontWeight: '800' }}
+          >
+            {part}
+          </span>
+        );
       }
       return part;
     });
@@ -104,7 +145,13 @@ const AnnouncementBar = () => {
           )}
           
           <span className="announcement-text animate-fade-in" style={{ color: config.textColor }}>
-            {renderHighlightedAnnouncement(currentText)}
+            {currentItem.link ? (
+              <a href={currentItem.link} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                {renderHighlightedAnnouncement(currentItem)}
+              </a>
+            ) : (
+              renderHighlightedAnnouncement(currentItem)
+            )}
           </span>
           
           {announcements.length > 1 && (

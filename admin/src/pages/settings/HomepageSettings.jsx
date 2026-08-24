@@ -5,7 +5,7 @@ import {
   FiEye, FiEyeOff, FiArrowUp, FiArrowDown, FiLayers, FiSliders, FiFilm,
   FiVolume2, FiShare2, FiCheck, FiSearch, FiGlobe, FiInstagram, FiFacebook, FiYoutube,
   FiShoppingBag, FiTruck, FiRotateCcw, FiShield, FiHeadphones, FiExternalLink, FiSettings, FiTag, FiGift, FiFileText,
-  FiMonitor, FiSmartphone
+  FiMonitor, FiSmartphone, FiX
 } from 'react-icons/fi';
 import { FaWhatsapp, FaTwitter, FaPinterest } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -74,12 +74,25 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
   // Announcement Bar State
   const [announcementConfig, setAnnouncementConfig] = useState({
     enabled: true,
-    message: 'FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS',
-    highlightedText: '₹1499',
-    link: '',
+    announcements: [
+      {
+        id: 'ann-1',
+        message: 'FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS',
+        highlightedText: '₹1499',
+        link: ''
+      }
+    ],
     backgroundColor: '#000000',
     textColor: '#FFFFFF',
-    highlightColor: '#E50914'
+    accentColor: '#E50914'
+  });
+
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [announcementFormData, setAnnouncementFormData] = useState({
+    message: '',
+    highlightedText: '',
+    link: ''
   });
 
   // Service Features State
@@ -223,7 +236,19 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       // 5. Site Settings
       if (settingsRes.status === 'fulfilled' && settingsRes.value.data?.success && settingsRes.value.data.data) {
         const st = settingsRes.value.data.data;
-        if (st.announcement_config) setAnnouncementConfig(prev => ({ ...prev, ...st.announcement_config }));
+        if (st.announcement_config) {
+          const loadedConfig = { ...st.announcement_config };
+          // Normalize announcements array to ensure all fields are defined strings
+          if (Array.isArray(loadedConfig.announcements)) {
+            loadedConfig.announcements = loadedConfig.announcements.map(a => ({
+              id: a.id || `ann-${Date.now()}-${Math.random()}`,
+              message: a.message || '',
+              highlightedText: a.highlightedText || '',
+              link: a.link || ''
+            }));
+          }
+          setAnnouncementConfig(prev => ({ ...prev, ...loadedConfig }));
+        }
         if (st.service_features) setServiceFeatures(st.service_features);
         if (st.collections_config) setCollectionsConfig(prev => ({ ...prev, ...st.collections_config }));
         if (st.best_sellers_config) setBestSellersConfig(prev => ({ ...prev, ...st.best_sellers_config }));
@@ -285,6 +310,62 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       toast.error('Failed to publish homepage configurations');
     } finally {
       setSavingAll(false);
+    }
+  };
+
+  // Announcement Bar Handlers
+  const openAddAnnouncementModal = () => {
+    setEditingAnnouncement(null);
+    setAnnouncementFormData({ message: '', highlightedText: '', link: '' });
+    setIsAnnouncementModalOpen(true);
+  };
+
+  const openEditAnnouncementModal = (announcement) => {
+    setEditingAnnouncement(announcement);
+    setAnnouncementFormData({
+      message: announcement.message,
+      highlightedText: announcement.highlightedText,
+      link: announcement.link
+    });
+    setIsAnnouncementModalOpen(true);
+  };
+
+  const handleSaveAnnouncement = (e) => {
+    e.preventDefault();
+    if (!announcementFormData.message.trim()) {
+      toast.error('Announcement message is required');
+      return;
+    }
+
+    if (editingAnnouncement) {
+      setAnnouncementConfig(prev => ({
+        ...prev,
+        announcements: prev.announcements.map(a =>
+          a.id === editingAnnouncement.id ? { ...a, ...announcementFormData } : a
+        )
+      }));
+      toast.success('Announcement updated');
+    } else {
+      const newAnnouncement = {
+        id: `ann-${Date.now()}`,
+        ...announcementFormData
+      };
+      setAnnouncementConfig(prev => ({
+        ...prev,
+        announcements: [...prev.announcements, newAnnouncement]
+      }));
+      toast.success('Announcement added');
+    }
+    setIsAnnouncementModalOpen(false);
+  };
+
+  const handleDeleteAnnouncement = (id) => {
+    if (window.confirm('Delete this announcement?')) {
+      setAnnouncementConfig(prev => ({
+        ...prev,
+        announcements: prev.announcements.filter(a => a.id !== id)
+      }));
+      toast.info('Announcement removed');
     }
   };
 
@@ -570,49 +651,85 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       {/* TAB 2: ANNOUNCEMENT BAR */}
       {activeTab === 'announcement' && (
         <div className="admin-card-white p-4">
-          <div className="mb-3 border-bottom pb-3">
-            <h4 className="fw-bold text-dark mb-1">Top Announcement Bar Settings</h4>
-            <p className="text-muted small mb-0">Configure the top notification message strip shown above the main website header.</p>
+          <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
+            <div>
+              <h4 className="fw-bold text-dark mb-1">Top Announcement Bar Settings</h4>
+              <p className="text-muted small mb-0">Configure the top notification message strip shown above the main website header.</p>
+            </div>
+            <button className="btn-admin-red" onClick={openAddAnnouncementModal}>
+              <FiPlus /> Add Announcement
+            </button>
           </div>
 
-          <div className="row g-3">
-            <div className="col-12">
-              <div className="form-check form-switch mb-3">
-                <input 
-                  className="form-check-input" 
-                  type="checkbox"
-                  checked={announcementConfig.enabled}
-                  onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, enabled: e.target.checked }))}
-                  id="announcement-enabled-toggle"
-                />
-                <label className="form-check-label fw-bold text-dark" htmlFor="announcement-enabled-toggle">
-                  Enable Announcement Bar on Homepage
-                </label>
+          <div className="form-check form-switch mb-3">
+            <input 
+              className="form-check-input" 
+              type="checkbox"
+              checked={announcementConfig.enabled}
+              onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+              id="announcement-enabled-toggle"
+            />
+            <label className="form-check-label fw-bold text-dark" htmlFor="announcement-enabled-toggle">
+              Enable Announcement Bar on Homepage
+            </label>
+          </div>
+
+          {/* Announcements List */}
+          <div className="mb-4">
+            <label className="admin-form-label mb-2">Announcement Messages (Auto-rotates if multiple)</label>
+            {announcementConfig.announcements.length === 0 ? (
+              <div className="text-muted text-center py-4">No announcements yet. Click "Add Announcement" to create one.</div>
+            ) : (
+              <div className="table-responsive">
+                <table className="admin-matrix-table align-middle">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '50px' }}>#</th>
+                      <th>Message</th>
+                      <th>Highlighted Text</th>
+                      <th>Link</th>
+                      <th className="text-end" style={{ width: '120px' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {announcementConfig.announcements.map((ann, idx) => (
+                      <tr key={ann.id}>
+                        <td>{idx + 1}</td>
+                        <td>
+                          <div className="fw-medium text-dark" style={{ maxWidth: '400px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {ann.message}
+                          </div>
+                        </td>
+                        <td><code className="cat-slug-badge" style={{ background: '#fee2e2', color: '#b91c1c' }}>{ann.highlightedText || '—'}</code></td>
+                        <td>{ann.link ? <a href={ann.link} target="_blank" rel="noopener" className="text-primary">{ann.link}</a> : <span className="text-muted">—</span>}</td>
+                        <td className="text-end">
+                          <div className="d-inline-flex gap-1">
+                            <button 
+                              className="btn-admin-outline py-1 px-2"
+                              onClick={() => openEditAnnouncementModal(ann)}
+                              title="Edit"
+                            >
+                              <FiEdit />
+                            </button>
+                            <button 
+                              className="btn-admin-outline py-1 px-2 text-danger"
+                              onClick={() => handleDeleteAnnouncement(ann.id)}
+                              title="Delete"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            )}
+          </div>
 
-            <div className="col-md-8">
-              <label className="admin-form-label">Announcement Text Message *</label>
-              <input 
-                type="text" 
-                className="admin-input" 
-                value={announcementConfig.message}
-                onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, message: e.target.value }))}
-                placeholder="FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"
-              />
-            </div>
-
-            <div className="col-md-4">
-              <label className="admin-form-label">Highlighted Text (Highlighted in RED)</label>
-              <input 
-                type="text" 
-                className="admin-input" 
-                value={announcementConfig.highlightedText}
-                onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, highlightedText: e.target.value }))}
-                placeholder="₹1499"
-              />
-            </div>
-
+          {/* Styling Options */}
+          <div className="row g-3 mt-3 pt-3 border-top">
             <div className="col-md-4">
               <label className="admin-form-label">Background Color</label>
               <input 
@@ -638,8 +755,8 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
               <input 
                 type="color" 
                 className="form-control form-control-color w-100" 
-                value={announcementConfig.highlightColor}
-                onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, highlightColor: e.target.value }))}
+                value={announcementConfig.accentColor}
+                onChange={(e) => setAnnouncementConfig(prev => ({ ...prev, accentColor: e.target.value }))}
               />
             </div>
           </div>
@@ -649,6 +766,65 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
               <FiCheck /> Save & Publish Announcement Bar
             </button>
           </div>
+
+          {/* Announcement Modal */}
+          {isAnnouncementModalOpen && (
+            <div className="admin-modal-backdrop" onClick={() => setIsAnnouncementModalOpen(false)}>
+              <div className="admin-modal-box" style={{ width: '560px', maxWidth: '96vw' }} onClick={(e) => e.stopPropagation()}>
+                <div className="admin-modal-header d-flex align-items-center justify-content-between pb-3 border-bottom">
+                  <h3 className="mb-0 font-weight-bold d-flex align-items-center gap-2" style={{ color: '#0f172a' }}>
+                    <FiVolume2 className="text-danger" /> {editingAnnouncement ? 'Edit Announcement' : 'Add Announcement'}
+                  </h3>
+                  <button className="close-modal-btn" onClick={() => setIsAnnouncementModalOpen(false)}><FiX /></button>
+                </div>
+                <form onSubmit={handleSaveAnnouncement} className="admin-modal-body py-3">
+                  <div className="row g-3" style={{ margin: 0 }}>
+                    <div className="col-12">
+                      <label className="admin-form-label">Announcement Message *</label>
+                      <input 
+                        type="text" 
+                        className="admin-input" 
+                        value={announcementFormData.message}
+                        onChange={(e) => setAnnouncementFormData(prev => ({ ...prev, message: e.target.value }))}
+                        placeholder="FREE SHIPPING ON ORDERS ABOVE ₹1499 | EASY 7 DAYS RETURNS"
+                        required
+                      />
+                    </div>
+
+                    <div className="col-md-6">
+                      <label className="admin-form-label">Highlighted Words / Numbers (Red)</label>
+                      <input 
+                        type="text" 
+                        className="admin-input" 
+                        value={announcementFormData.highlightedText}
+                        onChange={(e) => setAnnouncementFormData(prev => ({ ...prev, highlightedText: e.target.value }))}
+                        placeholder="e.g. ₹1499, 7 DAYS, FREE SHIPPING"
+                      />
+                      <div className="text-muted extra-small mt-1">Separate multiple words/phrases with commas (e.g. <code>₹1499, 7 DAYS</code>)</div>
+                    </div>
+
+                    <div className="col-md-6">
+                      <label className="admin-form-label">Link URL (Optional)</label>
+                      <input 
+                        type="text" 
+                        className="admin-input" 
+                        value={announcementFormData.link}
+                        onChange={(e) => setAnnouncementFormData(prev => ({ ...prev, link: e.target.value }))}
+                        placeholder="https://example.com/offer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="admin-modal-footer d-flex gap-2 justify-content-end mt-4 pt-3 border-top">
+                    <button type="button" className="btn-admin-outline" onClick={() => setIsAnnouncementModalOpen(false)}>Cancel</button>
+                    <button type="submit" className="btn-admin-red d-flex align-items-center gap-2">
+                      <FiCheck /> {editingAnnouncement ? 'Update' : 'Add'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

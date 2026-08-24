@@ -87,10 +87,6 @@ const DEFAULT_SETTINGS = {
   contact_phone: '+91 98765 43210 (Mon - Sat 10:00 AM - 7:00 PM IST)',
   contact_email: 'info@orderlymenswear.com',
   contact_address: 'ORDERLY 2.0 Valasaravakkam, Kundrathur.',
-  announcements: [
-    "✦ COMPLIMENTARY EXPRESS SHIPPING ON ALL ORDERS ABOVE ₹2,500 ✦",
-    "✦ BESPOKE LUXURY MENSWEAR, CRAFTED FOR YOU ✦"
-  ],
   about_us_subtitle: 'Our Heritage & Vision',
   about_us_heading: 'Redefining Luxury Menswear',
   about_us_title: 'Craftsmanship Without Compromise',

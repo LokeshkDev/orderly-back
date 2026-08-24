@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { FiEye, FiHeart, FiCheck, FiShoppingBag, FiChevronDown } from 'react-icons/fi';
-import { FaStar } from 'react-icons/fa';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useQuickView } from '../../context/QuickViewContext';
@@ -229,13 +228,7 @@ const ProductCard = ({ product }) => {
           <Link to={`/product/${p.slug || p.id}`}>{p.name}</Link>
         </h5>
 
-        {/* Rating Stars & Count */}
-        <div className="product-rating-row">
-          <div className="stars-gold">
-            <FaStar /><FaStar /><FaStar /><FaStar /><FaStar />
-          </div>
-          <span className="rating-count">({reviewCount})</span>
-        </div>
+
 
         {/* Price Row (Without discount % badge) */}
         <div className="product-price-row">
@@ -260,7 +253,7 @@ const ProductCard = ({ product }) => {
                 title="Select Size"
                 aria-label="Select Size"
               >
-                <span className="size-label-text">Size: {selectedSize}</span>
+                <span className="size-label-text">{selectedSize}</span>
                 <FiChevronDown className={`size-chevron-icon ${isSizeDropdownOpen ? 'open' : ''}`} />
               </button>
 

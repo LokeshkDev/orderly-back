@@ -256,22 +256,6 @@ const MobileComboDetail = ({
       {/* ── 3. COMBO NAME ────────────────────────────────────────── */}
       <h1 className="m-c-combo-title">{combo.name}</h1>
 
-      {/* ── 4. RATING ────────────────────────────────────────────── */}
-      <div className="m-c-rating-row">
-        <div className="m-c-rating-stars">
-          {renderStars(combo.rating || 4.9)}
-        </div>
-        <span className="m-c-rating-count">({combo.reviewsCount || 236} Reviews)</span>
-        <span className="m-c-rating-divider">|</span>
-        <button
-          type="button"
-          className="m-c-add-review-link"
-          onClick={() => setOpenAccordions(prev => ({ ...prev, reviews: true }))}
-        >
-          Add Your Review
-        </button>
-      </div>
-
       {/* ── 5. PRICE & DISCOUNT ──────────────────────────────────── */}
       <div className="m-c-price-row">
         <span className="m-c-price-current">{formatPrice(currentOfferPrice)}</span>

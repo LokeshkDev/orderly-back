@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { FiX, FiShoppingBag, FiHeart, FiStar, FiCheck, FiArrowRight } from 'react-icons/fi';
 import { useQuickView } from '../../context/QuickViewContext';
@@ -17,6 +17,42 @@ const QuickViewModal = () => {
   const [selectedColor, setSelectedColor] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [addedNotice, setAddedNotice] = useState(false);
+  const modalRef = useRef(null);
+
+  // WCAG 2.1 AA Keyboard Trap & Escape Dismissal
+  useEffect(() => {
+    if (!quickViewProduct) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        closeQuickView();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        const focusable = modalRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable || focusable.length === 0) return;
+
+        const firstEl = focusable[0];
+        const lastEl = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstEl) {
+          e.preventDefault();
+          lastEl.focus();
+        } else if (!e.shiftKey && document.activeElement === lastEl) {
+          e.preventDefault();
+          firstEl.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [quickViewProduct, closeQuickView]);
 
   const getSizePrice = (prod, size) => {
     if (!prod || !size) return prod?.price ?? 0;
@@ -73,9 +109,16 @@ const QuickViewModal = () => {
   };
 
   return (
-    <div className="quickview-backdrop">
-      <div className="quickview-modal glass-panel">
-        <button className="quickview-close-btn" onClick={closeQuickView}>
+    <div className="quickview-backdrop" onClick={closeQuickView}>
+      <div 
+        ref={modalRef}
+        className="quickview-modal glass-panel" 
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qv-modal-title"
+      >
+        <button className="quickview-close-btn" onClick={closeQuickView} aria-label="Close Quick View">
           <FiX />
         </button>
 
@@ -88,6 +131,10 @@ const QuickViewModal = () => {
                   src={images[selectedImg] || images[0]}
                   alt={product.name}
                   className="quickview-main-img"
+                  width="400"
+                  height="500"
+                  loading="eager"
+                  decoding="async"
                 />
               ) : (
                 <div className="quickview-main-img quickview-img-placeholder d-flex align-items-center justify-content-center bg-light">
@@ -109,8 +156,9 @@ const QuickViewModal = () => {
                     key={idx}
                     className={`thumb-btn ${selectedImg === idx ? 'active' : ''}`}
                     onClick={() => setSelectedImg(idx)}
+                    aria-label={`View ${product.name} image ${idx + 1}`}
                   >
-                    <img src={img} alt="" />
+                    <img src={img} alt={`${product.name} thumbnail ${idx + 1}`} width="60" height="75" loading="lazy" />
                   </button>
                 ))}
               </div>
@@ -120,7 +168,7 @@ const QuickViewModal = () => {
           {/* Details Column */}
           <div className="col-lg-6 quickview-details">
             <span className="qv-brand">{product.brand}</span>
-            <h3 className="qv-title">{product.name}</h3>
+            <h3 id="qv-modal-title" className="qv-title">{product.name}</h3>
 
             <div className="qv-rating">
               <span className="stars">
@@ -153,9 +201,12 @@ const QuickViewModal = () => {
                   {product.colors.map((c, i) => (
                     <button
                       key={i}
+                      type="button"
                       className={`color-swatch-btn ${activeColor?.name === c.name ? 'active' : ''}`}
                       style={{ backgroundColor: c.hex || c.hex_code }}
                       onClick={() => selectColor(c)}
+                      aria-label={`Select color ${c.name}`}
+                      aria-pressed={activeColor?.name === c.name}
                       title={c.name}
                     >
                       {activeColor?.name === c.name && <FiCheck className="swatch-check" />}
@@ -173,8 +224,11 @@ const QuickViewModal = () => {
                   {product.sizes.map((s, i) => (
                     <button
                       key={i}
+                      type="button"
                       className={`size-pill-btn ${selectedSize === s ? 'active' : ''}`}
                       onClick={() => setSelectedSize(s)}
+                      aria-label={`Select size ${s}`}
+                      aria-pressed={selectedSize === s}
                     >
                       {s}
                     </button>
@@ -185,10 +239,23 @@ const QuickViewModal = () => {
 
             {/* Quantity & CTA */}
             <div className="qv-actions">
-              <div className="qv-qty-picker">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
-                <span>{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)}>+</button>
+              <div className="qv-qty-picker" role="group" aria-label="Product quantity">
+                <button 
+                  type="button"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  aria-label="Decrease quantity"
+                  disabled={quantity <= 1}
+                >
+                  -
+                </button>
+                <span aria-live="polite">{quantity}</span>
+                <button 
+                  type="button"
+                  onClick={() => setQuantity(quantity + 1)}
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
               </div>
 
               <button className="btn-primary-orderly flex-grow-1 py-3" onClick={handleAddToCart}>
@@ -198,6 +265,7 @@ const QuickViewModal = () => {
               <button 
                 className={`qv-wishlist-btn ${isWishlisted ? 'active' : ''}`} 
                 onClick={() => toggleWishlist(product)}
+                aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                 title="Wishlist"
               >
                 <FiHeart />
@@ -205,7 +273,7 @@ const QuickViewModal = () => {
             </div>
 
             {addedNotice && (
-              <div className="qv-added-toast">
+              <div className="qv-added-toast" role="status" aria-live="polite">
                 <FiCheck /> Item added to bag!
               </div>
             )}

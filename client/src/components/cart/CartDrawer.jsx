@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FiX, 
@@ -44,6 +44,42 @@ const CartDrawer = () => {
   const [couponLoading, setCouponLoading] = useState(false);
   const [isTariffOpen, setIsTariffOpen] = useState(false); // Collapsed by default to maximize product viewing space
   const navigate = useNavigate();
+  const drawerRef = useRef(null);
+
+  // WCAG 2.1 AA Keyboard Focus Trap & Escape Dismissal
+  useEffect(() => {
+    if (!isCartOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsCartOpen(false);
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        const focusable = drawerRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable || focusable.length === 0) return;
+
+        const firstEl = focusable[0];
+        const lastEl = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstEl) {
+          e.preventDefault();
+          lastEl.focus();
+        } else if (!e.shiftKey && document.activeElement === lastEl) {
+          e.preventDefault();
+          firstEl.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCartOpen, setIsCartOpen]);
 
   if (!isCartOpen) return null;
 
@@ -65,12 +101,24 @@ const CartDrawer = () => {
 
   return (
     <div className="cart-drawer-backdrop" onClick={() => setIsCartOpen(false)}>
-      <div className="cart-drawer-panel glass-panel" onClick={(e) => e.stopPropagation()}>
+      <div 
+        ref={drawerRef}
+        className="cart-drawer-panel glass-panel" 
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-drawer-title"
+      >
+        {/* Screen Reader Live Region for status */}
+        <div className="visually-hidden" aria-live="polite" aria-atomic="true">
+          Shopping bag updated. Current total items: {totalItemsCount}. Total: {formatPrice(cartTotal)}.
+        </div>
+
         {/* Header */}
         <div className="cart-drawer-header">
           <div className="d-flex align-items-center gap-2">
             <FiShoppingBag className="cart-header-icon" />
-            <h4 className="cart-drawer-title mb-0">Shopping Bag ({totalItemsCount})</h4>
+            <h4 id="cart-drawer-title" className="cart-drawer-title mb-0">Shopping Bag ({totalItemsCount})</h4>
           </div>
           <button className="cart-close-btn" onClick={() => setIsCartOpen(false)} aria-label="Close cart">
             <FiX />

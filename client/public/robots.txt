@@ -1,7 +1,15 @@
 User-agent: *
 Allow: /
+Allow: /assets/
+Allow: /manifest.webmanifest
+Allow: /favicon.png
+Allow: /robots.txt
+
+Disallow: /admin/
 Disallow: /checkout
 Disallow: /order-success
 Disallow: /order-failure
+Disallow: /profile
+Disallow: /api/
 
 Sitemap: https://orderlymenswear.in/sitemap.xml

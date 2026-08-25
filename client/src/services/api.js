@@ -18,6 +18,47 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// In-memory response cache & in-flight request deduplication map
+const apiMemoryCache = new Map();
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+export const clearApiCache = () => {
+  apiMemoryCache.clear();
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('orderly_homepage_sections_updated', clearApiCache);
+  window.addEventListener('orderly_products_updated', clearApiCache);
+}
+
+const fetchCachedGet = async (endpoint, fallback = { success: true, data: [] }) => {
+  const now = Date.now();
+  const cached = apiMemoryCache.get(endpoint);
+  if (cached && (now - cached.timestamp < CACHE_TTL_MS) && cached.data) {
+    return cached.data;
+  }
+  if (cached && cached.promise) {
+    return cached.promise;
+  }
+
+  const promise = (async () => {
+    try {
+      const res = await api.get(endpoint);
+      if (res.data && res.data.success) {
+        apiMemoryCache.set(endpoint, { data: res.data, timestamp: Date.now() });
+        return res.data;
+      }
+      return fallback;
+    } catch {
+      apiMemoryCache.delete(endpoint);
+      return fallback;
+    }
+  })();
+
+  apiMemoryCache.set(endpoint, { promise, timestamp: now });
+  return promise;
+};
+
 // ----------------------------------------------------
 // HOMEPAGE SECTIONS API
 // ----------------------------------------------------
@@ -40,51 +81,27 @@ export const getHomepageSections = async () => {
 };
 
 export const getHeroSlides = async () => {
-  try {
-    const res = await api.get('/hero-slides');
-    if (res.data && res.data.success) return res.data;
-  } catch {}
-  return { success: true, data: [] };
+  return fetchCachedGet('/hero-slides');
 };
 
 export const getCategories = async (type = 'product') => {
-  try {
-    const res = await api.get(`/categories${type ? `?type=${type}` : ''}`);
-    if (res.data && res.data.success) return res.data;
-  } catch {}
-  return { success: true, data: [] };
+  return fetchCachedGet(`/categories${type ? `?type=${type}` : ''}`);
 };
 
 export const getComboCategories = async () => {
-  try {
-    const res = await api.get('/categories?type=combo');
-    if (res.data && res.data.success) return res.data;
-  } catch {}
-  return { success: true, data: [] };
+  return fetchCachedGet('/categories?type=combo');
 };
 
 export const getBrands = async () => {
-  try {
-    const res = await api.get('/brands');
-    if (res.data && res.data.success) return res.data;
-  } catch {}
-  return { success: true, data: [] };
+  return fetchCachedGet('/brands');
 };
 
 export const getOccasions = async () => {
-  try {
-    const res = await api.get('/occasions');
-    if (res.data && res.data.success) return res.data;
-  } catch {}
-  return { success: true, data: [] };
+  return fetchCachedGet('/occasions');
 };
 
 export const getVideoFilms = async () => {
-  try {
-    const res = await api.get('/homepage/video-films');
-    if (res.data && res.data.success) return res.data;
-  } catch {}
-  return { success: true, data: [] };
+  return fetchCachedGet('/homepage/video-films');
 };
 
 // ----------------------------------------------------

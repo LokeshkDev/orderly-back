@@ -1,6 +1,5 @@
 /* ORDERLY Royal Black & Red Luxury Menswear Theme System */
-
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+/* Note: Google Fonts are preloaded asynchronously via index.html to prevent render blocking */
 
 :root,
 [data-theme="dark"],
@@ -25,7 +24,7 @@
   --text-primary: #FFFFFF;
   --text-secondary: #CCCCCC;
   --text-muted: #A0A0A0;
-  --text-dim: #777777;
+  --text-dim: #A0A0A0;
 
   /* Dark Luxury Borders */
   --border-subtle: rgba(255, 255, 255, 0.08);

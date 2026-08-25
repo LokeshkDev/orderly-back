@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowRight, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { getHeroSlides } from '../../services/api';
 import './HeroCarousel.css';
 
@@ -19,19 +19,33 @@ const DEFAULT_HERO_SLIDES = [
     image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1920&auto=format&fit=crop',
     ctaPrimary: "SHOP NOW",
     ctaPrimaryLink: "/shop",
-    ctaSecondary: "EXPLORE COLLECTIONS",
-    ctaSecondaryLink: "/shop"
+    ctaSecondary: "EXPLORE LOOKBOOK",
+    ctaSecondaryLink: "/lookbook",
+    badge: "NEW SEASON '26"
   },
   {
     id: 'default-2',
-    subtitle: "NEW SEASON CAPSULE",
-    title: "ELEVATE YOUR\nLOOK",
-    desc: "Bespoke Italian tailoring & contemporary streetwear designed for the modern gentleman.",
-    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1920&auto=format&fit=crop',
-    ctaPrimary: "EXPLORE NOW",
-    ctaPrimaryLink: "/shop",
+    subtitle: "THE LUXURY COLLECTION",
+    title: "UNMATCHED\nELEGANCE",
+    desc: "Experience meticulously tailored luxury shirts and Italian-cut suits.",
+    image: 'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=1920&auto=format&fit=crop',
+    ctaPrimary: "SHOP LUXURY",
+    ctaPrimaryLink: "/shop?category=Shirts",
     ctaSecondary: "VIEW COMBOS",
-    ctaSecondaryLink: "/combos"
+    ctaSecondaryLink: "/combos",
+    badge: "EXCLUSIVE DROP"
+  },
+  {
+    id: 'default-3',
+    subtitle: "URBAN ESSENTIALS",
+    title: "ELEVATED\nCASUALS",
+    desc: "Heavyweight tees, structured cargo trousers and minimalist streetwear.",
+    image: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?q=80&w=1920&auto=format&fit=crop',
+    ctaPrimary: "EXPLORE CASUALS",
+    ctaPrimaryLink: "/shop?category=T-Shirts",
+    ctaSecondary: "VIEW ALL",
+    ctaSecondaryLink: "/shop",
+    badge: "BESTSELLERS"
   }
 ];
 
@@ -46,20 +60,7 @@ const preloadImage = (src) => {
   document.head.appendChild(link);
 };
 
-// Image optimization helper - convert to WebP if supported
-const getOptimizedImageUrl = (url, options = {}) => {
-  if (!url) return '';
-  
-  const { width, quality = 82, format = 'webp' } = options;
-  
-  // If already optimized (webp/avif from server), return as-is
-  if (url.includes('.webp') || url.includes('.avif')) return url;
-  
-  // For external images, return original (server handles optimization)
-  if (url.startsWith('http') && !url.includes('orderly')) return url;
-  
-  return url;
-};
+const getOptimizedImageUrl = (url) => url || '';
 
 const HeroCarousel = () => {
   const [slides, setSlides] = useState(DEFAULT_HERO_SLIDES);

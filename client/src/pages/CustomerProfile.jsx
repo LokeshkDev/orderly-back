@@ -196,7 +196,11 @@ const CustomerProfile = () => {
 
   return (
     <>
-      <SEO title="My Account Profile | ORDERLY Menswear" />
+      <SEO 
+        title="My Account Profile | ORDERLY Menswear" 
+        description="Manage your ORDERLY account profile, track active shipments, and view past luxury menswear orders."
+        canonicalPath="/profile"
+      />
       <div className="profile-page-wrapper py-4 py-md-5">
         <div className="container" style={{ maxWidth: '960px' }}>
           

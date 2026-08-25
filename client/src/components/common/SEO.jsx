@@ -1,30 +1,35 @@
 import React from 'react';
-import { Helmet } from 'react-helmet-async';
+import SEOHead from './SEOHead';
 
+/**
+ * Standardized SEO delegate to maintain backward compatibility while ensuring
+ * full JSON-LD structured data, canonical tags, OpenGraph product data, and robots directives.
+ */
 const SEO = ({ 
-  title = "ORDERLY Mens Wear | Premium Men's Fashion & Luxury Apparel", 
-  description = "ORDERLY Mens Wear, luxury men's fashion house crafting world-class menswear.",
-  keywords = "mens fashion, luxury menswear, orderly mens wear",
-  image = "/src/assets/logo/logo.png"
+  title, 
+  description, 
+  keywords, 
+  image,
+  canonicalPath,
+  type = 'website',
+  product,
+  breadcrumbs,
+  itemList,
+  noindex = false
 }) => {
   return (
-    <Helmet>
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <meta name="keywords" content={keywords} />
-
-      {/* Open Graph */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content={image} />
-
-      {/* Twitter */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={image} />
-    </Helmet>
+    <SEOHead
+      title={title}
+      description={description}
+      keywords={keywords}
+      image={image && !image.includes('/src/') ? image : undefined}
+      canonicalPath={canonicalPath}
+      type={type}
+      product={product}
+      breadcrumbs={breadcrumbs}
+      itemList={itemList}
+      noindex={noindex}
+    />
   );
 };
 

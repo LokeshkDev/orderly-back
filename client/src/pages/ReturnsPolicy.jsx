@@ -22,7 +22,11 @@ const ReturnsPolicy = () => {
 
   return (
     <>
-      <SEO title="Returns & Exchange Policy | ORDERLY Mens Wear" />
+      <SEO 
+        title="Returns & Exchange Policy | ORDERLY Mens Wear" 
+        description="Read ORDERLY's easy 7-day returns, refund policy, and garment exchange guidelines."
+        canonicalPath="/returns-policy"
+      />
       <div className="orderly-policy-page section-padding">
         <div className="container" style={{ maxWidth: '800px' }}>
           <h1 className="mb-4">{settings?.returns_policy_title || 'Returns & Exchange Policy'}</h1>

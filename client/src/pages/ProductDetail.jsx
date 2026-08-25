@@ -1,4 +1,3 @@
-import SEOHead from '../components/common/SEOHead';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -8,7 +7,7 @@ import {
   FiEdit3, FiCheckCircle, FiGift
 } from 'react-icons/fi';
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
-import SEO from '../components/common/SEO';
+import SEOHead from '../components/common/SEOHead';
 import ProductCard from '../components/product/ProductCard';
 import MobileProductDetail from '../components/product/MobileProductDetail';
 import { PdpSkeleton } from '../components/common/Skeleton';
@@ -17,6 +16,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useQuickView } from '../context/QuickViewContext';
 import { getProductById, getProducts, getActiveCoupons } from '../services/api';
 import { formatPrice, calculateDiscount } from '../utils/formatters';
+import useIsMobile from '../utils/useIsMobile';
 import './ProductDetail.css';
 
 /* ── Universal bulletproof stock resolution helper ──────────────── */
@@ -135,6 +135,7 @@ const renderStars = (rating = 5) => {
    ═══════════════════════════════════════════════════════════════════ */
 const ProductDetail = () => {
   const { id } = useParams();
+  const isMobile = useIsMobile(768);
   const { cart, addToCart, addMultipleToCart, removeFromCart, pairSettings, pricingBreakdown } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
   const { openQuickView } = useQuickView();
@@ -455,43 +456,43 @@ const ProductDetail = () => {
         ]}
       />
 
-      {/* ── Mobile PDP (<= 767px) ────────────────────────────────── */}
-      <div className="orderly-mobile-pdp-wrapper">
-        <MobileProductDetail
-          activeProduct={activeProduct}
-          selectedColor={selectedColor}
-          setSelectedColor={setSelectedColor}
-          selectedSize={selectedSize}
-          setSelectedSize={setSelectedSize}
-          selectedImgIndex={selectedImgIndex}
-          setSelectedImgIndex={setSelectedImgIndex}
-          quantity={quantity}
-          handleQuantityChange={handleQuantityChange}
-          handleAddToCart={handleAddToCart}
-          addToCart={addToCart}
-          addMultipleToCart={addMultipleToCart}
-          toggleWishlist={toggleWishlist}
-          isWishlisted={isWishlisted}
-          openQuickView={openQuickView}
-          setShowSizeGuide={setShowSizeGuide}
-          validSuggested={validSuggested}
-          alsoLikeProducts={alsoLikeProducts}
-          cart={cart}
-          wishlist={wishlist}
-          isMainProductInCart={isMainProductInCart}
-          mainReqToast={mainReqToast}
-          selectedPairMap={selectedPairMap}
-          updatePairVariant={updatePairVariant}
-          pairOfferPercent={multiPairOfferPercent}
-        />
-      </div>
-
-      {/* ── Desktop PDP (>= 768px) ───────────────────────────────── */}
-      <div className="orderly-desktop-pdp-wrapper">
-        <main className="product-detail-page">
-          {/* ── Toast Notifications ───────────────────────────────── */}
-          {addedToast && (
-            <div className="pdp-added-toast-banner">
+      {/* ── Viewport-conditional PDP mounting ───────────────────── */}
+      {isMobile ? (
+        <div className="orderly-mobile-pdp-wrapper">
+          <MobileProductDetail
+            activeProduct={activeProduct}
+            selectedColor={selectedColor}
+            setSelectedColor={setSelectedColor}
+            selectedSize={selectedSize}
+            setSelectedSize={setSelectedSize}
+            selectedImgIndex={selectedImgIndex}
+            setSelectedImgIndex={setSelectedImgIndex}
+            quantity={quantity}
+            handleQuantityChange={handleQuantityChange}
+            handleAddToCart={handleAddToCart}
+            addToCart={addToCart}
+            addMultipleToCart={addMultipleToCart}
+            toggleWishlist={toggleWishlist}
+            isWishlisted={isWishlisted}
+            openQuickView={openQuickView}
+            setShowSizeGuide={setShowSizeGuide}
+            validSuggested={validSuggested}
+            alsoLikeProducts={alsoLikeProducts}
+            cart={cart}
+            wishlist={wishlist}
+            isMainProductInCart={isMainProductInCart}
+            mainReqToast={mainReqToast}
+            selectedPairMap={selectedPairMap}
+            updatePairVariant={updatePairVariant}
+            pairOfferPercent={multiPairOfferPercent}
+          />
+        </div>
+      ) : (
+        <div className="orderly-desktop-pdp-wrapper">
+          <main className="product-detail-page">
+            {/* ── Toast Notifications ───────────────────────────────── */}
+            {addedToast && (
+              <div className="pdp-added-toast-banner">
               <FiCheck /> Item Added to Bag! Check Pair Well With suggestions below <FiArrowDown />
             </div>
           )}
@@ -1252,8 +1253,9 @@ const ProductDetail = () => {
               </div>
             </div>
           )}
-        </main>
-      </div>
+          </main>
+        </div>
+      )}
     </>
   );
 };

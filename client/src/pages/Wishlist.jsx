@@ -10,7 +10,11 @@ const Wishlist = () => {
 
   return (
     <>
-      <SEO title="My Saved Wishlist | ORDERLY Mens Wear" />
+      <SEO 
+        title="My Saved Wishlist | ORDERLY Mens Wear" 
+        description="View your saved luxury menswear pieces, track size availability, and add favorite styles directly to bag."
+        canonicalPath="/wishlist"
+      />
 
       <div className="orderly-wishlist-page section-padding">
         <div className="container">

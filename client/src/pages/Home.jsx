@@ -1,6 +1,5 @@
-import SEOHead from '../components/common/SEOHead';
 import React, { useState, useEffect } from 'react';
-import SEO from '../components/common/SEO';
+import SEOHead from '../components/common/SEOHead';
 import HeroCarousel from '../components/home/HeroCarousel';
 import TrustFeaturesStrip from '../components/home/TrustFeaturesStrip';
 import ShopByCategory from '../components/home/ShopByCategory';
@@ -14,6 +13,7 @@ import CatchyCombosSection from '../components/home/CatchyCombosSection';
 import Newsletter from '../components/home/Newsletter';
 import MobileHomepage from './MobileHomepage';
 import { getHomepageSections } from '../services/api';
+import useIsMobile from '../utils/useIsMobile';
 
 const DEFAULT_HOMEPAGE_SECTIONS = [
   { section_key: 'hero_carousel', title: 'Hero Carousel', is_visible: true, display_order: 1 },
@@ -30,6 +30,7 @@ const DEFAULT_HOMEPAGE_SECTIONS = [
 ];
 
 const Home = () => {
+  const isMobile = useIsMobile(768);
   const [sections, setSections] = useState(DEFAULT_HOMEPAGE_SECTIONS);
 
   const fetchSections = async () => {
@@ -41,7 +42,7 @@ const Home = () => {
       } else {
         setSections(DEFAULT_HOMEPAGE_SECTIONS);
       }
-    } catch (err) {
+    } catch {
       setSections(DEFAULT_HOMEPAGE_SECTIONS);
     }
   };
@@ -95,17 +96,19 @@ const Home = () => {
 
   return (
     <>
-      <SEO 
+      <SEOHead 
         title="ORDERLY Mens Wear | Luxury Men's Apparel & Fashion Store"
         description="Discover luxury men's fashion by ORDERLY. Shop shirts, oversized tees, selvedge denim, and blazers."
+        canonicalPath="/"
       />
-      {/* MOBILE ONLY VIEW (< 768px): Dedicated Mobile App Experience */}
-      <MobileHomepage />
-
-      {/* DESKTOP ONLY VIEW (>= 768px): 100% Unchanged Desktop Homepage Layout */}
-      <main className="orderly-home-page desktop-only" style={{ backgroundColor: '#050505' }}>
-        {renderList.map(sec => renderSectionComponent(sec))}
-      </main>
+      {/* Viewport-conditional mounting to eliminate duplicate DOM/API load */}
+      {isMobile ? (
+        <MobileHomepage />
+      ) : (
+        <main className="orderly-home-page desktop-only" style={{ backgroundColor: '#050505' }}>
+          {renderList.map(sec => renderSectionComponent(sec))}
+        </main>
+      )}
     </>
   );
 };

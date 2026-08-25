@@ -44,7 +44,11 @@ const ContactUs = () => {
 
   return (
     <>
-      <SEO title="Contact & Store Locations | ORDERLY Menswear" />
+      <SEO 
+        title="Contact & Store Locations | ORDERLY Menswear" 
+        description="Contact our 24/7 VIP concierge desk or visit ORDERLY menswear store locations across India."
+        canonicalPath="/contact"
+      />
       <div className="orderly-contact-page py-5">
         <div className="container-fluid px-lg-5">
           <div className="section-title-wrapper text-center mb-5">

@@ -75,6 +75,7 @@ const isSizeOutOfStock = (prod, colorName, size) => {
 };
 
 const ProductCard = ({ product }) => {
+  const p = normalizeProduct(product || {});
   const [isHovered, setIsHovered] = useState(false);
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [addedAnimation, setAddedAnimation] = useState(false);
@@ -84,6 +85,12 @@ const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
   const { openQuickView } = useQuickView();
+
+  const sizes = useMemo(() => {
+    return (p?.sizes && p.sizes.length > 0 ? p.sizes : []).map(String);
+  }, [p?.sizes]);
+
+  const [selectedSize, setSelectedSize] = useState(() => sizes[0] || 'M');
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -99,26 +106,19 @@ const ProductCard = ({ product }) => {
     };
   }, []);
 
-  if (!product) return null;
-
-  const p = normalizeProduct(product);
-  const isOutOfStock = isProductFullyOutOfStock(p);
-
-  const images = p.images && p.images.length > 0 ? p.images : [];
-  const colors = p.colors && p.colors.length > 0 ? p.colors : [];
-  const sizes = useMemo(() => {
-    return (p.sizes && p.sizes.length > 0 ? p.sizes : []).map(String);
-  }, [p.sizes]);
-
-  const [selectedSize, setSelectedSize] = useState(() => sizes[0] || 'M');
-
   useEffect(() => {
     if (sizes.length > 0) {
       if (!selectedSize || !sizes.includes(selectedSize)) {
         setSelectedSize(sizes[0]);
       }
     }
-  }, [p.id, sizes]);
+  }, [p?.id, sizes, selectedSize]);
+
+  if (!product) return null;
+
+  const isOutOfStock = isProductFullyOutOfStock(p);
+  const images = p.images && p.images.length > 0 ? p.images : [];
+  const colors = p.colors && p.colors.length > 0 ? p.colors : [];
 
   const activeColor = colors[selectedColorIndex % colors.length];
   const activeColorImgs = activeColor ? colorImages(p, activeColor?.name) : [];
@@ -163,6 +163,8 @@ const ProductCard = ({ product }) => {
               src={primaryImg || '/logo.png'}
               alt={p.name}
               className={`product-card-img ${isHovered && secondaryImg && secondaryImg !== primaryImg ? 'hover-hidden' : ''}`}
+              width="400"
+              height="533"
               loading="lazy"
               decoding="async"
               style={isOutOfStock ? { filter: 'grayscale(0.5)', opacity: 0.7 } : {}}
@@ -173,6 +175,8 @@ const ProductCard = ({ product }) => {
                 src={secondaryImg}
                 alt={p.name}
                 className={`product-card-img hover-image ${isHovered ? 'hover-visible' : ''}`}
+                width="400"
+                height="533"
                 loading="lazy"
                 decoding="async"
                 style={isOutOfStock ? { filter: 'grayscale(0.5)', opacity: 0.7 } : {}}
@@ -216,6 +220,7 @@ const ProductCard = ({ product }) => {
             e.stopPropagation();
             openQuickView(product);
           }}
+          aria-label={`Quick view ${p.name}`}
           title="Quick View"
         >
           <FiEye /> Quick View

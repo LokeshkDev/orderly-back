@@ -34,7 +34,11 @@ const CustomerLogin = () => {
 
   return (
     <>
-      <SEO title="Customer Sign In | ORDERLY Menswear Atelier" />
+      <SEO 
+        title="Customer Sign In | ORDERLY Menswear Atelier" 
+        description="Sign in to your ORDERLY VIP account to manage your orders, saved addresses, and tailored wishlist."
+        canonicalPath="/login"
+      />
       
       <div className="auth-master-page">
         <div className="auth-split-container">

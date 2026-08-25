@@ -22,7 +22,7 @@ const Navbar = () => {
       setIsScrolled(window.scrollY > 40);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
@@ -52,8 +52,15 @@ const Navbar = () => {
           </button>
 
           {/* Logo */}
-          <Link to="/" className="navbar-brand">
-            <img src={logoImg} alt="ORDERLY Mens Wear" className="brand-logo-img" />
+          <Link to="/" className="navbar-brand" aria-label="ORDERLY Mens Wear Home">
+            <img 
+              src={logoImg} 
+              alt="ORDERLY Mens Wear" 
+              className="brand-logo-img" 
+              width="160" 
+              height="42" 
+              decoding="async" 
+            />
           </Link>
 
           {/* Desktop Nav Links */}

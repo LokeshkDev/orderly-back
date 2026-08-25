@@ -45,7 +45,11 @@ const CustomerRegister = () => {
 
   return (
     <>
-      <SEO title="Create Account | ORDERLY Menswear Atelier" />
+      <SEO 
+        title="Create Account | ORDERLY Menswear Atelier" 
+        description="Create your ORDERLY account to enjoy personalized menswear styling, instant checkout, and member perks."
+        canonicalPath="/register"
+      />
 
       <div className="auth-master-page">
         <div className="auth-split-container">

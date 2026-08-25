@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiHome, FiShoppingBag, FiArrowRight, FiCompass } from 'react-icons/fi';
+import { FiHome, FiShoppingBag, FiArrowRight } from 'react-icons/fi';
 import SEOHead from '../components/common/SEOHead';
 import './NotFound.css';
 
@@ -29,6 +29,7 @@ const NotFound = () => {
         title="404 Page Not Found | ORDERLY Mens Wear" 
         description="The requested page could not be found. Explore our luxury collection of men's shirts, denim, and combos."
         canonicalPath="/404"
+        noindex={true}
       />
       <div className="container text-center py-5">
         <div className="notfound-card shadow-lg p-4 p-md-5 rounded-4 mx-auto" style={{ maxWidth: '600px', background: '#0b0f19', border: '1px solid rgba(255,255,255,0.08)' }}>

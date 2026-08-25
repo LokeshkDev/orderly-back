@@ -11,7 +11,11 @@ const OrderFailure = () => {
 
   return (
     <>
-      <SEO title="Order Cancelled | ORDERLY Menswear" />
+      <SEO 
+        title="Order Cancelled | ORDERLY Menswear" 
+        canonicalPath="/order-failure"
+        noindex={true}
+      />
       <div className="orderly-success-page py-5">
         <div className="container" style={{ maxWidth: '760px' }}>
           <div className="success-glass-card mx-auto rounded-4 p-4 p-md-5 text-center fade-in-up">

@@ -22,7 +22,11 @@ const ShippingPolicy = () => {
 
   return (
     <>
-      <SEO title="Shipping & Delivery Policy | ORDERLY Mens Wear" />
+      <SEO 
+        title="Shipping & Delivery Policy | ORDERLY Mens Wear" 
+        description="Learn about ORDERLY shipping rates, express delivery timelines, and free shipping thresholds across India."
+        canonicalPath="/shipping-policy"
+      />
       <div className="orderly-policy-page section-padding">
         <div className="container" style={{ maxWidth: '800px' }}>
           <h1 className="mb-4">{settings?.shipping_policy_title || 'Shipping & Delivery Policy'}</h1>

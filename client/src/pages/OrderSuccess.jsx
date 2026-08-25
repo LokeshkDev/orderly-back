@@ -73,7 +73,11 @@ const OrderSuccess = () => {
 
   return (
     <>
-      <SEO title="Order Confirmed | ORDERLY Menswear" />
+      <SEO 
+        title="Order Confirmed | ORDERLY Menswear" 
+        canonicalPath="/order-success"
+        noindex={true}
+      />
       <div className="orderly-success-page py-5">
         <div className="container" style={{ maxWidth: '780px' }}>
           <div className="success-glass-card mx-auto rounded-4 p-4 text-center fade-in-up">

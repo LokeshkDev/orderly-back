@@ -40,11 +40,6 @@ const ShippingPolicy = lazy(() => import('./pages/ShippingPolicy'));
 const ReturnsPolicy = lazy(() => import('./pages/ReturnsPolicy'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
-// Mobile views (separate chunk)
-const MobileHomepage = lazy(() => import('./pages/MobileHomepage'));
-const MobileShop = lazy(() => import('./pages/MobileShop'));
-const MobileCombos = lazy(() => import('./pages/MobileCombos'));
-
 // Scroll to top helper
 const ScrollToTop = () => {
   const { pathname } = useLocation();

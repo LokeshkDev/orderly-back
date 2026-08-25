@@ -5,7 +5,7 @@ import {
   FiAlertCircle, FiMaximize2, FiMinus, FiPlus, FiX, FiInfo, FiTrash2
 } from 'react-icons/fi';
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
-import SEO from '../components/common/SEO';
+import SEOHead from '../components/common/SEOHead';
 import MobileComboDetail from '../components/product/MobileComboDetail';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -313,9 +313,18 @@ const ComboDetail = () => {
 
   return (
     <>
-      <SEO
-        title={`${combo.name} | ORDERLY Menswear`}
-        description={combo.description}
+      <SEOHead
+        title={`${combo.name} | Premium Menswear Combo | ORDERLY`}
+        description={combo.description || "Curated luxury menswear combo set. Save up to 35% on complete styling sets."}
+        canonicalPath={`/combo/${combo.slug || combo.id}`}
+        image={combo.images?.[0] || 'https://orderlymenswear.in/assets/media/logo-07E_iIRS.png'}
+        type="product"
+        product={combo}
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Combos', url: '/combos' },
+          { name: combo.name, url: `/combo/${combo.slug || combo.id}` }
+        ]}
       />
 
       {/* ── Mobile Combo PDP (<= 767px) ───────────────────────────── */}

@@ -357,7 +357,11 @@ const Checkout = () => {
 
   return (
     <>
-      <SEO title="Secure Checkout | ORDERLY Mens Wear" />
+      <SEO 
+        title="Secure Checkout | ORDERLY Mens Wear" 
+        canonicalPath="/checkout"
+        noindex={true}
+      />
       <div className="orderly-checkout-page section-padding">
         <div className="container">
           <div className="section-title-wrapper text-center mb-4">

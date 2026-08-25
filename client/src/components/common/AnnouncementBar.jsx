@@ -94,7 +94,7 @@ const AnnouncementBar = () => {
       ? customHighlights.split(/[,|;]+/).map(s => s.trim()).filter(Boolean)
       : [];
 
-    const escapeRegex = (s) => s.replace(/[.*+?^$\{\}()|[\]\\\\]/g, '\\$&');
+    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     const regexParts = [];
     customTokens.forEach(tok => {

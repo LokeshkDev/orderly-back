@@ -1,8 +1,7 @@
-import SEOHead from '../components/common/SEOHead';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { FiX, FiSliders, FiChevronRight, FiChevronLeft, FiHeart, FiShoppingBag } from 'react-icons/fi';
-import SEO from '../components/common/SEO';
+import SEOHead from '../components/common/SEOHead';
 import ProductCard from '../components/product/ProductCard';
 import { ProductCardSkeleton } from '../components/common/Skeleton';
 import { getProducts, matchesCategoryAlias, getCategories, getBrands } from '../services/api';
@@ -10,11 +9,13 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { formatPrice, calculateDiscount } from '../utils/formatters';
 import MobileShop from './MobileShop';
+import useIsMobile from '../utils/useIsMobile';
 import './Shop.css';
 
 const DEFAULT_BRANDS = ['Orderly', 'U.S. Polo', 'Nike', 'Adidas', 'Jack & Jones'];
 
 const Shop = () => {
+  const isMobile = useIsMobile(768);
   const [searchParams, setSearchParams] = useSearchParams();
   const { addToCart } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
@@ -208,16 +209,26 @@ const Shop = () => {
 
   return (
     <>
-      <SEO 
+      <SEOHead 
         title={`${selectedCategory !== 'All' ? selectedCategory : 'Shop All'} Products | ORDERLY Mens Wear`}
         description="Shop luxury men's apparel including shirts, t-shirts, selvedge denim, trousers and blazers at ORDERLY."
+        canonicalPath={`/shop${selectedCategory !== 'All' ? `?category=${encodeURIComponent(selectedCategory)}` : ''}`}
+        itemList={{
+          name: `${selectedCategory !== 'All' ? selectedCategory : 'All'} Products Collection`,
+          description: `Explore premium ${selectedCategory !== 'All' ? selectedCategory : 'menswear'} at ORDERLY.`,
+          items: filteredProducts
+        }}
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Shop', url: '/shop' },
+          ...(selectedCategory !== 'All' ? [{ name: selectedCategory, url: `/shop?category=${encodeURIComponent(selectedCategory)}` }] : [])
+        ]}
       />
 
-      {/* MOBILE SHOP VIEW (< 768px): Dedicated Mobile App Shopping Experience */}
-      <MobileShop />
-
-      {/* DESKTOP SHOP VIEW (>= 768px): 100% Unchanged Desktop Shop Layout */}
-      <main className="orderly-shop-page desktop-only">
+      {isMobile ? (
+        <MobileShop />
+      ) : (
+        <main className="orderly-shop-page desktop-only">
         {/* 1. SHOP HERO BANNER MATCHING REFERENCE SCREENSHOT */}
         <div className="shop-hero-banner">
           <div className="shop-hero-overlay" />
@@ -649,6 +660,7 @@ const Shop = () => {
           </div>
         </div>
       </main>
+      )}
     </>
   );
 };

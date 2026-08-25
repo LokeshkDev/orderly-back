@@ -1,14 +1,14 @@
-import SEOHead from '../components/common/SEOHead';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { 
   FiHeart, FiArrowRight, FiArrowLeft, FiLayers 
 } from 'react-icons/fi';
-import SEO from '../components/common/SEO';
+import SEOHead from '../components/common/SEOHead';
 import { getCombos, getComboCategories } from '../services/api';
 import { useWishlist } from '../context/WishlistContext';
 import { ComboCategoryCardSkeleton, ComboCardSkeleton } from '../components/common/Skeleton';
 import MobileCombos from './MobileCombos';
+import useIsMobile from '../utils/useIsMobile';
 import './CombosPage.css';
 
 const DEFAULT_COMBO_CATEGORIES = [
@@ -19,6 +19,7 @@ const DEFAULT_COMBO_CATEGORIES = [
 ];
 
 const CombosPage = () => {
+  const isMobile = useIsMobile(768);
   const [searchParams, setSearchParams] = useSearchParams();
   const [combos, setCombos] = useState([]);
   const [comboCategories, setComboCategories] = useState(DEFAULT_COMBO_CATEGORIES);
@@ -147,16 +148,26 @@ const CombosPage = () => {
 
   return (
     <>
-      <SEO 
+      <SEOHead 
         title={activeCategoryObj ? `${activeCategoryObj.name} | ORDERLY Combos` : "Smart Combos & Categories | ORDERLY Mens Wear"}
         description="Discover luxury menswear combo categories and curated multi-piece bundles. Save up to 35% on complete styling sets."
+        canonicalPath={`/combos${selectedCategory !== 'All' ? `?category=${encodeURIComponent(selectedCategory)}` : ''}`}
+        itemList={{
+          name: activeCategoryObj?.name || 'Smart Combos Collection',
+          description: 'Explore curated menswear multi-piece bundle sets at ORDERLY.',
+          items: combos
+        }}
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Combos', url: '/combos' },
+          ...(activeCategoryObj ? [{ name: activeCategoryObj.name, url: `/combos?category=${encodeURIComponent(selectedCategory)}` }] : [])
+        ]}
       />
 
-      {/* Render Mobile App Combos Page on mobile viewports */}
-      <MobileCombos />
-
-      {/* Render Desktop Combos Page on desktop viewports */}
-      <main className="orderly-combos-page desktop-only">
+      {isMobile ? (
+        <MobileCombos />
+      ) : (
+        <main className="orderly-combos-page desktop-only">
         {selectedCategory === 'All' ? (
           /* ========================================================= */
           /* 1. MAIN COMBOS LANDING PAGE — SHOW ONLY COMBO CATEGORIES  */
@@ -431,6 +442,7 @@ const CombosPage = () => {
           </>
         )}
       </main>
+      )}
     </>
   );
 };

@@ -27,7 +27,11 @@ const AboutUs = () => {
 
   return (
     <>
-      <SEO title="About Our Atelier | ORDERLY Menswear" />
+      <SEO 
+        title="About Our Atelier | ORDERLY Menswear" 
+        description="Discover the craftsmanship, heritage, and story behind ORDERLY luxury menswear."
+        canonicalPath="/about"
+      />
       <main className="orderly-about-page py-5">
         {/* Animated Hero Header */}
         <section className="about-hero-section container-fluid px-lg-5 mb-5 text-center fade-in-up">

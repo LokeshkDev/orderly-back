@@ -12,7 +12,7 @@ const DEFAULT_MOBILE_SLIDES = [
     subtitle: "— PREMIUM MEN'S WEAR",
     title: "OWN YOUR\nSTYLE",
     desc: "Premium menswear crafted for confidence, comfort and timeless style.",
-    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1200&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop',
     ctaPrimary: "SHOP NOW",
     ctaPrimaryLink: "/shop",
     ctaSecondary: "EXPLORE COLLECTIONS",
@@ -23,7 +23,7 @@ const DEFAULT_MOBILE_SLIDES = [
     subtitle: "— NEW SEASON CAPSULE",
     title: "ROYAL LUXURY\nCOMBOS",
     desc: "Bespoke Italian tailoring & contemporary streetwear designed for the modern gentleman.",
-    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop',
     ctaPrimary: "EXPLORE COMBOS",
     ctaPrimaryLink: "/combos",
     ctaSecondary: "SHOP NOW",
@@ -41,39 +41,35 @@ const MobileHero = () => {
         if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
           const formatted = res.data
             .filter(slide => slide.is_active !== false)
-            .map((slide, idx) => {
+            .map((slide) => {
               const rawImg = slide.mobile_image_url || slide.image_url || slide.image;
-              const validImg = (rawImg && rawImg.length > 10)
-                ? rawImg
-                : (DEFAULT_MOBILE_SLIDES[idx % DEFAULT_MOBILE_SLIDES.length]?.image || '');
-
               return {
                 id: slide.id,
                 subtitle: slide.subtitle || "— PREMIUM MEN'S WEAR",
                 title: slide.title || "OWN YOUR\nSTYLE",
                 desc: slide.description || slide.desc || "Premium menswear crafted for confidence, comfort and timeless style.",
-                image: validImg,
+                image: rawImg,
                 ctaPrimary: slide.cta_primary_text || "SHOP NOW",
                 ctaPrimaryLink: slide.cta_primary_link || "/shop",
                 ctaSecondary: slide.cta_secondary_text || "EXPLORE COLLECTIONS",
                 ctaSecondaryLink: slide.cta_secondary_link || "/shop"
               };
             });
-          setSlides(formatted.length > 0 ? formatted : DEFAULT_MOBILE_SLIDES);
-        } else {
-          setSlides(DEFAULT_MOBILE_SLIDES);
+          if (formatted.length > 0) {
+            setSlides(formatted);
+          }
         }
-      } catch (err) {
-        setSlides(DEFAULT_MOBILE_SLIDES);
-      }
+      } catch {}
     };
+
     fetchSlides();
 
-    window.addEventListener('orderly_hero_slides_updated', fetchSlides);
-    window.addEventListener('storage', fetchSlides);
+    const handleUpdated = () => fetchSlides();
+    window.addEventListener('orderly_homepage_sections_updated', handleUpdated);
+    window.addEventListener('storage', handleUpdated);
     return () => {
-      window.removeEventListener('orderly_hero_slides_updated', fetchSlides);
-      window.removeEventListener('storage', fetchSlides);
+      window.removeEventListener('orderly_homepage_sections_updated', handleUpdated);
+      window.removeEventListener('storage', handleUpdated);
     };
   }, []);
 
@@ -86,13 +82,23 @@ const MobileHero = () => {
         loop={slides.length > 1}
         className="mobile-hero-swiper"
       >
-        {slides.map((slide) => {
+        {slides.map((slide, sIdx) => {
           const titleParts = (slide.title || 'OWN YOUR\nSTYLE').split('\n');
+          const isFirst = sIdx === 0;
           return (
             <SwiperSlide key={slide.id}>
               <div className="mobile-hero-card">
                 {slide.image ? (
-                  <img src={slide.image} alt={slide.title} className="mobile-hero-img" />
+                  <img 
+                    src={slide.image} 
+                    alt={slide.title} 
+                    className="mobile-hero-img"
+                    width="600"
+                    height="450"
+                    loading={isFirst ? "eager" : "lazy"}
+                    fetchPriority={isFirst ? "high" : "low"}
+                    decoding={isFirst ? "sync" : "async"}
+                  />
                 ) : (
                   <div className="orderly-hero-fallback">ORDERLY</div>
                 )}

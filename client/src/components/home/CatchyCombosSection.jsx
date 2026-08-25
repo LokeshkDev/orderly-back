@@ -5,6 +5,7 @@ import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import { FiShoppingBag, FiArrowRight, FiPercent, FiCheck, FiChevronLeft, FiChevronRight, FiGrid, FiZap } from 'react-icons/fi';
 import { useCart } from '../../context/CartContext';
 import { getCombos } from '../../services/api';
+import { CatchyCombosSkeleton } from '../common/Skeleton';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -56,7 +57,8 @@ const DEFAULT_CATCHY_COMBOS = [
 const CatchyCombosSection = ({ title, subtitle }) => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const [combos, setCombos] = useState(DEFAULT_CATCHY_COMBOS);
+  const [loading, setLoading] = useState(true);
+  const [combos, setCombos] = useState([]);
 
   useEffect(() => {
     const fetchCombos = async () => {
@@ -64,8 +66,14 @@ const CatchyCombosSection = ({ title, subtitle }) => {
         const res = await getCombos();
         if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
           setCombos(res.data.filter(c => c.status !== 'Inactive'));
+        } else {
+          setCombos(DEFAULT_CATCHY_COMBOS);
         }
-      } catch (e) {}
+      } catch (e) {
+        setCombos(DEFAULT_CATCHY_COMBOS);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchCombos();
   }, []);
@@ -108,20 +116,23 @@ const CatchyCombosSection = ({ title, subtitle }) => {
           </button>
         </div>
 
-        {/* Catchy Cards Swiper Carousel */}
-        <Swiper
-          modules={[Navigation, Pagination, Autoplay]}
-          spaceBetween={24}
-          slidesPerView={1}
-          breakpoints={{
-            640: { slidesPerView: 2, spaceBetween: 20 },
-            992: { slidesPerView: 3, spaceBetween: 24 }
-          }}
-          autoplay={{ delay: 5000, disableOnInteraction: false }}
-          pagination={{ clickable: true, el: '.catchy-combo-pagination' }}
-          className="catchy-combos-swiper"
-        >
-          {combos.map((combo) => {
+        {/* Catchy Cards Swiper Carousel or Skeleton */}
+        {loading ? (
+          <CatchyCombosSkeleton />
+        ) : (
+          <Swiper
+            modules={[Navigation, Pagination, Autoplay]}
+            spaceBetween={24}
+            slidesPerView={1}
+            breakpoints={{
+              640: { slidesPerView: 2, spaceBetween: 20 },
+              992: { slidesPerView: 3, spaceBetween: 24 }
+            }}
+            autoplay={{ delay: 5000, disableOnInteraction: false }}
+            pagination={{ clickable: true, el: '.catchy-combo-pagination' }}
+            className="catchy-combos-swiper"
+          >
+            {combos.map((combo) => {
             const savings = Math.max(0, (combo.original_price || 0) - (combo.offer_price || 0));
             const discountPct = combo.original_price > 0 ? Math.round((savings / combo.original_price) * 100) : 0;
 
@@ -134,12 +145,16 @@ const CatchyCombosSection = ({ title, subtitle }) => {
                   {/* Card Media Header */}
                   <div className="catchy-combo-media">
                     {combo.image || combo.images?.[0] ? (
-                    <img 
-                      src={combo.image || combo.images?.[0] || ''} 
-                      alt={combo.name} 
-                      className="catchy-combo-img"
-                    />
-                  ) : (
+                      <img 
+                        src={combo.image || combo.images?.[0] || ''} 
+                        alt={combo.name} 
+                        className="catchy-combo-img"
+                        width="400"
+                        height="300"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
                     <div className="catchy-combo-img orderly-img-fallback">ORDERLY</div>
                   )}
                     <div className="catchy-combo-overlay" />
@@ -197,7 +212,8 @@ const CatchyCombosSection = ({ title, subtitle }) => {
               </SwiperSlide>
             );
           })}
-        </Swiper>
+          </Swiper>
+        )}
 
         <div className="catchy-combo-pagination d-flex justify-content-center gap-2 mt-4" />
       </div>

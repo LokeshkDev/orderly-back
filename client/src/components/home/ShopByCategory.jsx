@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCategories } from '../../services/api';
+import { HomeCategoryGridSkeleton } from '../common/Skeleton';
 import './ShopByCategory.css';
 
 const DEFAULT_CATEGORIES = [
@@ -38,7 +39,8 @@ const DEFAULT_CATEGORIES = [
 
 const ShopByCategory = ({ title, subtitle }) => {
   const navigate = useNavigate();
-  const [categoriesData, setCategoriesData] = useState(DEFAULT_CATEGORIES);
+  const [loading, setLoading] = useState(true);
+  const [categoriesData, setCategoriesData] = useState([]);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -56,17 +58,20 @@ const ShopByCategory = ({ title, subtitle }) => {
         } else {
           setCategoriesData(DEFAULT_CATEGORIES);
         }
-      } catch (err) {
+      } catch {
         setCategoriesData(DEFAULT_CATEGORIES);
+      } finally {
+        setLoading(false);
       }
     };
     loadCategories();
 
-    window.addEventListener('orderly_categories_updated', loadCategories);
-    window.addEventListener('storage', loadCategories);
+    const handleUpdated = () => loadCategories();
+    window.addEventListener('orderly_categories_updated', handleUpdated);
+    window.addEventListener('storage', handleUpdated);
     return () => {
-      window.removeEventListener('orderly_categories_updated', loadCategories);
-      window.removeEventListener('storage', loadCategories);
+      window.removeEventListener('orderly_categories_updated', handleUpdated);
+      window.removeEventListener('storage', handleUpdated);
     };
   }, []);
 
@@ -87,42 +92,50 @@ const ShopByCategory = ({ title, subtitle }) => {
           </h2>
         </div>
 
-        {/* 5-Column Fashion Cards Grid */}
-        <div className="category-cards-grid">
-          {categoriesData.slice(0, 5).map((cat, idx) => {
-            return (
-              <div 
-                key={idx}
-                className="fashion-category-card"
-                onClick={() => handleCardClick(cat.categoryQuery)}
-              >
-                {/* 100% Full Card Background Cover Image */}
-                {cat.image && cat.image.length > 0 ? (
-                  <img 
-                    src={cat.image} 
-                    alt={cat.name}
-                    className="fashion-cat-img"
-                  />
-                ) : (
-                  <div className="fashion-cat-img orderly-img-fallback">ORDERLY</div>
-                )}
-                
-                {/* Gradient Dark Overlay */}
-                <div className="fashion-cat-overlay" />
-                <div className="fashion-cat-red-accent" />
+        {/* 5-Column Fashion Cards Grid or Skeleton */}
+        {loading ? (
+          <HomeCategoryGridSkeleton />
+        ) : (
+          <div className="category-cards-grid">
+            {categoriesData.slice(0, 5).map((cat, idx) => {
+              return (
+                <div 
+                  key={idx}
+                  className="fashion-category-card"
+                  onClick={() => handleCardClick(cat.categoryQuery)}
+                >
+                  {/* 100% Full Card Background Cover Image */}
+                  {cat.image && cat.image.length > 0 ? (
+                    <img 
+                      src={cat.image} 
+                      alt={cat.name}
+                      className="fashion-cat-img"
+                      width="400"
+                      height="550"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <div className="fashion-cat-img orderly-img-fallback">ORDERLY</div>
+                  )}
+                  
+                  {/* Gradient Dark Overlay */}
+                  <div className="fashion-cat-overlay" />
+                  <div className="fashion-cat-red-accent" />
 
-                {/* Bottom Aligned Text Content */}
-                <div className="fashion-cat-content">
-                  <h3 className="fashion-cat-title">{cat.name}</h3>
-                  <p className="fashion-cat-sub">{cat.sub}</p>
-                  <span className="fashion-cat-link">
-                    SHOP NOW <span className="cat-arrow">&rarr;</span>
-                  </span>
+                  {/* Bottom Aligned Text Content */}
+                  <div className="fashion-cat-content">
+                    <h3 className="fashion-cat-title">{cat.name}</h3>
+                    <p className="fashion-cat-sub">{cat.sub}</p>
+                    <span className="fashion-cat-link">
+                      SHOP NOW <span className="cat-arrow">&rarr;</span>
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

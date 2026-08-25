@@ -1,15 +1,15 @@
-/* Professional Skeleton Shimmer Loader Styling */
+/* Professional Skeleton Shimmer Loader Styling - Luxury Dark Theme */
 
 .orderly-skeleton-shimmer {
-  background: #1e293b;
+  background: #121212;
   background-image: linear-gradient(
     90deg,
-    #1e293b 0%,
-    #334155 50%,
-    #1e293b 100%
+    #121212 0%,
+    #222222 50%,
+    #121212 100%
   );
   background-size: 200% 100%;
-  animation: shimmerPulse 1.6s infinite ease-in-out;
+  animation: shimmerPulse 1.5s infinite ease-in-out;
 }
 
 @keyframes shimmerPulse {
@@ -18,6 +18,40 @@
 }
 
 .orderly-product-skeleton-card {
-  background: rgba(18, 20, 29, 0.6);
-  backdrop-filter: blur(8px);
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  overflow: hidden;
 }
+
+/* Category Card Skeleton */
+.category-skeleton-card {
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 380px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20px;
+  position: relative;
+}
+
+/* Combo Card Skeleton */
+.catchy-combo-skeleton-card {
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Mobile Product Skeleton Card */
+.mobile-product-skeleton-card {
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 8px;
+}
+

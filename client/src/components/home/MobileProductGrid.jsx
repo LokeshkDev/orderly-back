@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiArrowRight } from 'react-icons/fi';
 import ProductCard from '../product/ProductCard';
 import { getProducts } from '../../services/api';
+import { MobileProductGridSkeleton } from '../common/Skeleton';
 
 const DEFAULT_MOBILE_PRODUCTS = [
   {
@@ -110,7 +111,8 @@ const DEFAULT_MOBILE_PRODUCTS = [
 ];
 
 const MobileProductGrid = () => {
-  const [products, setProducts] = useState(DEFAULT_MOBILE_PRODUCTS);
+  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState([]);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -131,17 +133,20 @@ const MobileProductGrid = () => {
         } else {
           setProducts(DEFAULT_MOBILE_PRODUCTS);
         }
-      } catch (err) {
+      } catch {
         setProducts(DEFAULT_MOBILE_PRODUCTS);
+      } finally {
+        setLoading(false);
       }
     };
     loadProducts();
 
-    window.addEventListener('orderly_products_updated', loadProducts);
-    window.addEventListener('storage', loadProducts);
+    const handleUpdated = () => loadProducts();
+    window.addEventListener('orderly_products_updated', handleUpdated);
+    window.addEventListener('storage', handleUpdated);
     return () => {
-      window.removeEventListener('orderly_products_updated', loadProducts);
-      window.removeEventListener('storage', loadProducts);
+      window.removeEventListener('orderly_products_updated', handleUpdated);
+      window.removeEventListener('storage', handleUpdated);
     };
   }, []);
 
@@ -159,14 +164,18 @@ const MobileProductGrid = () => {
         </Link>
       </div>
 
-      {/* 2 Column App Product Grid */}
-      <div className="mobile-product-grid">
-        {products.slice(0, 5).map((product) => (
-          <div key={product.id}>
-            <ProductCard product={product} />
-          </div>
-        ))}
-      </div>
+      {/* 2 Column App Product Grid or Skeleton */}
+      {loading ? (
+        <MobileProductGridSkeleton />
+      ) : (
+        <div className="mobile-product-grid">
+          {products.slice(0, 5).map((product) => (
+            <div key={product.id}>
+              <ProductCard product={product} />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 };

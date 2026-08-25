@@ -38,6 +38,77 @@ export const PageSectionSkeleton = () => (
   </div>
 );
 
+export const CategoryCardSkeleton = () => (
+  <div className="category-skeleton-card">
+    <SkeletonBox width="60%" height="22px" className="mb-2" />
+    <SkeletonBox width="80%" height="14px" className="mb-3" />
+    <SkeletonBox width="40%" height="14px" />
+  </div>
+);
+
+export const HomeCategoryGridSkeleton = () => (
+  <div className="category-cards-grid">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <CategoryCardSkeleton key={i} />
+    ))}
+  </div>
+);
+
+export const HomeTrendingSkeleton = () => (
+  <div className="trending-products-grid">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <div key={i} className="trending-grid-col">
+        <ProductCardSkeleton />
+      </div>
+    ))}
+  </div>
+);
+
+export const CatchyCombosSkeleton = () => (
+  <div className="d-flex gap-3 overflow-hidden">
+    {[1, 2, 3].map((i) => (
+      <div key={i} className="catchy-combo-skeleton-card flex-shrink-0" style={{ width: '380px' }}>
+        <SkeletonBox height="220px" borderRadius="12px 12px 0 0" />
+        <div className="p-3">
+          <SkeletonBox width="80%" height="20px" className="mb-2" />
+          <div className="d-flex gap-2 mb-3">
+            <SkeletonBox width="30%" height="24px" borderRadius="20px" />
+            <SkeletonBox width="30%" height="24px" borderRadius="20px" />
+          </div>
+          <div className="d-flex justify-content-between align-items-center">
+            <SkeletonBox width="40%" height="26px" />
+            <SkeletonBox width="45%" height="38px" borderRadius="6px" />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+export const MobileProductGridSkeleton = () => (
+  <div className="mobile-product-grid">
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="mobile-product-skeleton-card">
+        <SkeletonBox height="190px" borderRadius="8px" className="mb-2" />
+        <SkeletonBox width="50%" height="12px" className="mb-1" />
+        <SkeletonBox width="90%" height="16px" className="mb-2" />
+        <SkeletonBox width="60%" height="18px" />
+      </div>
+    ))}
+  </div>
+);
+
+export const MobileCategorySkeleton = () => (
+  <div className="d-flex gap-2 overflow-hidden px-3">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <div key={i} className="flex-shrink-0 text-center" style={{ width: '80px' }}>
+        <SkeletonBox width="68px" height="68px" borderRadius="50%" className="mx-auto mb-2" />
+        <SkeletonBox width="60px" height="12px" className="mx-auto" />
+      </div>
+    ))}
+  </div>
+);
+
 export const ComboCategoryCardSkeleton = () => (
   <div className="combo-category-card">
     <div className="combo-cat-img-wrapper">

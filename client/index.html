@@ -13,9 +13,13 @@
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://images.unsplash.com" />
     
-    <!-- Performance: Preload critical fonts -->
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+    <!-- Performance: Preload critical LCP Hero images (Mobile & Desktop) -->
+    <link rel="preload" as="image" href="https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop" fetchpriority="high" media="(max-width: 767px)" />
+    <link rel="preload" as="image" href="https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1920&auto=format&fit=crop" fetchpriority="high" media="(min-width: 768px)" />
+
+    <!-- Performance: Preload critical fonts with font-display swap -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
     
     <!-- SEO & Social -->
     <meta name="description" content="ORDERLY Mens Wear - Premium Men's Apparel & Fashion Store. Shop luxury shirts, oversized tees, selvedge denim, and blazers." />

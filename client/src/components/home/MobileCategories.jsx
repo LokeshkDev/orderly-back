@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getCategories } from '../../services/api';
+import { MobileCategorySkeleton } from '../common/Skeleton';
 
 const DEFAULT_MOBILE_CATS = [
   {
@@ -36,7 +37,8 @@ const DEFAULT_MOBILE_CATS = [
 ];
 
 const MobileCategories = () => {
-  const [categories, setCategories] = useState(DEFAULT_MOBILE_CATS);
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -54,17 +56,20 @@ const MobileCategories = () => {
         } else {
           setCategories(DEFAULT_MOBILE_CATS);
         }
-      } catch (err) {
+      } catch {
         setCategories(DEFAULT_MOBILE_CATS);
+      } finally {
+        setLoading(false);
       }
     };
     loadCategories();
 
-    window.addEventListener('orderly_categories_updated', loadCategories);
-    window.addEventListener('storage', loadCategories);
+    const handleUpdated = () => loadCategories();
+    window.addEventListener('orderly_categories_updated', handleUpdated);
+    window.addEventListener('storage', handleUpdated);
     return () => {
-      window.removeEventListener('orderly_categories_updated', loadCategories);
-      window.removeEventListener('storage', loadCategories);
+      window.removeEventListener('orderly_categories_updated', handleUpdated);
+      window.removeEventListener('storage', handleUpdated);
     };
   }, []);
 
@@ -76,31 +81,39 @@ const MobileCategories = () => {
         <h2 className="mobile-section-title">DISCOVER YOUR STYLE</h2>
       </div>
 
-      {/* Horizontal Touch Scrollable Category Cards */}
-      <div className="mobile-categories-scroll">
-        {categories.map((cat, idx) => (
-          <Link
-            key={idx}
-            to={`/shop?category=${encodeURIComponent(cat.categoryQuery)}`}
-            className="mobile-category-card"
-          >
-            {cat.image && cat.image.length > 0 ? (
-              <img 
-                src={cat.image} 
-                alt={cat.name} 
-                className="mobile-category-img" 
-              />
-            ) : (
-              <div className="mobile-category-img orderly-img-fallback">ORDERLY</div>
-            )}
-            <div className="mobile-category-overlay" />
-            <div className="mobile-category-info">
-              <div className="mobile-category-name">{cat.name}</div>
-              <span className="mobile-category-sub">{cat.sub}</span>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {/* Horizontal Touch Scrollable Category Cards or Skeleton */}
+      {loading ? (
+        <MobileCategorySkeleton />
+      ) : (
+        <div className="mobile-categories-scroll">
+          {categories.map((cat, idx) => (
+            <Link
+              key={idx}
+              to={`/shop?category=${encodeURIComponent(cat.categoryQuery)}`}
+              className="mobile-category-card"
+            >
+              {cat.image && cat.image.length > 0 ? (
+                <img 
+                  src={cat.image} 
+                  alt={cat.name} 
+                  className="mobile-category-img"
+                  width="140"
+                  height="180"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <div className="mobile-category-img orderly-img-fallback">ORDERLY</div>
+              )}
+              <div className="mobile-category-overlay" />
+              <div className="mobile-category-info">
+                <div className="mobile-category-name">{cat.name}</div>
+                <span className="mobile-category-sub">{cat.sub}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </section>
   );
 };

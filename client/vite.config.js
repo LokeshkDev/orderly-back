@@ -131,33 +131,19 @@ export default defineConfig(({ mode, command }) => {
           manualChunks: (id) => {
             // Vendor chunks
             if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              if (id.includes('react-dom') || id.includes('react/') || id.includes('react-router')) {
                 return 'vendor-react';
               }
-              if (id.includes('react-icons') || id.includes('react-toastify')) {
-                return 'vendor-ui';
-              }
               if (id.includes('swiper')) {
-                return 'vendor-carousel';
+                return 'vendor-swiper';
+              }
+              if (id.includes('react-icons')) {
+                return 'vendor-icons';
               }
               if (id.includes('axios')) {
-                return 'vendor-utils';
+                return 'vendor-axios';
               }
-              return 'vendor-other';
-            }
-            
-            // Feature chunks based on file path
-            if (id.includes('/components/home/') && (id.includes('HeroCarousel') || id.includes('TrendingArrivals') || id.includes('Lookbook') || id.includes('VideoBanner'))) {
-              return 'home-sections';
-            }
-            if (id.includes('/pages/ProductDetail') || id.includes('/components/product/QuickViewModal') || id.includes('/components/product/ProductCard')) {
-              return 'product-features';
-            }
-            if (id.includes('/pages/Checkout') || id.includes('/pages/OrderSuccess') || id.includes('/pages/OrderFailure')) {
-              return 'checkout-flow';
-            }
-            if (id.includes('/pages/MobileHomepage') || id.includes('/pages/MobileShop') || id.includes('/pages/MobileCombos') || id.includes('/components/home/MobileHero') || id.includes('/components/home/MobileProductGrid')) {
-              return 'mobile-views';
+              return 'vendor-misc';
             }
           },
           chunkFileNames: 'assets/js/[name]-[hash].js',

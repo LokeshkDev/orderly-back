@@ -76,19 +76,19 @@ const Home = () => {
       case 'combo_categories':
         return <ComboCategories key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
       case 'trending_arrivals':
-        return <TrendingArrivalsSection key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
+        return <div key={sec.section_key} className="orderly-deferred-section"><TrendingArrivalsSection title={sec.title} subtitle={sec.subtitle} /></div>;
       case 'promo_offers':
-        return <PromoSection key={sec.section_key} />;
+        return <div key={sec.section_key} className="orderly-deferred-section"><PromoSection /></div>;
       case 'lookbook_banner':
-        return <LookbookSection key={sec.section_key} />;
+        return <div key={sec.section_key} className="orderly-deferred-section"><LookbookSection /></div>;
       case 'video_banner':
-        return <VideoBannerSection key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
+        return <div key={sec.section_key} className="orderly-deferred-section"><VideoBannerSection title={sec.title} subtitle={sec.subtitle} /></div>;
       case 'shop_by_occasion':
-        return <ShopByOccasion key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
+        return <div key={sec.section_key} className="orderly-deferred-section"><ShopByOccasion title={sec.title} subtitle={sec.subtitle} /></div>;
       case 'featured_brands':
-        return <CatchyCombosSection key={sec.section_key} title={sec.title || "Catchy Combo Bundles & Curated Sets"} subtitle={sec.subtitle || "EXCLUSIVE MULTI-PIECE BUNDLE SAVINGS"} />;
+        return <div key={sec.section_key} className="orderly-deferred-section"><CatchyCombosSection title={sec.title || "Catchy Combo Bundles & Curated Sets"} subtitle={sec.subtitle || "EXCLUSIVE MULTI-PIECE BUNDLE SAVINGS"} /></div>;
       case 'newsletter_section':
-        return <Newsletter key={sec.section_key} />;
+        return <div key={sec.section_key} className="orderly-deferred-section"><Newsletter /></div>;
       default:
         return null;
     }

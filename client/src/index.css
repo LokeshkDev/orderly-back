@@ -81,3 +81,25 @@ html {
   background: rgba(229, 9, 20, 0.3);
   color: #FFFFFF;
 }
+
+/* Rendering Performance & Core Web Vitals Optimization */
+.product-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 420px;
+}
+
+.mobile-product-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 290px;
+}
+
+.orderly-deferred-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* Prevent image layout shifts */
+img {
+  content-visibility: visible;
+}
+

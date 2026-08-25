@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiArrowRight } from 'react-icons/fi';
 import ProductCard from '../product/ProductCard';
 import { getProducts } from '../../services/api';
+import { HomeTrendingSkeleton } from '../common/Skeleton';
 import './TrendingArrivalsSection.css';
 
 const DEFAULT_PRODUCTS = [
@@ -111,7 +112,8 @@ const DEFAULT_PRODUCTS = [
 ];
 
 const TrendingArrivalsSection = ({ title, subtitle }) => {
-  const [products, setProducts] = useState(DEFAULT_PRODUCTS);
+  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState([]);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -132,17 +134,20 @@ const TrendingArrivalsSection = ({ title, subtitle }) => {
         } else {
           setProducts(DEFAULT_PRODUCTS);
         }
-      } catch (err) {
+      } catch {
         setProducts(DEFAULT_PRODUCTS);
+      } finally {
+        setLoading(false);
       }
     };
     loadProducts();
 
-    window.addEventListener('orderly_products_updated', loadProducts);
-    window.addEventListener('storage', loadProducts);
+    const handleUpdated = () => loadProducts();
+    window.addEventListener('orderly_products_updated', handleUpdated);
+    window.addEventListener('storage', handleUpdated);
     return () => {
-      window.removeEventListener('orderly_products_updated', loadProducts);
-      window.removeEventListener('storage', loadProducts);
+      window.removeEventListener('orderly_products_updated', handleUpdated);
+      window.removeEventListener('storage', handleUpdated);
     };
   }, []);
 
@@ -165,14 +170,18 @@ const TrendingArrivalsSection = ({ title, subtitle }) => {
           </Link>
         </div>
 
-        {/* 5-Column Product Grid */}
-        <div className="trending-products-grid">
-          {products.slice(0, 5).map((product) => (
-            <div key={product.id} className="trending-grid-col">
-              <ProductCard product={product} />
-            </div>
-          ))}
-        </div>
+        {/* 5-Column Product Grid or Skeleton */}
+        {loading ? (
+          <HomeTrendingSkeleton />
+        ) : (
+          <div className="trending-products-grid">
+            {products.slice(0, 5).map((product) => (
+              <div key={product.id} className="trending-grid-col">
+                <ProductCard product={product} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

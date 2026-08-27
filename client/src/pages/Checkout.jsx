@@ -382,7 +382,7 @@ const Checkout = () => {
               <div className="col-lg-7">
                 {/* 1. Contact & Shipping */}
                 <div className="checkout-block glass-panel p-4 mb-4">
-                  <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
+                  <div className="checkout-section-header">
                     <h5 className="block-title mb-0">1. Shipping Address</h5>
                     
                     {/* Address Type Selection (Home, Office, Other) */}
@@ -494,9 +494,9 @@ const Checkout = () => {
                     {/* Live Pincode Location Resolution Badge */}
                     {formData.pincode && formData.pincode.length === 6 && (
                       <div className="col-12 mt-2">
-                        <div className="p-2 px-3 rounded-2 d-flex align-items-center justify-content-between" style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div className="p-2 px-3 rounded-2 d-flex align-items-center justify-content-between flex-wrap gap-2" style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
                           <span className="small text-white d-flex align-items-center gap-1">
-                            <FiMapPin className="text-danger" />
+                            <FiMapPin className="text-danger flex-shrink-0" />
                             <span>Delivery Destination: <strong>{deliveryResult?.locationLabel || (deliveryResult?.method === 'pincode_based' ? 'Standard Location' : 'All India')}</strong></span>
                           </span>
                           <span className="badge bg-danger fs-7">

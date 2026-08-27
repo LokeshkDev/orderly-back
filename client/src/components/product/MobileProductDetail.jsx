@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  FiHeart, FiShoppingBag, FiShield, FiRefreshCw, FiChevronRight,
+  FiHeart, FiShoppingBag, FiChevronRight,
   FiCheck, FiAlertCircle, FiEye, FiChevronLeft,
-  FiMaximize2, FiMinus, FiPlus, FiTruck, FiLock, FiX, FiTag,
+  FiMaximize2, FiMinus, FiPlus, FiLock, FiX, FiTag,
   FiChevronDown, FiEdit3,
   FiCheckCircle, FiGift
 } from 'react-icons/fi';
@@ -476,38 +476,6 @@ const MobileProductDetail = ({
           <FiShoppingBag />
           {stockCount > 0 ? 'ADD TO CART' : 'OUT OF STOCK'}
         </button>
-      </div>
-
-      {/* ── 12. TRUST / SERVICE STRIP ────────────────────────────── */}
-      <div className="m-pdp-trust-strip">
-        <div className="m-pdp-trust-card">
-          <FiShield className="m-pdp-t-icon" />
-          <div>
-            <strong>100% ORIGINAL</strong>
-            <span>PRODUCTS</span>
-          </div>
-        </div>
-        <div className="m-pdp-trust-card">
-          <FiRefreshCw className="m-pdp-t-icon" />
-          <div>
-            <strong>EASY 7 DAYS</strong>
-            <span>RETURNS</span>
-          </div>
-        </div>
-        <div className="m-pdp-trust-card">
-          <FiTruck className="m-pdp-t-icon" />
-          <div>
-            <strong>FREE SHIPPING</strong>
-            <span>ON ORDERS ₹1499+</span>
-          </div>
-        </div>
-        <div className="m-pdp-trust-card">
-          <FiLock className="m-pdp-t-icon" />
-          <div>
-            <strong>SECURE</strong>
-            <span>PAYMENTS</span>
-          </div>
-        </div>
       </div>
 
       {/* ── 13. PRODUCT TABS / INFORMATION ACCORDIONS ─────────────── */}

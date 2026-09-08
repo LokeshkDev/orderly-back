@@ -530,10 +530,9 @@
 }
 
 /* Multi-Product Split Image Box with Central Plus Circle */
+.combo-cover-card-link,
 .combo-split-photo-box {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
+  display: block;
   position: relative;
   width: 100%;
   height: 250px;

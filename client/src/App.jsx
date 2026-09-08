@@ -82,6 +82,8 @@ const AppLayout = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Shop />} />
+          <Route path="/category/:slug" element={<Shop />} />
+          <Route path="/collections/:slug" element={<Shop />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/combo/:id" element={<ComboDetail />} />
           <Route path="/combos" element={<CombosPage />} />

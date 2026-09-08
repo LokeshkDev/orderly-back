@@ -993,7 +993,8 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
               <label className="admin-form-label">Available Categories in Database</label>
               <div className="d-flex flex-wrap gap-2 p-3 border rounded bg-light">
                 {dbCategories.map(cat => {
-                  const isSelected = collectionsConfig.selectedCategories?.includes(cat.name);
+                  const isSelected = (collectionsConfig.selectedCategoryIds && collectionsConfig.selectedCategoryIds.includes(cat.id)) ||
+                    collectionsConfig.selectedCategories?.includes(cat.name);
                   return (
                     <button
                       key={cat.id}
@@ -1002,9 +1003,15 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
                       style={{ padding: '6px 12px', fontSize: '0.82rem' }}
                       onClick={() => {
                         setCollectionsConfig(prev => {
-                          const current = prev.selectedCategories || [];
-                          const updated = isSelected ? current.filter(c => c !== cat.name) : [...current, cat.name];
-                          return { ...prev, selectedCategories: updated };
+                          const currentIds = prev.selectedCategoryIds || [];
+                          const currentNames = prev.selectedCategories || [];
+                          const updatedIds = isSelected ? currentIds.filter(id => id !== cat.id) : [...currentIds, cat.id];
+                          const updatedNames = isSelected ? currentNames.filter(c => c !== cat.name) : [...currentNames, cat.name];
+                          return { 
+                            ...prev, 
+                            selectedCategoryIds: updatedIds,
+                            selectedCategories: updatedNames 
+                          };
                         });
                       }}
                     >
@@ -1405,12 +1412,17 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       )}
 
       {/* MODAL: Hero Slide Form */}
-      <Modal isOpen={isSlideModalOpen} onClose={() => setIsSlideModalOpen(false)} title={editingSlide ? 'Edit Hero Slide' : 'Add Hero Slide'}>
+      <Modal 
+        isOpen={isSlideModalOpen} 
+        onClose={() => setIsSlideModalOpen(false)} 
+        title={editingSlide ? 'Edit Hero Slide' : 'Add Hero Slide'}
+        width="860px"
+      >
         <form onSubmit={handleSaveSlide}>
           <div className="row g-3">
             <div className="col-md-6">
-              <label className="admin-form-label">Headline Title (Use \n for line break) *</label>
-              <input type="text" className="admin-input" value={slideFormData.title} onChange={(e) => setSlideFormData(prev => ({ ...prev, title: e.target.value }))} placeholder="e.g. OWN YOUR\nSTYLE" required />
+              <label className="admin-form-label">Headline Title (Use \n for line break, Optional)</label>
+              <input type="text" className="admin-input" value={slideFormData.title} onChange={(e) => setSlideFormData(prev => ({ ...prev, title: e.target.value }))} placeholder="e.g. OWN YOUR\nSTYLE" />
             </div>
             <div className="col-md-6">
               <label className="admin-form-label">Eyebrow Subtitle</label>
@@ -1421,10 +1433,26 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
               <input type="text" className="admin-input" value={slideFormData.description} onChange={(e) => setSlideFormData(prev => ({ ...prev, description: e.target.value }))} placeholder="Premium menswear crafted for confidence, comfort and timeless style." />
             </div>
             <div className="col-md-6">
-              <FileUploadInput value={slideFormData.image_url} onChange={(url) => setSlideFormData(prev => ({ ...prev, image_url: url }))} type="image" folder="hero" label="Desktop Banner Image URL *" placeholder="Upload desktop image URL..." />
+              <FileUploadInput 
+                value={slideFormData.image_url} 
+                onChange={(url) => setSlideFormData(prev => ({ ...prev, image_url: url }))} 
+                type="image" 
+                folder="hero" 
+                label="Desktop Banner Image URL *" 
+                recommendedSize="1920 x 800 px (16:9 Landscape)"
+                placeholder="Upload desktop image URL..." 
+              />
             </div>
             <div className="col-md-6">
-              <FileUploadInput value={slideFormData.mobile_image_url} onChange={(url) => setSlideFormData(prev => ({ ...prev, mobile_image_url: url }))} type="image" folder="hero" label="Mobile Banner Image URL (Optional)" placeholder="Upload mobile image URL..." />
+              <FileUploadInput 
+                value={slideFormData.mobile_image_url} 
+                onChange={(url) => setSlideFormData(prev => ({ ...prev, mobile_image_url: url }))} 
+                type="image" 
+                folder="hero" 
+                label="Mobile Banner Image URL (Optional)" 
+                recommendedSize="800 x 1000 px (4:5 Portrait)"
+                placeholder="Upload mobile image URL..." 
+              />
             </div>
           </div>
 

@@ -192,6 +192,7 @@ const HeroSlides = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingSlide ? 'Edit Hero Slide' : 'Add New Hero Slide'}
+        width="860px"
       >
         <form onSubmit={handleSaveSlide}>
           <div className="row g-3">

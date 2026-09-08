@@ -149,7 +149,23 @@ export const getComboById = async (id) => {
 
 export const matchesCategoryAlias = (category, target) => {
   if (!category || !target) return false;
-  return category.toLowerCase().trim() === target.toLowerCase().trim();
+  const c = category.toLowerCase().trim();
+  const t = target.toLowerCase().trim();
+  if (c === t) return true;
+  
+  // Slug-normalized comparison
+  const cSlug = c.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const tSlug = t.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  if (cSlug === tSlug) return true;
+
+  // Partial slug/keyword match for common aliases
+  if (c.includes(t) || t.includes(c)) return true;
+  if ((c.includes('t-shirt') || c.includes('tee') || c.includes('polo')) && (t.includes('t-shirt') || t.includes('tee') || t.includes('polo'))) return true;
+  if ((c.includes('denim') || c.includes('jean')) && (t.includes('denim') || t.includes('jean'))) return true;
+  if ((c.includes('trouser') || c.includes('pant') || c.includes('chino')) && (t.includes('trouser') || t.includes('pant') || t.includes('chino'))) return true;
+  if ((c.includes('blazer') || c.includes('suit')) && (t.includes('blazer') || t.includes('suit'))) return true;
+
+  return false;
 };
 
 // ----------------------------------------------------

@@ -166,19 +166,6 @@ const MobileComboDetail = ({
             <span className="m-c-discount-tag-hero">-{discountPercent}%</span>
           )}
 
-          {/* Wishlist Overlay Button */}
-          <button
-            type="button"
-            className={`m-c-wishlist-btn ${isWishlisted ? 'active' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleWishlist(combo);
-            }}
-            aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          >
-            <FiHeart />
-          </button>
-
           {/* Hero Image */}
           {currentMainImg ? (
             <img
@@ -409,23 +396,7 @@ const MobileComboDetail = ({
         </button>
       </div>
 
-      {/* ── 10. WISHLIST & COMPARE ───────────────────────────────── */}
-      <div className="m-c-secondary-actions">
-        <button
-          type="button"
-          className={`m-c-sec-btn ${isWishlisted ? 'active' : ''}`}
-          onClick={() => toggleWishlist(combo)}
-        >
-          <FiHeart /> {isWishlisted ? 'WISHLISTED' : 'WISHLIST'}
-        </button>
-        <button
-          type="button"
-          className={`m-c-sec-btn ${isCompared ? 'active' : ''}`}
-          onClick={() => setIsCompared(prev => !prev)}
-        >
-          <FiRefreshCw /> {isCompared ? 'COMPARING' : 'COMPARE'}
-        </button>
-      </div>
+
 
       {/* ── 11. PRODUCT INFORMATION ACCORDIONS ───────────────────── */}
       <div className="m-c-accordions-group">

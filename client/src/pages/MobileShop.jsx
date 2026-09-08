@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams, useParams, Link } from 'react-router-dom';
 import { 
   FiX, 
   FiSliders, 
@@ -31,16 +31,39 @@ const DEFAULT_BRANDS = ['Orderly', 'U.S. Polo', 'Nike', 'Adidas', 'Jack & Jones'
 
 const MobileShop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { slug } = useParams();
   const { addToCart } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
   
-  const categoryParam = searchParams.get('category') || 'All';
+  const categoryParam = searchParams.get('category') || '';
   const brandParam = searchParams.get('brand') || 'All';
   const searchParam = searchParams.get('search') || '';
 
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [brandOptions, setBrandOptions] = useState(DEFAULT_BRANDS);
+
+  const resolveCategoryName = useCallback((rawSlugOrName, allCats = categoriesList) => {
+    if (!rawSlugOrName || rawSlugOrName === 'All') return 'All';
+    const found = allCats.find(c =>
+      (c.slug && c.slug.toLowerCase() === rawSlugOrName.toLowerCase()) ||
+      String(c.id) === String(rawSlugOrName) ||
+      String(c._id) === String(rawSlugOrName) ||
+      (c.name && c.name.toLowerCase() === rawSlugOrName.toLowerCase()) ||
+      (c.name && c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === rawSlugOrName.toLowerCase()) ||
+      matchesCategoryAlias(c.name, rawSlugOrName)
+    );
+    if (found) return found.name;
+    if (rawSlugOrName.includes('-')) {
+      return rawSlugOrName.replace(/-/g, ' ');
+    }
+    return rawSlugOrName;
+  }, [categoriesList]);
+
+  const rawInitialCat = slug || categoryParam || 'All';
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(categoryParam);
+  const [selectedCategory, setSelectedCategory] = useState(rawInitialCat);
   const [selectedBrand, setSelectedBrand] = useState(brandParam);
   const [selectedColor, setSelectedColor] = useState('All');
   const [selectedSize, setSelectedSize] = useState('All');
@@ -55,8 +78,6 @@ const MobileShop = () => {
 
   const [productsList, setProductsList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [categoryOptions, setCategoryOptions] = useState([]);
-  const [brandOptions, setBrandOptions] = useState(DEFAULT_BRANDS);
 
   // Accordion state inside mobile filter drawer
   const [accordionOpen, setAccordionOpen] = useState({
@@ -80,8 +101,15 @@ const MobileShop = () => {
       try {
         const [catRes, brandRes] = await Promise.all([getCategories(), getBrands()]);
         if (catRes && catRes.success && Array.isArray(catRes.data) && catRes.data.length > 0) {
+          setCategoriesList(catRes.data);
           const activeCats = catRes.data.filter(c => c.is_active !== false).map(c => c.name);
           if (activeCats.length > 0) setCategoryOptions(activeCats);
+
+          if (slug) {
+            setSelectedCategory(resolveCategoryName(slug, catRes.data));
+          } else if (categoryParam) {
+            setSelectedCategory(resolveCategoryName(categoryParam, catRes.data));
+          }
         }
 
         if (brandRes && brandRes.success && Array.isArray(brandRes.data) && brandRes.data.length > 0) {
@@ -93,13 +121,17 @@ const MobileShop = () => {
       }
     };
     loadFilters();
-  }, []);
+  }, [slug, categoryParam, resolveCategoryName]);
 
   // Sync state when URL params change
   useEffect(() => {
-    setSelectedCategory(categoryParam);
-    setSelectedBrand(brandParam);
-  }, [categoryParam, brandParam]);
+    if (slug) {
+      setSelectedCategory(resolveCategoryName(slug));
+    } else {
+      setSelectedCategory(categoryParam ? resolveCategoryName(categoryParam) : 'All');
+    }
+    setSelectedBrand(brandParam || 'All');
+  }, [categoryParam, brandParam, slug, resolveCategoryName]);
 
   // Fetch product dataset from API
   useEffect(() => {

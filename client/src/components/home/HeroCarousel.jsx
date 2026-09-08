@@ -83,10 +83,11 @@ const HeroCarousel = () => {
 
             return {
               id: slide.id,
-              title: slide.title,
-              subtitle: slide.subtitle,
-              desc: slide.description || slide.desc,
+              title: slide.title !== undefined ? slide.title : '',
+              subtitle: slide.subtitle || '',
+              desc: (slide.description !== undefined ? slide.description : slide.desc) || '',
               image: validImg,
+              mobile_image: slide.mobile_image_url || '',
               ctaPrimary: slide.cta_primary_text || 'SHOP NOW',
               ctaPrimaryLink: slide.cta_primary_link || '/shop',
               ctaSecondary: slide.cta_secondary_text || 'EXPLORE COLLECTIONS',
@@ -140,6 +141,8 @@ const HeroCarousel = () => {
     }
   }, [slides]);
 
+  const hasText = (t) => Boolean(t && typeof t === 'string' && t.trim().length > 0);
+
   const renderTitleWithRedAccent = (titleText) => {
     if (!titleText) return null;
     if (titleText.includes('\n')) {
@@ -166,80 +169,100 @@ const HeroCarousel = () => {
   const renderSlide = (slide, idx) => {
     const isFirstSlide = idx === 0;
     const optimizedImage = getOptimizedImageUrl(slide.image, { width: 1920, quality: 82 });
+    const hasTitle = hasText(slide.title);
+    const hasDesc = hasText(slide.desc);
+    const hasSubtitle = hasText(slide.subtitle);
+    const showOverlay = hasTitle || hasDesc;
+    const hasPrimaryCta = hasText(slide.ctaPrimary);
+    const hasSecondaryCta = hasText(slide.ctaSecondary);
+    const hasButtons = hasPrimaryCta || hasSecondaryCta;
     
     return (
       <SwiperSlide key={slide.id || idx}>
-        <div className="hero-slide-item">
+        <div className={`hero-slide-item ${!showOverlay ? 'no-overlay' : ''}`}>
           {/* Background Image - Optimized for LCP */}
           {slide.image ? (
-            <img 
-              src={optimizedImage}
-              alt={slide.title || 'ORDERLY Menswear'}
-              className="hero-bg-img"
-              // Critical LCP optimizations
-              fetchPriority={isFirstSlide ? 'high' : 'low'}
-              loading={isFirstSlide ? 'eager' : 'lazy'}
-              // Explicit dimensions to prevent layout shift
-              width={1920}
-              height={1080}
-              // Decode asynchronously for non-first slides
-              decoding={isFirstSlide ? 'sync' : 'async'}
-              onLoad={() => preloadNextSlide(idx)}
-            />
+            <picture>
+              {slide.mobile_image && <source media="(max-width: 768px)" srcSet={slide.mobile_image} />}
+              <img 
+                src={optimizedImage}
+                alt={slide.title || 'ORDERLY Menswear'}
+                className="hero-bg-img"
+                fetchPriority={isFirstSlide ? 'high' : 'low'}
+                loading={isFirstSlide ? 'eager' : 'lazy'}
+                width={1920}
+                height={1080}
+                decoding={isFirstSlide ? 'sync' : 'async'}
+                onLoad={() => preloadNextSlide(idx)}
+              />
+            </picture>
           ) : (
             <div className="orderly-hero-fallback" aria-hidden="true">ORDERLY</div>
           )}
 
-          {/* Subtle Cinematic Vignette Overlay */}
-          <div className="hero-dark-overlay" aria-hidden="true" />
+          {/* Overlay MUST only be shown if there is text present in either the title or description */}
+          {showOverlay && (
+            <div className="hero-dark-overlay" aria-hidden="true" />
+          )}
 
           {/* Content Box */}
           <div className="container hero-content-container">
             <div className="hero-text-wrapper">
               {/* Small Eyebrow Label with Red Line */}
-              <div className="hero-eyebrow-label">
-                <span className="hero-red-dash" aria-hidden="true">—</span>
-                <span className="hero-subtitle-text">{slide.subtitle || "PREMIUM MEN'S WEAR"}</span>
-              </div>
+              {showOverlay && hasSubtitle && (
+                <div className="hero-eyebrow-label">
+                  <span className="hero-red-dash" aria-hidden="true">—</span>
+                  <span className="hero-subtitle-text">{slide.subtitle}</span>
+                </div>
+              )}
 
               {/* Headline */}
-              <h1 className="hero-title">
-                {renderTitleWithRedAccent(slide.title || "OWN YOUR\nSTYLE")}
-              </h1>
+              {hasTitle && (
+                <h1 className="hero-title">
+                  {renderTitleWithRedAccent(slide.title)}
+                </h1>
+              )}
 
               {/* Supporting Text */}
-              <p className="hero-desc">
-                {slide.desc || "Discover premium menswear crafted for confidence, comfort and timeless style."}
-              </p>
+              {hasDesc && (
+                <p className="hero-desc">
+                  {slide.desc}
+                </p>
+              )}
               
-              {/* Buttons */}
-              <div className="hero-btn-group">
-                <Link 
-                  to={slide.ctaPrimaryLink || '/shop'} 
-                  className="btn-hero-solid-red"
-                  // Preload shop page on hover
-                  onMouseEnter={() => {
-                    const link = document.createElement('link');
-                    link.rel = 'prefetch';
-                    link.href = slide.ctaPrimaryLink || '/shop';
-                    document.head.appendChild(link);
-                  }}
-                >
-                  {slide.ctaPrimary || 'SHOP NOW'}
-                </Link>
-                <Link 
-                  to={slide.ctaSecondaryLink || '/shop'} 
-                  className="btn-hero-outline"
-                  onMouseEnter={() => {
-                    const link = document.createElement('link');
-                    link.rel = 'prefetch';
-                    link.href = slide.ctaSecondaryLink || '/shop';
-                    document.head.appendChild(link);
-                  }}
-                >
-                  {slide.ctaSecondary || 'EXPLORE COLLECTIONS'}
-                </Link>
-              </div>
+              {/* Buttons - Must remain visible regardless of overlay state */}
+              {hasButtons && (
+                <div className="hero-btn-group">
+                  {hasPrimaryCta && (
+                    <Link 
+                      to={slide.ctaPrimaryLink || '/shop'} 
+                      className="btn-hero-solid-red"
+                      onMouseEnter={() => {
+                        const link = document.createElement('link');
+                        link.rel = 'prefetch';
+                        link.href = slide.ctaPrimaryLink || '/shop';
+                        document.head.appendChild(link);
+                      }}
+                    >
+                      {slide.ctaPrimary}
+                    </Link>
+                  )}
+                  {hasSecondaryCta && (
+                    <Link 
+                      to={slide.ctaSecondaryLink || '/shop'} 
+                      className="btn-hero-outline"
+                      onMouseEnter={() => {
+                        const link = document.createElement('link');
+                        link.rel = 'prefetch';
+                        link.href = slide.ctaSecondaryLink || '/shop';
+                        document.head.appendChild(link);
+                      }}
+                    >
+                      {slide.ctaSecondary}
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

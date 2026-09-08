@@ -31,6 +31,8 @@ const DEFAULT_MOBILE_SLIDES = [
   }
 ];
 
+const hasText = (t) => Boolean(t && typeof t === 'string' && t.trim().length > 0);
+
 const MobileHero = () => {
   const [slides, setSlides] = useState(DEFAULT_MOBILE_SLIDES);
 
@@ -45,9 +47,9 @@ const MobileHero = () => {
               const rawImg = slide.mobile_image_url || slide.image_url || slide.image;
               return {
                 id: slide.id,
-                subtitle: slide.subtitle || "— PREMIUM MEN'S WEAR",
-                title: slide.title || "OWN YOUR\nSTYLE",
-                desc: slide.description || slide.desc || "Premium menswear crafted for confidence, comfort and timeless style.",
+                subtitle: slide.subtitle || '',
+                title: slide.title !== undefined ? slide.title : '',
+                desc: (slide.description !== undefined ? slide.description : slide.desc) || '',
                 image: rawImg,
                 ctaPrimary: slide.cta_primary_text || "SHOP NOW",
                 ctaPrimaryLink: slide.cta_primary_link || "/shop",
@@ -83,15 +85,23 @@ const MobileHero = () => {
         className="mobile-hero-swiper"
       >
         {slides.map((slide, sIdx) => {
-          const titleParts = (slide.title || 'OWN YOUR\nSTYLE').split('\n');
+          const hasTitle = hasText(slide.title);
+          const hasDesc = hasText(slide.desc);
+          const hasSubtitle = hasText(slide.subtitle);
+          const showOverlay = hasTitle || hasDesc;
+          const hasPrimaryCta = hasText(slide.ctaPrimary);
+          const hasSecondaryCta = hasText(slide.ctaSecondary);
+          const hasButtons = hasPrimaryCta || hasSecondaryCta;
+          const titleParts = hasTitle ? slide.title.split('\n') : [];
           const isFirst = sIdx === 0;
+
           return (
-            <SwiperSlide key={slide.id}>
-              <div className="mobile-hero-card">
+            <SwiperSlide key={slide.id || sIdx}>
+              <div className={`mobile-hero-card ${!showOverlay ? 'no-overlay' : ''}`}>
                 {slide.image ? (
                   <img 
                     src={slide.image} 
-                    alt={slide.title} 
+                    alt={slide.title || 'ORDERLY Menswear'} 
                     className="mobile-hero-img"
                     width="600"
                     height="450"
@@ -102,32 +112,49 @@ const MobileHero = () => {
                 ) : (
                   <div className="orderly-hero-fallback">ORDERLY</div>
                 )}
-                <div className="mobile-hero-overlay" />
+                
+                {/* Overlay MUST only be shown if there is text present in either the title or description */}
+                {showOverlay && (
+                  <div className="mobile-hero-overlay" />
+                )}
 
                 <div className="mobile-hero-content">
-                  <span className="mobile-hero-eyebrow">{slide.subtitle}</span>
+                  {showOverlay && hasSubtitle && (
+                    <span className="mobile-hero-eyebrow">{slide.subtitle}</span>
+                  )}
                   
-                  <h1 className="mobile-hero-title">
-                    {titleParts[0]}
-                    {titleParts[1] && (
-                      <>
-                        <br />
-                        <span className="text-red-accent">{titleParts[1]}</span>
-                      </>
-                    )}
-                  </h1>
+                  {hasTitle && (
+                    <h1 className="mobile-hero-title">
+                      {titleParts[0]}
+                      {titleParts[1] && (
+                        <>
+                          <br />
+                          <span className="text-red-accent">{titleParts[1]}</span>
+                        </>
+                      )}
+                    </h1>
+                  )}
 
-                  <p className="mobile-hero-desc">{slide.desc}</p>
+                  {hasDesc && (
+                    <p className="mobile-hero-desc">{slide.desc}</p>
+                  )}
 
-                  <div className="mobile-hero-btns">
-                    <Link to={slide.ctaPrimaryLink || '/shop'} className="btn-mobile-red-solid">
-                      {slide.ctaPrimary}
-                    </Link>
+                  {/* Buttons remain visible regardless of overlay state */}
+                  {hasButtons && (
+                    <div className="mobile-hero-btns">
+                      {hasPrimaryCta && (
+                        <Link to={slide.ctaPrimaryLink || '/shop'} className="btn-mobile-red-solid">
+                          {slide.ctaPrimary}
+                        </Link>
+                      )}
 
-                    <Link to={slide.ctaSecondaryLink || '/shop'} className="btn-mobile-outline">
-                      {slide.ctaSecondary}
-                    </Link>
-                  </div>
+                      {hasSecondaryCta && (
+                        <Link to={slide.ctaSecondaryLink || '/shop'} className="btn-mobile-outline">
+                          {slide.ctaSecondary}
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </SwiperSlide>

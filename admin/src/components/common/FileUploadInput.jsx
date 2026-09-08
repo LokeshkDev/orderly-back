@@ -126,11 +126,13 @@ const FileUploadInput = ({
 
   return (
     <div className="file-upload-input-group">
-      <div className="d-flex align-items-center justify-content-between mb-1">
+      <div className="file-upload-header d-flex flex-wrap align-items-center justify-content-between gap-1 mb-1">
         {label && <label className="admin-form-label mb-0">{label}</label>}
-        <span className="dimension-hint-badge" title="File limits & optimization range">
-          <FiInfo className="me-1" /> {dimensionHint}
-        </span>
+        {dimensionHint && (
+          <span className="dimension-hint-badge" title="File limits & optimization range">
+            <FiInfo className="me-1" /> {dimensionHint}
+          </span>
+        )}
       </div>
 
       {/* Media Preview Box (if value exists) */}
@@ -174,10 +176,11 @@ const FileUploadInput = ({
       )}
 
       {/* Dual Input Controls: URL text field + Upload button */}
-      <div className="d-flex align-items-center gap-2">
+      <div className="file-upload-controls-row d-flex align-items-center gap-2">
         <input 
           type="text" 
           className="admin-input flex-grow-1"
+          style={{ minWidth: 0 }}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder || (type === 'video' ? 'Paste Video URL or click Upload (Max 50MB)...' : 'Paste Image URL or click Upload (Max 10MB)...')}

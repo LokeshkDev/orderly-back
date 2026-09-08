@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCategories } from '../../services/api';
+import { getCategories, getSettings, matchesCategoryAlias } from '../../services/api';
 import { HomeCategoryGridSkeleton } from '../common/Skeleton';
 import './ShopByCategory.css';
 
@@ -41,20 +41,64 @@ const ShopByCategory = ({ title, subtitle }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [categoriesData, setCategoriesData] = useState([]);
+  const [cmsEyebrow, setCmsEyebrow] = useState('');
+  const [cmsHeading, setCmsHeading] = useState('');
 
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const res = await getCategories();
-        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const active = res.data.filter(c => c.is_active !== false);
-          const mapped = active.map((cat, idx) => ({
+        const [catRes, settingsRes] = await Promise.allSettled([
+          getCategories(),
+          getSettings()
+        ]);
+
+        let allCats = [];
+        if (catRes.status === 'fulfilled' && catRes.value?.success && Array.isArray(catRes.value.data)) {
+          allCats = catRes.value.data.filter(c => c.is_active !== false);
+        }
+
+        let collectionsConfig = null;
+        if (settingsRes.status === 'fulfilled' && settingsRes.value?.success && settingsRes.value.data?.collections_config) {
+          collectionsConfig = settingsRes.value.data.collections_config;
+          if (collectionsConfig.eyebrow) setCmsEyebrow(collectionsConfig.eyebrow);
+          if (collectionsConfig.heading) setCmsHeading(collectionsConfig.heading);
+        }
+
+        let orderedCats = [];
+        const selectedCategoryIds = collectionsConfig?.selectedCategoryIds;
+        const selectedCategories = collectionsConfig?.selectedCategories;
+
+        if (Array.isArray(selectedCategoryIds) && selectedCategoryIds.length > 0) {
+          selectedCategoryIds.forEach(id => {
+            const found = allCats.find(c => String(c.id) === String(id) || String(c._id) === String(id));
+            if (found && !orderedCats.some(item => (item.id || item._id) === (found.id || found._id))) {
+              orderedCats.push(found);
+            }
+          });
+        }
+
+        if (orderedCats.length === 0 && Array.isArray(selectedCategories) && selectedCategories.length > 0) {
+          selectedCategories.forEach(name => {
+            const found = allCats.find(c => matchesCategoryAlias(c.name, name));
+            if (found && !orderedCats.some(item => (item.id || item._id) === (found.id || found._id))) {
+              orderedCats.push(found);
+            }
+          });
+        }
+
+        if (orderedCats.length === 0) {
+          orderedCats = allCats;
+        }
+
+        if (orderedCats.length > 0) {
+          const mapped = orderedCats.map((cat, idx) => ({
+            id: cat.id || cat._id,
             name: (cat.name || '').toUpperCase(),
             sub: cat.description || cat.sub || DEFAULT_CATEGORIES[idx % DEFAULT_CATEGORIES.length]?.sub || 'Premium Collection',
             categoryQuery: cat.slug || cat.name,
             image: (cat.image && cat.image.length > 10) ? cat.image : ''
           }));
-          setCategoriesData(mapped.length > 0 ? mapped : DEFAULT_CATEGORIES);
+          setCategoriesData(mapped);
         } else {
           setCategoriesData(DEFAULT_CATEGORIES);
         }
@@ -68,15 +112,26 @@ const ShopByCategory = ({ title, subtitle }) => {
 
     const handleUpdated = () => loadCategories();
     window.addEventListener('orderly_categories_updated', handleUpdated);
+    window.addEventListener('orderly_site_settings_updated', handleUpdated);
     window.addEventListener('storage', handleUpdated);
     return () => {
       window.removeEventListener('orderly_categories_updated', handleUpdated);
+      window.removeEventListener('orderly_site_settings_updated', handleUpdated);
       window.removeEventListener('storage', handleUpdated);
     };
   }, []);
 
   const handleCardClick = (categoryQuery) => {
-    navigate(`/shop?category=${encodeURIComponent(categoryQuery)}`);
+    if (!categoryQuery) {
+      navigate('/shop');
+      return;
+    }
+    const qLower = categoryQuery.toLowerCase().trim();
+    if (qLower === 'combos' || qLower === 'combo') {
+      navigate('/combos');
+    } else {
+      navigate(`/shop?category=${encodeURIComponent(categoryQuery)}`);
+    }
   };
 
   return (
@@ -85,10 +140,10 @@ const ShopByCategory = ({ title, subtitle }) => {
         {/* Section Header */}
         <div className="text-center mb-5">
           <span className="category-eyebrow-red">
-            {subtitle || 'EXPLORE COLLECTIONS'}
+            {subtitle || cmsEyebrow || 'EXPLORE COLLECTIONS'}
           </span>
           <h2 className="category-main-heading">
-            {title || 'DISCOVER YOUR STYLE'}
+            {title || cmsHeading || 'DISCOVER YOUR STYLE'}
           </h2>
         </div>
 

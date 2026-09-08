@@ -6,6 +6,7 @@ import { FiShoppingBag, FiArrowRight, FiPercent, FiCheck, FiChevronLeft, FiChevr
 import { useCart } from '../../context/CartContext';
 import { getCombos } from '../../services/api';
 import { CatchyCombosSkeleton } from '../common/Skeleton';
+import ComboCover from '../common/ComboCover';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -144,19 +145,12 @@ const CatchyCombosSection = ({ title, subtitle }) => {
                 >
                   {/* Card Media Header */}
                   <div className="catchy-combo-media">
-                    {combo.image || combo.images?.[0] ? (
-                      <img 
-                        src={combo.image || combo.images?.[0] || ''} 
-                        alt={combo.name} 
-                        className="catchy-combo-img"
-                        width="400"
-                        height="300"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                    <div className="catchy-combo-img orderly-img-fallback">ORDERLY</div>
-                  )}
+                    <ComboCover 
+                      items={combo.items} 
+                      images={combo.images} 
+                      comboName={combo.name}
+                      showPlusBadge={false}
+                    />
                     <div className="catchy-combo-overlay" />
 
                     {/* Badge Pill Top Right */}

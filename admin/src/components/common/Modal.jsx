@@ -20,7 +20,7 @@ const Modal = ({ isOpen, onClose, title, children, footer, width = '500px' }) =>
     <div className="modal-overlay" onClick={onClose}>
       <div 
         className="modal-content animate-slide" 
-        style={{ maxWidth: width }}
+        style={{ maxWidth: width, width: '100%' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">

@@ -366,13 +366,12 @@
   }
 
   /* Multi-Product Split Image Box with Central Plus Circle */
+  .mobile-cover-card-link,
   .mobile-split-photo-box {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3px;
+    display: block;
     position: relative;
     width: 100%;
-    height: 200px;
+    height: 220px;
     background-color: #050505;
     overflow: hidden;
     text-decoration: none;

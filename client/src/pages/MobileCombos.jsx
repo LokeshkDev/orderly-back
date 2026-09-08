@@ -17,6 +17,7 @@ import BottomNavbar from '../components/common/BottomNavbar';
 import { getCombos, getComboCategories } from '../services/api';
 import { useWishlist } from '../context/WishlistContext';
 import { MobileComboCategorySkeleton, MobileComboCardSkeleton } from '../components/common/Skeleton';
+import ComboCover from '../components/common/ComboCover';
 import '../styles/MobileHomepage.css';
 import './MobileCombos.css';
 
@@ -339,9 +340,6 @@ const MobileCombos = () => {
                       ? Math.round(((combo.original_price - combo.offer_price) / combo.original_price) * 100)
                       : 30;
 
-                    const img1 = combo.items?.[0]?.image || combo.images?.[0] || '';
-                    const img2 = combo.items?.[1]?.image || combo.images?.[1] || combo.images?.[0] || '';
-                    
                     const itemSummary = combo.items_summary || (
                       combo.items && combo.items.length > 0
                         ? `▣ ${combo.items.length} Items Set`
@@ -369,23 +367,14 @@ const MobileCombos = () => {
                           </button>
                         </div>
 
-                        {/* Split Photo Box */}
-                        <Link to={`/combo/${combo.id}`} className="mobile-split-photo-box">
-                          <div className="mobile-photo-col">
-                            {img1 ? (
-                              <img src={img1} alt={combo.name} className="mobile-item-photo" loading="lazy" />
-                            ) : (
-                              <div className="orderly-img-fallback">ORDERLY</div>
-                            )}
-                          </div>
-                          <div className="mobile-plus-circle-badge">+</div>
-                          <div className="mobile-photo-col">
-                            {img2 ? (
-                              <img src={img2} alt={combo.name} className="mobile-item-photo" loading="lazy" />
-                            ) : (
-                              <div className="orderly-img-fallback">ORDERLY</div>
-                            )}
-                          </div>
+                        {/* Dynamic Multi-Product Combo Cover */}
+                        <Link to={`/combo/${combo.id}`} className="mobile-cover-card-link">
+                          <ComboCover
+                            items={combo.items}
+                            images={combo.images}
+                            comboName={combo.name}
+                            showPlusBadge={true}
+                          />
                         </Link>
 
                         {/* Info Body */}

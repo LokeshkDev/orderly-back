@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiCheck, 
-  FiLayers, FiPackage, FiGrid, FiTag, FiShoppingBag, FiDollarSign, FiPercent, FiBox
+  FiLayers, FiPackage, FiGrid, FiTag, FiShoppingBag, FiDollarSign, FiPercent, FiBox, FiCopy
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
-import FileUploadInput from '../../components/common/FileUploadInput';
+import ComboCover from '../../components/common/ComboCover';
 import './CombosList.css';
 
 const CombosList = () => {
@@ -84,6 +84,20 @@ const CombosList = () => {
     loadData();
   }, []);
 
+  // Helper to extract a product's primary image
+  const getProductPrimaryImg = (prod) => {
+    if (!prod) return '';
+    if (Array.isArray(prod.images) && prod.images.length > 0 && prod.images[0]) {
+      return typeof prod.images[0] === 'string' ? prod.images[0] : prod.images[0].url || prod.images[0].image_url || '';
+    }
+    if (Array.isArray(prod.colors) && prod.colors[0] && Array.isArray(prod.colors[0].images) && prod.colors[0].images[0]) {
+      const c0 = prod.colors[0].images[0];
+      return typeof c0 === 'string' ? c0 : c0.url || c0.image_url || '';
+    }
+    if (typeof prod.image === 'string' && prod.image.trim().length > 0) return prod.image;
+    return '';
+  };
+
   // Initialize Items array whenever piecesCount or mode changes
   const initItemsForPieces = (count, mode, currentSelectedIds = selectedProductIds) => {
     const itemsArr = [];
@@ -95,11 +109,15 @@ const CombosList = () => {
         const prod = productsCatalog.find(p => String(p.id) === String(prodId));
         if (prod) {
           calcOriginalPrice += Number(prod.price || 0);
+          const primaryImg = getProductPrimaryImg(prod);
           itemsArr.push({
             pieceIndex: i + 1,
             pieceLabel: `Piece ${i + 1}: ${prod.name}`,
             productId: prod.id,
             name: prod.name,
+            primaryImage: primaryImg,
+            image: primaryImg,
+            images: prod.images || (primaryImg ? [primaryImg] : []),
             colors: prod.colors || [{ name: 'Default', hex: '#111111', images: prod.images }],
             sizes: prod.sizes || ['S', 'M', 'L', 'XL']
           });
@@ -141,6 +159,19 @@ const CombosList = () => {
       });
       setSelectedProductIds(prodIds);
 
+      // Auto-populate primary images from catalog if missing in items
+      const enrichedItems = (comboToEdit.items || []).map((it, idx) => {
+        const catalogProd = productsCatalog.find(p => String(p.id) === String(it.productId));
+        const pImg = it.primaryImage || it.image || getProductPrimaryImg(catalogProd) || comboToEdit.images?.[idx] || '';
+        return {
+          ...it,
+          primaryImage: pImg,
+          image: pImg
+        };
+      });
+
+      const derivedImages = enrichedItems.map(it => it.primaryImage || it.image).filter(Boolean);
+
       setFormData({
         id: comboToEdit.id,
         name: comboToEdit.name,
@@ -153,9 +184,9 @@ const CombosList = () => {
         badge: comboToEdit.badge || '',
         status: comboToEdit.status || 'Active',
         description: comboToEdit.description || '',
-        images: comboToEdit.images || [],
+        images: derivedImages.length > 0 ? derivedImages : (comboToEdit.images || []),
         is_existing_products_combo: comboToEdit.is_existing_products_combo ?? (mode === 'existing'),
-        items: comboToEdit.items || []
+        items: enrichedItems
       });
     } else {
       // New Combo
@@ -165,6 +196,7 @@ const CombosList = () => {
       setSelectedProductIds(defaultIds);
 
       const { itemsArr, calcOriginalPrice } = initItemsForPieces(count, mode, defaultIds);
+      const derivedImages = itemsArr.map(it => it.primaryImage || it.image).filter(Boolean);
 
       setFormData({
         id: `combo-${Date.now()}`,
@@ -178,7 +210,7 @@ const CombosList = () => {
         badge: '',
         status: 'Active',
         description: '',
-        images: itemsArr.flatMap(it => it.colors?.[0]?.images || []).filter(Boolean).slice(0, 3),
+        images: derivedImages,
         is_existing_products_combo: (mode === 'existing'),
         items: itemsArr
       });
@@ -191,11 +223,13 @@ const CombosList = () => {
   const handlePiecesCountChange = (newCount) => {
     setPiecesCount(newCount);
     const { itemsArr, calcOriginalPrice } = initItemsForPieces(newCount, modalMode, selectedProductIds);
+    const derivedImages = itemsArr.map(it => it.primaryImage || it.image).filter(Boolean);
     setFormData(prev => ({
       ...prev,
       pieces_count: newCount,
       original_price: calcOriginalPrice > 0 ? calcOriginalPrice : prev.original_price,
       offer_price: calcOriginalPrice > 0 ? Math.round(calcOriginalPrice * 0.7) : prev.offer_price,
+      images: derivedImages.length > 0 ? derivedImages : prev.images,
       items: itemsArr
     }));
   };
@@ -207,13 +241,13 @@ const CombosList = () => {
     setSelectedProductIds(updatedIds);
 
     const { itemsArr, calcOriginalPrice } = initItemsForPieces(piecesCount, 'existing', updatedIds);
-    const imagesList = itemsArr.flatMap(it => it.colors?.[0]?.images || []).filter(Boolean);
+    const derivedImages = itemsArr.map(it => it.primaryImage || it.image).filter(Boolean);
 
     setFormData(prev => ({
       ...prev,
       original_price: calcOriginalPrice > 0 ? calcOriginalPrice : prev.original_price,
       offer_price: calcOriginalPrice > 0 ? Math.round(calcOriginalPrice * 0.75) : prev.offer_price,
-      images: imagesList.length > 0 ? imagesList : prev.images,
+      images: derivedImages.length > 0 ? derivedImages : prev.images,
       items: itemsArr
     }));
   };
@@ -226,8 +260,14 @@ const CombosList = () => {
       return;
     }
 
+    // Always auto-derive combo cover images from primary product images
+    const derivedImages = formData.items
+      ?.map(it => it.primaryImage || it.image)
+      .filter(Boolean);
+
     const finalCombo = {
       ...formData,
+      images: derivedImages && derivedImages.length > 0 ? derivedImages : formData.images,
       pieces_count: piecesCount,
       slug: formData.slug || formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
     };
@@ -265,6 +305,36 @@ const CombosList = () => {
       } catch (err) {
         toast.error('Failed to delete combo.');
       }
+    }
+  };
+
+  // Duplicate Combo - mirrors ProductsList handleDuplicateProduct
+  const handleDuplicateCombo = async (combo) => {
+    try {
+      const duplicateData = {
+        ...combo,
+        id: `combo-${Date.now()}`,
+        name: `${combo.name} (Copy)`,
+        slug: `${combo.slug || combo.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-copy-${Date.now()}`,
+        status: 'Inactive'
+      };
+
+      delete duplicateData.createdAt;
+      delete duplicateData.updatedAt;
+      delete duplicateData.deleted;
+
+      const res = await api.post('/combos', duplicateData);
+      if (res.data && res.data.success && res.data.data) {
+        const savedCombo = res.data.data;
+        toast.success(`Combo "${savedCombo.name}" duplicated successfully!`);
+        loadData();
+        window.dispatchEvent(new CustomEvent('orderly_combos_updated'));
+      } else {
+        toast.error('Failed to duplicate combo');
+      }
+    } catch (err) {
+      console.warn('Duplicate combo error:', err.message);
+      toast.error(err.response?.data?.message || 'Failed to duplicate combo');
     }
   };
 
@@ -457,12 +527,14 @@ const CombosList = () => {
                   <tr key={combo.id}>
                     <td className="ps-4 py-3 text-start">
                       <div className="d-flex align-items-center gap-3">
-                        <img 
-                          src={combo.images?.[0] || '/logo.png'} 
-                          alt={combo.name} 
-                          className="combo-tbl-thumb flex-shrink-0"
-                          onError={(e) => { e.target.src = '/logo.png'; }}
-                        />
+                        <div style={{ width: '56px', height: '56px', borderRadius: '6px', overflow: 'hidden', flexShrink: 0, border: '1px solid #cbd5e1' }}>
+                          <ComboCover 
+                            items={combo.items} 
+                            images={combo.images} 
+                            comboName={combo.name} 
+                            showPlusBadge={false} 
+                          />
+                        </div>
                         <div className="min-w-0">
                           <div className="combo-title-text text-truncate" style={{ maxWidth: '240px' }} title={combo.name}>{combo.name}</div>
                           <span className="combo-code-badge">{combo.id}</span>
@@ -510,6 +582,14 @@ const CombosList = () => {
                           title="Edit Combo"
                         >
                           <FiEdit /> Edit
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn-admin-outline py-1 px-2"
+                          onClick={() => handleDuplicateCombo(combo)}
+                          title="Duplicate Combo"
+                        >
+                          <FiCopy /> Duplicate
                         </button>
                         <button 
                           type="button" 
@@ -796,19 +876,30 @@ const CombosList = () => {
                   )}
                 </div>
 
-                {/* Combo Cover Image Upload */}
+                {/* Auto-Generated Combo Cover Preview */}
                 <div className="col-12 mt-3 px-1">
-                  <FileUploadInput 
-                    value={formData.images?.[0] || ''}
-                    onChange={(url) => setFormData(prev => ({ 
-                      ...prev, 
-                      images: url ? [url, ...(prev.images?.slice(1) || [])] : prev.images 
-                    }))}
-                    type="image"
-                    folder="combos"
-                    label="COMBO BANNER / COVER IMAGE (Upload)"
-                    recommendedSize="Recommended: 1200 x 800 px (3:2 Aspect Ratio)"
-                  />
+                  <div className="p-3 border rounded-3 bg-light">
+                    <div className="d-flex align-items-center justify-content-between mb-2">
+                      <label className="admin-form-label mb-0 text-dark fw-bold">
+                        COMBO COVER PREVIEW (Auto-generated from Selected Products)
+                      </label>
+                      <span className="badge bg-danger text-white">
+                        {formData.items?.filter(it => it.name && (it.primaryImage || it.image)).length || 0} / {piecesCount} Primary Images Connected
+                      </span>
+                    </div>
+                    <p className="text-muted small mb-3">
+                      The cover is composed dynamically using the primary product image of each selected piece. Manual combo cover image upload is disabled to maintain catalog consistency.
+                    </p>
+
+                    <div style={{ maxWidth: '440px', height: '260px', margin: '0 auto', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+                      <ComboCover
+                        items={formData.items}
+                        images={formData.images}
+                        comboName={formData.name || 'Preview Combo'}
+                        showPlusBadge={true}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 

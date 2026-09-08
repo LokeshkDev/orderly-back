@@ -7,6 +7,7 @@ import SEOHead from '../components/common/SEOHead';
 import { getCombos, getComboCategories } from '../services/api';
 import { useWishlist } from '../context/WishlistContext';
 import { ComboCategoryCardSkeleton, ComboCardSkeleton } from '../components/common/Skeleton';
+import ComboCover from '../components/common/ComboCover';
 import MobileCombos from './MobileCombos';
 import useIsMobile from '../utils/useIsMobile';
 import './CombosPage.css';
@@ -342,9 +343,6 @@ const CombosPage = () => {
                       ? Math.round(((combo.original_price - combo.offer_price) / combo.original_price) * 100)
                       : 30;
 
-                    const img1 = combo.items?.[0]?.image || combo.images?.[0] || '/logo.png';
-                    const img2 = combo.items?.[1]?.image || combo.images?.[1] || combo.images?.[0] || '/logo.png';
-                    
                     const itemSummary = combo.items_summary || (
                       combo.items && combo.items.length > 0
                         ? `▣ ${combo.items.length} Items Set`
@@ -372,28 +370,14 @@ const CombosPage = () => {
                           </button>
                         </div>
 
-                        {/* Multi-Product Split Image Box with Central Plus Circle */}
-                        <Link to={`/combo/${combo.id}`} className="combo-split-photo-box">
-                          <div className="combo-photo-col">
-                            <img 
-                              src={img1} 
-                              alt={combo.name} 
-                              className="combo-item-photo" 
-                              onError={(e) => { e.target.src = '/logo.png'; }}
-                            />
-                          </div>
-                          
-                          {/* Plus Circle Indicator */}
-                          <div className="combo-plus-circle-badge">+</div>
-
-                          <div className="combo-photo-col">
-                            <img 
-                              src={img2} 
-                              alt={combo.name} 
-                              className="combo-item-photo" 
-                              onError={(e) => { e.target.src = '/logo.png'; }}
-                            />
-                          </div>
+                        {/* Dynamic Multi-Product Combo Cover Box */}
+                        <Link to={`/combo/${combo.id}`} className="combo-cover-card-link">
+                          <ComboCover
+                            items={combo.items}
+                            images={combo.images}
+                            comboName={combo.name}
+                            showPlusBadge={true}
+                          />
                         </Link>
 
                         {/* Combo Info Body */}

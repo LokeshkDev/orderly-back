@@ -31,7 +31,8 @@ export const ROLE_CONFIG = {
       '/customers',
       '/bi-reports',
       '/admin-users',
-      '/settings'
+      '/settings',
+      '/cms-pages'
     ],
     permissions: ['all', 'manage_users', 'manage_settings', 'view_bi', 'edit_products', 'delete_products', 'manage_orders', 'manage_pricing']
   },
@@ -57,7 +58,8 @@ export const ROLE_CONFIG = {
       '/customers',
       '/bi-reports',
       '/admin-users',
-      '/settings'
+      '/settings',
+      '/cms-pages'
     ],
     permissions: ['manage_settings', 'view_bi', 'edit_products', 'delete_products', 'manage_orders', 'manage_pricing']
   },
@@ -94,7 +96,8 @@ export const ROLE_CONFIG = {
       '/brands',
       '/hero-slides',
       '/products',
-      '/combos'
+      '/combos',
+      '/cms-pages'
     ],
     permissions: ['edit_products', 'manage_cms', 'manage_categories']
   },

@@ -347,11 +347,11 @@ export const getOrders = async () => {
 };
 
 export const getActiveCoupons = async () => {
-  try {
-    const res = await api.get('/coupons/active');
-    if (res.data && res.data.success) return res.data;
-  } catch {}
-  return { success: true, data: [] };
+  return fetchCachedGet('/coupons/active');
+};
+
+export const getPopupCoupons = async () => {
+  return fetchCachedGet('/coupons/popup');
 };
 
 export const validateCoupon = async (code, cartTotal = 0) => {

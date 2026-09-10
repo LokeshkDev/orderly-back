@@ -1,0 +1,461 @@
+/* WordPad Style WYSIWYG Editor */
+.wordpad-container {
+  display: flex;
+  flex-direction: column;
+  background: #fdfdfd;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  transition: all 0.2s ease;
+}
+
+.wordpad-container.wordpad-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  border-radius: 0;
+  border: none;
+  height: 100vh !important;
+}
+
+/* Ribbon Toolbar */
+.wordpad-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+  user-select: none;
+}
+
+.wordpad-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.wordpad-separator {
+  width: 1px;
+  height: 22px;
+  background: #d1d5db;
+  margin: 0 4px;
+}
+
+.wordpad-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  min-width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #374151;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wordpad-tool-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.wordpad-tool-btn.active {
+  background: #1e293b;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.wordpad-tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.wordpad-tool-btn.wordpad-insert-highlight {
+  background: #e0e7ff;
+  border-color: #c7d2fe;
+  color: #3730a3;
+  font-weight: 600;
+}
+
+.wordpad-tool-btn.wordpad-insert-highlight:hover {
+  background: #c7d2fe;
+  color: #1e1b4b;
+}
+
+.btn-label-text {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.wordpad-select {
+  height: 28px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  color: #374151;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+}
+
+.wordpad-select:focus {
+  border-color: #6366f1;
+}
+
+.wordpad-color-picker-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #ffffff;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.wordpad-color-picker-label input[type="color"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+/* Ruler / Status Bar */
+.wordpad-ruler {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 16px;
+  background: #e5e7eb;
+  border-bottom: 1px solid #d1d5db;
+  font-size: 0.72rem;
+  color: #6b7280;
+  font-family: monospace;
+}
+
+.ruler-notch-container {
+  display: flex;
+  gap: 32px;
+}
+
+.ruler-notch {
+  position: relative;
+}
+
+.ruler-notch::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 1px;
+  height: 4px;
+  background: #9ca3af;
+}
+
+.wordpad-mode-indicator {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #4b5563;
+}
+
+/* Document Canvas & Paper */
+.wordpad-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  background: #f1f3f5;
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.wordpad-paper-outer {
+  width: 100%;
+  max-width: 860px;
+}
+
+.wordpad-paper {
+  background: #ffffff;
+  min-height: 520px;
+  padding: 48px 56px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  color: #1a1a1a;
+  line-height: 1.7;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.wordpad-contenteditable:empty:before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  cursor: text;
+}
+
+/* Paper Content Typography */
+.wordpad-paper h1,
+.wordpad-preview-body h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #0f172a;
+}
+
+.wordpad-paper h2,
+.wordpad-preview-body h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 1.4rem;
+  margin-bottom: 0.6rem;
+  color: #1e293b;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.4rem;
+}
+
+.wordpad-paper h3,
+.wordpad-preview-body h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: #334155;
+}
+
+.wordpad-paper h4,
+.wordpad-preview-body h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  color: #475569;
+}
+
+.wordpad-paper p,
+.wordpad-preview-body p {
+  margin-bottom: 1rem;
+}
+
+.wordpad-paper blockquote,
+.wordpad-preview-body blockquote {
+  border-left: 4px solid #3b82f6;
+  padding: 8px 16px;
+  margin: 1.2rem 0;
+  background: #f8fafc;
+  color: #475569;
+  font-style: italic;
+}
+
+.wordpad-paper ul,
+.wordpad-paper ol,
+.wordpad-preview-body ul,
+.wordpad-preview-body ol {
+  padding-left: 24px;
+  margin-bottom: 1rem;
+}
+
+.wordpad-paper li,
+.wordpad-preview-body li {
+  margin-bottom: 0.4rem;
+}
+
+.wordpad-paper img,
+.wordpad-preview-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.wordpad-paper table,
+.wordpad-preview-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+
+.wordpad-paper table th,
+.wordpad-paper table td,
+.wordpad-preview-body table th,
+.wordpad-preview-body table td {
+  border: 1px solid #cbd5e1;
+  padding: 8px 12px;
+}
+
+.wordpad-paper table th,
+.wordpad-preview-body table th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+/* Source Code Mode */
+.wordpad-source-code-view {
+  width: 100%;
+  max-width: 960px;
+  min-height: 480px;
+  background: #0f172a;
+  color: #38bdf8;
+  font-family: Consolas, Monaco, "Andale Mono", monospace;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  padding: 24px;
+  border-radius: 6px;
+  border: 1px solid #1e293b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  resize: vertical;
+  outline: none;
+}
+
+/* Live Preview Mode */
+.wordpad-preview-view {
+  position: relative;
+  width: 100%;
+  max-width: 860px;
+}
+
+.preview-badge {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  background: #10b981;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Footer Bar */
+.wordpad-footer-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 14px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+/* Modal Overlay & Styling */
+.wordpad-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+
+.wordpad-modal {
+  background: #ffffff;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  animation: wordpadModalFadeIn 0.15s ease-out;
+}
+
+@keyframes wordpadModalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wordpad-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.wordpad-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.wordpad-modal-close:hover {
+  color: #0f172a;
+}
+
+.wordpad-modal-body {
+  padding: 18px;
+}
+
+.wordpad-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.wordpad-dimension-placeholder {
+  display: flex;
+  gap: 12px;
+  background: #eff6ff;
+  border: 1px dashed #60a5fa;
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  color: #1e40af;
+}
+
+.placeholder-icon {
+  font-size: 1.2rem;
+  color: #3b82f6;
+  margin-top: 2px;
+}
+
+.wordpad-dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wordpad-dropzone:hover {
+  border-color: #6366f1;
+  background: #f5f3ff;
+}
+

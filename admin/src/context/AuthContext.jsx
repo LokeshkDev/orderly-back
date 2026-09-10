@@ -49,6 +49,13 @@ export const AuthProvider = ({ children }) => {
       }
       return res.data;
     } catch (err) {
+      // Detect network / connection refused vs credential error
+      const isNetworkError = !err.response && (err.code === 'ERR_NETWORK' || err.message === 'Network Error' || err.message?.includes('ERR_CONNECTION_REFUSED'));
+      if (isNetworkError) {
+        const base = import.meta.env.VITE_API_BASE_URL || '/api (proxied to http://localhost:5001)';
+        console.error(`[Auth] Network error: cannot reach ${base}. Is the backend running? (cd server && npm run dev)`, err);
+        return { success: false, message: `Cannot connect to API at ${base} (ERR_CONNECTION_REFUSED). Ensure the backend server is running on port 5001.` };
+      }
       return { success: false, message: err.response?.data?.message || 'Login failed. Please check your credentials.' };
     }
   };
@@ -69,6 +76,11 @@ export const AuthProvider = ({ children }) => {
       }
       return res.data;
     } catch (err) {
+      const isNetworkError = !err.response && (err.code === 'ERR_NETWORK' || err.message === 'Network Error' || err.message?.includes('ERR_CONNECTION_REFUSED'));
+      if (isNetworkError) {
+        const base = import.meta.env.VITE_API_BASE_URL || '/api';
+        return { success: false, message: `Cannot connect to API at ${base} (ERR_CONNECTION_REFUSED). Ensure backend is running.` };
+      }
       return { success: false, message: err.response?.data?.message || 'Google login failed' };
     }
   };

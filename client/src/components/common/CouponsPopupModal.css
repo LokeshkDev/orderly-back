@@ -1,0 +1,338 @@
+/* Coupons Popup Modal — Dark Luxury Aesthetic & Zero-CLS Styling */
+
+/* Floating Corner Pill Re-Open Trigger */
+.orderly-coupon-pill-trigger {
+  position: fixed;
+  bottom: 84px;
+  left: 20px;
+  z-index: 999;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: couponPillSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes couponPillSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.orderly-coupon-pill-trigger:hover {
+  transform: translateY(-2px) scale(1.03);
+  border-color: #fbbf24;
+  box-shadow: 0 12px 28px rgba(251, 191, 36, 0.25);
+  color: #fef3c7;
+}
+
+.pill-badge-pulse {
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  animation: couponPillPulse 1.8s infinite;
+}
+
+@keyframes couponPillPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.pill-icon {
+  font-size: 1rem;
+}
+
+/* Modal Backdrop */
+.orderly-coupon-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(10, 10, 15, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: couponBackdropFade 0.25s ease-out;
+}
+
+@keyframes couponBackdropFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Modal Card */
+.orderly-coupon-modal-card {
+  position: relative;
+  background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(251, 191, 36, 0.08);
+  overflow: hidden;
+  animation: couponCardScale 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes couponCardScale {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Close Button */
+.coupon-modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.coupon-modal-close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+/* Header */
+.coupon-modal-header {
+  padding: 24px 24px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.coupon-privilege-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
+
+.coupon-modal-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+}
+
+.coupon-modal-subtitle {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+/* Coupon Cards Container (Scrollable if multiple) */
+.coupon-cards-container {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  max-height: 48vh;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(251, 191, 36, 0.3) transparent;
+}
+
+.coupon-cards-container::-webkit-scrollbar {
+  width: 5px;
+}
+
+.coupon-cards-container::-webkit-scrollbar-thumb {
+  background: rgba(251, 191, 36, 0.3);
+  border-radius: 4px;
+}
+
+/* Single Coupon Card */
+.single-coupon-item-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(251, 191, 36, 0.4);
+  border-radius: 12px;
+  padding: 14px 16px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.single-coupon-item-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #fbbf24;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.coupon-card-ribbon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.coupon-discount-tag {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: 0.5px;
+}
+
+.coupon-expiry-tag {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.coupon-desc {
+  font-size: 0.86rem;
+  color: #e2e8f0;
+  line-height: 1.4;
+}
+
+/* Code & Copy Box */
+.coupon-code-action-box {
+  background: #020617;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 2px 4px 2px 8px;
+}
+
+.coupon-code-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 1px;
+}
+
+.btn-copy-coupon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copy-coupon:hover {
+  background: #b91c1c;
+}
+
+.btn-copy-coupon.copied {
+  background: #10b981;
+  color: #ffffff;
+}
+
+/* Modal Footer */
+.coupon-modal-footer {
+  padding: 14px 20px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.btn-coupon-shop-now {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  color: #ffffff;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+}
+
+.btn-coupon-shop-now:hover {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.45);
+  transform: translateY(-1px);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 576px) {
+  .orderly-coupon-pill-trigger {
+    bottom: 76px;
+    left: 12px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+  }
+  
+  .coupon-modal-header {
+    padding: 20px 16px 10px;
+  }
+  
+  .coupon-modal-title {
+    font-size: 1.25rem;
+  }
+  
+  .coupon-cards-container {
+    padding: 12px 14px;
+    max-height: 44vh;
+  }
+  
+  .coupon-modal-footer {
+    padding: 12px 16px 16px;
+  }
+}
+

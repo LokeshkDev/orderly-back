@@ -18,6 +18,7 @@ import PageLoader from './components/common/PageLoader';
 // Lazy-load heavy components
 const CartDrawer = lazy(() => import('./components/cart/CartDrawer'));
 const QuickViewModal = lazy(() => import('./components/product/QuickViewModal'));
+const CouponsPopupModal = lazy(() => import('./components/common/CouponsPopupModal'));
 
 // Lazy-load pages by feature
 // Home & Shop (critical - load first)
@@ -38,6 +39,8 @@ const AboutUs = lazy(() => import('./pages/AboutUs'));
 const ContactUs = lazy(() => import('./pages/ContactUs'));
 const ShippingPolicy = lazy(() => import('./pages/ShippingPolicy'));
 const ReturnsPolicy = lazy(() => import('./pages/ReturnsPolicy'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Scroll to top helper
@@ -66,6 +69,7 @@ const GlobalModals = () => (
   <Suspense fallback={null}>
     <CartDrawer />
     <QuickViewModal />
+    <CouponsPopupModal />
   </Suspense>
 );
 
@@ -95,6 +99,10 @@ const AppLayout = () => {
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/shipping-policy" element={<ShippingPolicy />} />
           <Route path="/returns-policy" element={<ReturnsPolicy />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/terms" element={<TermsAndConditions />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

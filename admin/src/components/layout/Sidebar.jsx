@@ -4,7 +4,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   FiGrid, FiTag, FiPackage, FiLayers, FiShoppingCart, FiSettings, 
   FiSliders, FiCalendar, FiUsers, FiTruck, FiChevronLeft, FiChevronRight, 
-  FiX, FiShield, FiTrendingUp 
+  FiX, FiShield, FiTrendingUp, FiFileText 
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { canAccessRoute, getRoleConfig } from '../../utils/rbac';
@@ -18,6 +18,7 @@ const Sidebar = ({ isCollapsed, isMobileOpen, onToggleCollapse, onCloseMobile })
     { path: '/', icon: <FiGrid />, label: 'Dashboard', exact: true },
     { path: '/bi-reports', icon: <FiTrendingUp />, label: 'BI & Analytics', exact: false },
     { path: '/homepage-settings', icon: <FiSliders />, label: 'Homepage CMS', exact: false },
+    { path: '/cms-pages', icon: <FiFileText />, label: 'Pages CMS', exact: false },
     { path: '/categories', icon: <FiTag />, label: 'Categories', exact: false },
     { path: '/products', icon: <FiPackage />, label: 'Products', exact: false },
     { path: '/combos', icon: <FiLayers />, label: 'Combos', exact: false },

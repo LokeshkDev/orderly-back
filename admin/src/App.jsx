@@ -29,6 +29,7 @@ import CouponsList from './pages/coupons/CouponsList';
 import CustomersList from './pages/customers/CustomersList';
 import AdminUsersList from './pages/users/AdminUsersList';
 import BIReports from './pages/analytics/BIReports';
+import CmsPages from './pages/cms/CmsPages';
 
 const ProtectedRoute = ({ children }) => {
   const auth = useAuth() || {};
@@ -87,6 +88,7 @@ const AppRoutes = () => {
         <Route path="occasions" element={<RoleRoute path="/homepage-settings"><HomepageSettings defaultTab="occasions" /></RoleRoute>} />
         <Route path="brands" element={<RoleRoute path="/homepage-settings"><Brands /></RoleRoute>} />
         <Route path="homepage-settings" element={<RoleRoute path="/homepage-settings"><HomepageSettings /></RoleRoute>} />
+        <Route path="cms-pages" element={<RoleRoute path="/cms-pages"><CmsPages /></RoleRoute>} />
         <Route path="hero-slides" element={<RoleRoute path="/homepage-settings"><HomepageSettings defaultTab="carousel" /></RoleRoute>} />
         <Route path="settings" element={<RoleRoute path="/settings"><SiteSettings /></RoleRoute>} />
         <Route path="settings/delivery" element={<RoleRoute path="/settings/delivery"><DeliverySettings /></RoleRoute>} />

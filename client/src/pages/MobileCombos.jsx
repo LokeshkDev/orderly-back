@@ -97,6 +97,12 @@ const MobileCombos = () => {
   // Active Category details
   const activeCategoryObj = useMemo(() => {
     if (selectedCategory === 'All') return null;
+    if (selectedCategory === 'all-combos') {
+      return { 
+        name: 'All Curated Combos', 
+        description: 'Curated luxury combo sets and multi-piece bundles collection' 
+      };
+    }
     return comboCategories.find(c => 
       c.slug === selectedCategory || 
       c.name?.toLowerCase() === selectedCategory.toLowerCase()
@@ -106,39 +112,56 @@ const MobileCombos = () => {
   const filteredCombos = useMemo(() => {
     if (selectedCategory === 'All') return [];
 
+    const isAllCombos = selectedCategory === 'all-combos';
+
     let result = combos.filter(combo => {
       if (!combo) return false;
       
-      // Category filter
-      const catQuery = selectedCategory.toLowerCase().trim();
-      const comboCat = (combo.category || '').toLowerCase().trim();
-      const comboSlug = (combo.category_slug || '').toLowerCase().trim();
+      if (!isAllCombos) {
+        // Category filter
+        const catQuery = selectedCategory.toLowerCase().trim();
+        const comboCat = (combo.category || '').toLowerCase().trim();
+        const comboSlug = (combo.category_slug || '').toLowerCase().trim();
 
-      const matched = comboCat === catQuery || 
-                      comboSlug === catQuery ||
-                      comboCat.includes(catQuery) ||
-                      combo.name?.toLowerCase().includes(catQuery) ||
-                      combo.items?.some(item => {
-                        const name = (item.name || item.pieceLabel || '').toLowerCase();
-                        return name.includes(catQuery) || (item.category && item.category.toLowerCase().includes(catQuery));
-                      });
-      if (!matched) return false;
+        const matched = comboCat === catQuery || 
+                        comboSlug === catQuery ||
+                        comboCat.includes(catQuery) ||
+                        combo.name?.toLowerCase().includes(catQuery) ||
+                        combo.items?.some(item => {
+                          const name = (item.name || item.pieceLabel || '').toLowerCase();
+                          return name.includes(catQuery) || (item.category && item.category.toLowerCase().includes(catQuery));
+                        });
+        if (!matched) return false;
+      }
 
       // Price filter
-      if (combo.offer_price > priceLimit) return false;
+      const price = Number(combo.offer_price || combo.price || 0);
+      if (price > priceLimit) return false;
 
       return true;
     });
 
-    // Sorting
-    return result.sort((a, b) => {
-      const discA = Math.max(0, (a.original_price || 0) - (a.offer_price || 0));
-      const discB = Math.max(0, (b.original_price || 0) - (b.offer_price || 0));
+    // Dynamic non-mutating sorting
+    return [...result].sort((a, b) => {
+      const priceA = Number(a.offer_price || a.price || 0);
+      const priceB = Number(b.offer_price || b.price || 0);
+      const origA = Number(a.original_price || a.originalPrice || priceA);
+      const origB = Number(b.original_price || b.originalPrice || priceB);
+      const discA = Math.max(0, origA - priceA);
+      const discB = Math.max(0, origB - priceB);
+      const discPctA = origA > 0 ? (discA / origA) * 100 : 0;
+      const discPctB = origB > 0 ? (discB / origB) * 100 : 0;
 
-      if (sortBy === 'price-low') return a.offer_price - b.offer_price;
-      if (sortBy === 'price-high') return b.offer_price - a.offer_price;
-      if (sortBy === 'discount') return discB - discA;
-      return 0; // popularity / featured
+      if (sortBy === 'price-low') return priceA - priceB;
+      if (sortBy === 'price-high') return priceB - priceA;
+      if (sortBy === 'discount') return discPctB - discPctA || discB - discA;
+      if (sortBy === 'newest') {
+        const dateA = new Date(a.createdAt || a.created_at || 0).getTime();
+        const dateB = new Date(b.createdAt || b.created_at || 0).getTime();
+        if (dateA && dateB && dateA !== dateB) return dateB - dateA;
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      }
+      return (Number(b.popularity || b.pieces_count) || 0) - (Number(a.popularity || a.pieces_count) || 0);
     });
   }, [combos, selectedCategory, priceLimit, sortBy]);
 
@@ -208,7 +231,16 @@ const MobileCombos = () => {
                   <FiLayers className="text-danger me-2" />
                   EXPLORE BY CATEGORY
                 </h3>
-                <span className="m-combo-cat-count-pill">{comboCategories.length} Categories</span>
+                <div className="d-flex align-items-center gap-2">
+                  <button 
+                    type="button" 
+                    className="btn-primary-orderly px-2.5 py-1 extra-small fw-bold"
+                    onClick={() => handleCategorySelect('all-combos')}
+                  >
+                    View All ({combos.length})
+                  </button>
+                  <span className="m-combo-cat-count-pill">{comboCategories.length} Categories</span>
+                </div>
               </div>
 
               {loading ? (
@@ -474,6 +506,7 @@ const MobileCombos = () => {
                 <div className="d-flex flex-column gap-2">
                   {[
                     { id: 'popularity', label: 'Popularity' },
+                    { id: 'newest', label: 'Newest Arrivals' },
                     { id: 'price-low', label: 'Price: Low to High' },
                     { id: 'price-high', label: 'Price: High to Low' },
                     { id: 'discount', label: 'Biggest Savings' }

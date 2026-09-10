@@ -7,8 +7,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 // https://vite.dev/config/
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiBase = (env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/$/, '');
-  const proxyTarget = apiBase.startsWith('http') ? apiBase.replace(/\/api$/, '') : 'http://localhost:5000';
+  const apiBase = (env.VITE_API_BASE_URL || 'http://localhost:5001/api').replace(/\/$/, '');
+  const proxyTarget = apiBase.startsWith('http') ? apiBase.replace(/\/api$/, '') : 'http://localhost:5001';
   const isBuild = command === 'build';
 
   return {

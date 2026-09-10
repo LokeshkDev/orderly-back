@@ -1,0 +1,122 @@
+/* Policy & CMS Pages Styling */
+.orderly-cms-page {
+  min-height: 80vh;
+}
+
+.cms-hero-banner-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.cms-hero-banner {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cms-rich-html-content {
+  color: #e2e8f0;
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.cms-rich-html-content h1,
+.cms-rich-html-content h2,
+.cms-rich-html-content h3,
+.cms-rich-html-content h4 {
+  color: #ffffff;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.cms-rich-html-content h1 {
+  font-size: 2.2rem;
+}
+
+.cms-rich-html-content h2 {
+  font-size: 1.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 0.5rem;
+  color: #f1f5f9;
+}
+
+.cms-rich-html-content h3 {
+  font-size: 1.35rem;
+  color: #e2e8f0;
+}
+
+.cms-rich-html-content p {
+  margin-bottom: 1.25rem;
+  color: #cbd5e1;
+}
+
+.cms-rich-html-content strong {
+  color: #ffffff;
+}
+
+.cms-rich-html-content ul,
+.cms-rich-html-content ol {
+  padding-left: 28px;
+  margin-bottom: 1.5rem;
+  color: #cbd5e1;
+}
+
+.cms-rich-html-content li {
+  margin-bottom: 0.5rem;
+}
+
+.cms-rich-html-content blockquote {
+  border-left: 4px solid #d97706;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px 24px;
+  margin: 1.5rem 0;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: #e2e8f0;
+}
+
+.cms-rich-html-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+.cms-rich-html-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2rem 0;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cms-rich-html-content table th,
+.cms-rich-html-content table td {
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cms-rich-html-content table th {
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.cms-rich-html-content a {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+.cms-rich-html-content a:hover {
+  color: #93c5fd;
+}
+

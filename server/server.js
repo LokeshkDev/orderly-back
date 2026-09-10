@@ -147,9 +147,16 @@ app.use('/api/upload', uploadLimiter);
 // Serve static uploaded media files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'ORDERLY API Server is running', timestamp: new Date() });
+// Health check with DB status
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'unknown';
+  try {
+    await sequelize.authenticate();
+    dbStatus = 'connected';
+  } catch (e) {
+    dbStatus = `disconnected: ${e.message} (code: ${e.original?.code || e.code || 'unknown'})`;
+  }
+  res.status(200).json({ success: true, message: 'ORDERLY API Server is running', timestamp: new Date(), db: dbStatus, port: PORT });
 });
 
 // Mount API Routes
@@ -178,11 +185,38 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
+  // Retry MySQL connection with backoff - ETIMEDOUT means SG/firewall blocks your IP (e.g. 49.37.217.152 not whitelisted on 52.66.173.135:3306)
+  let dbConnected = false;
+  const maxRetries = 5;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await sequelize.authenticate();
+      console.log('✅ MySQL Connection Established Successfully');
+      dbConnected = true;
+      break;
+    } catch (err) {
+      const code = err.original?.code || err.code || err.message;
+      console.warn(`⚠️ MySQL attempt ${attempt}/${maxRetries} failed: ${err.message} (code: ${code})`);
+      if (code === 'ETIMEDOUT' || err.message.includes('ETIMEDOUT')) {
+        console.warn('   → ETIMEDOUT = Security Group on 52.66.173.135:3306 blocks your public IP. Fix: AWS EC2 > Security Groups > Inbound > MySQL/Aurora port 3306 > Add your IP 49.37.217.152/32 or 0.0.0.0/0 (dev only). Local fallback: set DB_HOST=127.0.0.1 and run local MySQL.');
+      }
+      if (attempt < maxRetries) {
+        const delay = attempt * 3000;
+        console.log(`   Retrying in ${delay/1000}s...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  if (!dbConnected) {
+    console.warn('⚠️ MySQL connection note: connect ETIMEDOUT - server will stay up for health checks but DB-dependent routes will fail until SG is fixed. See health: /api/health');
+  }
   try {
-    await sequelize.authenticate();
-    console.log('✅ MySQL Connection Established Successfully');
-    await sequelize.sync({ alter: true });
-    console.log('✅ Database Schema Synced');
+    if (dbConnected) {
+      await sequelize.sync({ alter: true });
+      console.log('✅ Database Schema Synced');
+    } else {
+      console.warn('⚠️ Skipping DB sync - no connection');
+    }
 
     // Seed the master catalog safely on every start:
     //  - A master product with NO database row gets created (full catalog).

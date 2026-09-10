@@ -25,6 +25,13 @@ const AboutUs = () => {
     };
   }, []);
 
+  const cmsAbout = settings?.cms_pages?.about || {};
+  const subtitle = cmsAbout.subtitle || settings?.about_us_subtitle || 'HERITAGE, PRECISION & CRAFTSMANSHIP';
+  const heading = cmsAbout.title || settings?.about_us_heading || 'Redefining Modern Luxury Menswear';
+  const bannerImage = cmsAbout.banner_image;
+  const featuredImage = cmsAbout.featured_image || settings?.about_us_image;
+  const contentHtml = cmsAbout.content_html;
+
   return (
     <>
       <SEO 
@@ -33,32 +40,47 @@ const AboutUs = () => {
         canonicalPath="/about"
       />
       <main className="orderly-about-page py-5">
-        {/* Animated Hero Header */}
-        <section className="about-hero-section container-fluid px-lg-5 mb-5 text-center fade-in-up">
-          <span className="about-eyebrow-badge">
-            {settings?.about_us_subtitle || 'HERITAGE, PRECISION & CRAFTSMANSHIP'}
-          </span>
-          <h1 className="about-hero-title display-4 fw-extrabold text-white mt-2">
-            {settings?.about_us_heading || 'Redefining Modern Luxury Menswear'}
-          </h1>
-          <p className="about-hero-subtitle lead text-muted max-w-700 mx-auto mt-3">
-            Born out of a relentless passion for Italian tailoring, selvedge raw denim, and bespoke silhouettes designed for gentlemen who refuse ordinary.
-          </p>
-        </section>
+        {/* Animated Hero Header with Banner (if configured) */}
+        {bannerImage ? (
+          <div className="container-fluid px-lg-5 mb-5">
+            <div
+              className="cms-hero-banner rounded-4 shadow-2xl"
+              style={{ backgroundImage: `linear-gradient(to bottom, rgba(10,10,10,0.5), rgba(10,10,10,0.85)), url(${bannerImage})` }}
+            >
+              <div className="cms-hero-content text-center py-5">
+                <span className="about-eyebrow-badge mb-2 d-inline-block">{subtitle}</span>
+                <h1 className="about-hero-title display-4 fw-extrabold text-white mt-1 mb-2">{heading}</h1>
+                <p className="about-hero-subtitle lead text-muted max-w-700 mx-auto mb-0">
+                  Born out of a relentless passion for Italian tailoring, selvedge raw denim, and bespoke silhouettes designed for gentlemen who refuse ordinary.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <section className="about-hero-section container-fluid px-lg-5 mb-5 text-center fade-in-up">
+            <span className="about-eyebrow-badge">{subtitle}</span>
+            <h1 className="about-hero-title display-4 fw-extrabold text-white mt-2">{heading}</h1>
+            <p className="about-hero-subtitle lead text-muted max-w-700 mx-auto mt-3">
+              Born out of a relentless passion for Italian tailoring, selvedge raw denim, and bespoke silhouettes designed for gentlemen who refuse ordinary.
+            </p>
+          </section>
+        )}
 
         {/* Story Section with Floating Image Card */}
         <section className="container-fluid px-lg-5 mb-5">
           <div className="row g-5 align-items-center">
-            <div className="col-lg-6 fade-in-left">
+            <div className="col-lg-5 fade-in-left">
               <div className="about-image-card-wrapper position-relative">
-                {settings?.about_us_image ? (
+                {featuredImage ? (
                   <img
-                    src={settings?.about_us_image || ''}
+                    src={featuredImage}
                     alt="ORDERLY Atelier Studio"
+                    loading="lazy"
+                    decoding="async"
                     className="about-main-img img-fluid rounded-4 shadow-2xl"
                   />
                 ) : (
-                  <div className="orderly-img-fallback" style={{ height: '100%', minHeight: '280px' }}>ORDERLY</div>
+                  <div className="orderly-img-fallback" style={{ height: '100%', minHeight: '380px' }}>ORDERLY ATELIER</div>
                 )}
                 <div className="about-img-overlay-card glass-panel">
                   <FiAward className="text-warning fs-1 mb-2" />
@@ -68,19 +90,28 @@ const AboutUs = () => {
               </div>
             </div>
 
-            <div className="col-lg-6 fade-in-right">
-              <span className="text-warning fw-bold text-uppercase letter-spacing-2 small">THE ATELIER STORY</span>
-              <h2 className="text-white fw-extrabold fs-1 mt-1 mb-4">
-                {settings?.about_us_title || 'Craftsmanship Without Compromise'}
-              </h2>
-              <p className="about-body-p lead text-muted mb-4">
-                {settings?.about_us_text_1 || 'At ORDERLY, we believe that true luxury lies in the details — from the single-needle stitching on our 100% European linen shirts to the custom horn buttons on our double-breasted blazers.'}
-              </p>
-              <p className="about-body-p text-muted mb-4">
-                {settings?.about_us_text_2 || 'Every piece in our collection undergoes a rigorous 14-point quality inspection. We source raw materials directly from heritage mills in Italy and Japan, delivering timeless apparel engineered for perfection.'}
-              </p>
+            <div className="col-lg-7 fade-in-right">
+              {contentHtml ? (
+                <div
+                  className="cms-rich-html-content"
+                  dangerouslySetInnerHTML={{ __html: contentHtml }}
+                />
+              ) : (
+                <>
+                  <span className="text-warning fw-bold text-uppercase letter-spacing-2 small">THE ATELIER STORY</span>
+                  <h2 className="text-white fw-extrabold fs-1 mt-1 mb-4">
+                    {settings?.about_us_title || 'Craftsmanship Without Compromise'}
+                  </h2>
+                  <p className="about-body-p lead text-muted mb-4">
+                    {settings?.about_us_text_1 || 'At ORDERLY, we believe that true luxury lies in the details — from the single-needle stitching on our 100% European linen shirts to the custom horn buttons on our double-breasted blazers.'}
+                  </p>
+                  <p className="about-body-p text-muted mb-4">
+                    {settings?.about_us_text_2 || 'Every piece in our collection undergoes a rigorous 14-point quality inspection. We source raw materials directly from heritage mills in Italy and Japan, delivering timeless apparel engineered for perfection.'}
+                  </p>
+                </>
+              )}
 
-              <div className="row g-3 mt-2">
+              <div className="row g-3 mt-4">
                 <div className="col-6">
                   <div className="ethos-mini-card">
                     <FiShield className="text-danger fs-3 mb-2" />

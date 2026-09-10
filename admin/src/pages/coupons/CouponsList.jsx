@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FiTag, FiPlus, FiSearch, FiEdit, FiTrash2, FiCopy, FiCheck, 
-  FiCalendar, FiEye, FiEyeOff
+  FiCalendar, FiEye, FiEyeOff, FiCheckCircle, FiZap
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
@@ -19,6 +19,7 @@ const emptyCouponForm = {
   is_active: true,
   show_on_pdp: true,
   show_on_checkout: true,
+  show_in_popup: false,
   description: ''
 };
 
@@ -75,6 +76,7 @@ const CouponsList = () => {
       is_active: item.is_active !== false,
       show_on_pdp: item.show_on_pdp !== false,
       show_on_checkout: item.show_on_checkout !== false,
+      show_in_popup: Boolean(item.show_in_popup),
       description: item.description || ''
     });
     setIsModalOpen(true);
@@ -98,6 +100,7 @@ const CouponsList = () => {
       is_active: formData.is_active,
       show_on_pdp: formData.show_on_pdp,
       show_on_checkout: formData.show_on_checkout,
+      show_in_popup: Boolean(formData.show_in_popup),
       description: formData.description.trim()
     };
 
@@ -142,9 +145,20 @@ const CouponsList = () => {
 
   const handleToggleVisibility = async (item, field) => {
     try {
-      const next = field === 'show_on_pdp' ? !(item.show_on_pdp !== false) : !(item.show_on_checkout !== false);
+      let next;
+      let label;
+      if (field === 'show_in_popup') {
+        next = !item.show_in_popup;
+        label = 'Storefront Offers Popup';
+      } else if (field === 'show_on_pdp') {
+        next = !(item.show_on_pdp !== false);
+        label = 'Product Page';
+      } else {
+        next = !(item.show_on_checkout !== false);
+        label = 'Checkout Page';
+      }
       await api.put(`/coupons/${item.id}`, { [field]: next });
-      toast.success(`Coupon "${item.code}" ${next ? 'shown' : 'hidden'} on ${field === 'show_on_pdp' ? 'Product Page' : 'Checkout Page'}`);
+      toast.success(`Coupon "${item.code}" ${next ? 'enabled' : 'disabled'} for ${label}`);
       loadCoupons();
       notifyStoreUpdated();
     } catch (err) {
@@ -181,6 +195,26 @@ const CouponsList = () => {
         </button>
       </div>
 
+      {/* Popup Status Overview Banner */}
+      {coupons.filter(c => c.is_active && c.show_in_popup).length > 0 ? (
+        <div className="alert alert-warning border border-warning d-flex flex-wrap align-items-center justify-content-between gap-2 py-2.5 px-3 mb-4 rounded-3">
+          <div className="d-flex align-items-center gap-2">
+            <FiZap className="text-danger fs-5 flex-shrink-0" />
+            <span className="small text-dark">
+              <strong>{coupons.filter(c => c.is_active && c.show_in_popup).length} coupon(s)</strong> are currently enabled for the <strong>Storefront Offers Popup</strong>. They will all be displayed together in a single high-converting modal on the storefront.
+            </span>
+          </div>
+          <span className="badge bg-danger text-white px-2.5 py-1 text-uppercase extra-small fw-bold">
+            Single Popup Active
+          </span>
+        </div>
+      ) : (
+        <div className="alert alert-light border d-flex align-items-center gap-2 py-2 px-3 mb-4 rounded-3 text-muted small">
+          <FiZap className="text-muted" />
+          <span>No coupons are currently enabled for the Storefront Offers Popup. Enable <strong>"In Popup"</strong> on 1, 2, or 3 coupons to showcase them together in a single popup.</span>
+        </div>
+      )}
+
       {/* Toolbar Filter */}
       <div className="admin-card-white mb-4">
         <div className="row g-3 align-items-center">
@@ -215,6 +249,7 @@ const CouponsList = () => {
                 <th className="text-center" style={{ minWidth: '120px' }}>EXPIRY DATE</th>
                 <th className="text-center" style={{ minWidth: '110px' }}>SHOW ON PDP</th>
                 <th className="text-center" style={{ minWidth: '130px' }}>SHOW ON CHECKOUT</th>
+                <th className="text-center" style={{ minWidth: '140px' }}>SHOW IN POPUP</th>
                 <th className="text-center" style={{ minWidth: '100px' }}>STATUS</th>
                 <th className="text-end pe-4" style={{ minWidth: '140px' }}>ACTIONS</th>
               </tr>
@@ -222,7 +257,7 @@ const CouponsList = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-5 text-muted">Loading coupons...</td>
+                  <td colSpan={10} className="text-center py-5 text-muted">Loading coupons...</td>
                 </tr>
               ) : filteredCoupons.length > 0 ? (
                 filteredCoupons.map(coupon => (
@@ -288,6 +323,22 @@ const CouponsList = () => {
                         title="Toggle visibility on Checkout Page"
                       >
                         {coupon.show_on_checkout !== false ? <><FiEye /> Shown</> : <><FiEyeOff /> Hidden</>}
+                      </button>
+                    </td>
+                    <td className="text-center">
+                      <button 
+                        type="button"
+                        className={`btn-admin-outline py-1 px-2 ${coupon.show_in_popup ? 'border-danger text-danger bg-danger bg-opacity-10 fw-bold' : ''}`}
+                        onClick={() => handleToggleVisibility(coupon, 'show_in_popup')}
+                        title="Toggle inclusion in Storefront Offers Popup (Single Popup for all enabled)"
+                      >
+                        {coupon.show_in_popup ? (
+                          <span className="d-inline-flex align-items-center gap-1">
+                            <FiCheckCircle className="text-danger" /> In Popup
+                          </span>
+                        ) : (
+                          <span className="text-muted">Off</span>
+                        )}
                       </button>
                     </td>
                     <td className="text-center">
@@ -448,6 +499,15 @@ const CouponsList = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, show_on_checkout: e.target.checked }))}
                   />
                   Show on Checkout Page
+                </label>
+                <label className="d-flex align-items-center gap-2 small fw-bold text-danger border border-danger border-opacity-25 bg-danger bg-opacity-10 px-2 py-1 rounded">
+                  <input 
+                    type="checkbox"
+                    className="form-check-input"
+                    checked={formData.show_in_popup}
+                    onChange={(e) => setFormData(prev => ({ ...prev, show_in_popup: e.target.checked }))}
+                  />
+                  <span>🔥 Show in Storefront Offers Popup (Combined Single Popup)</span>
                 </label>
               </div>
             </div>

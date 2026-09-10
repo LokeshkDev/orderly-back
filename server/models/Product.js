@@ -48,6 +48,14 @@ const Product = sequelize.define('Product', {
   badge: {
     type: DataTypes.STRING
   },
+  is_bestseller: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  is_new_arrival: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
   vendor: {
     type: DataTypes.STRING,
     defaultValue: 'In-House Standard'

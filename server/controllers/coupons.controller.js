@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import sequelize from '../config/db.js';
 
 const { Coupon } = db;
 
@@ -13,6 +14,7 @@ const COUPON_DEFAULTS = [
     is_active: true,
     show_on_pdp: true,
     show_on_checkout: true,
+    show_in_popup: true,
     description: 'Get extra 20% off on orders above ₹1,999',
     expires_at: null
   },
@@ -26,6 +28,7 @@ const COUPON_DEFAULTS = [
     is_active: true,
     show_on_pdp: true,
     show_on_checkout: true,
+    show_in_popup: true,
     description: 'Flat ₹500 off on orders above ₹2,999',
     expires_at: null
   },
@@ -39,6 +42,7 @@ const COUPON_DEFAULTS = [
     is_active: true,
     show_on_pdp: true,
     show_on_checkout: true,
+    show_in_popup: false,
     description: '₹300 off your first order above ₹999',
     expires_at: null
   }
@@ -46,6 +50,15 @@ const COUPON_DEFAULTS = [
 
 export const ensureCouponDefaults = async () => {
   try {
+    // Defensive check to ensure show_in_popup column exists in Coupons table
+    try {
+      await sequelize.query(
+        "ALTER TABLE `Coupons` ADD COLUMN `show_in_popup` TINYINT(1) DEFAULT 0 AFTER `show_on_checkout`;"
+      );
+    } catch (e) {
+      // Column already exists or table syntax variance, ignore safely
+    }
+
     const count = await Coupon.count();
     if (count > 0) return;
     for (const def of COUPON_DEFAULTS) {
@@ -121,6 +134,26 @@ export const getActiveCoupons = async (req, res) => {
       c.is_active &&
       (!c.expires_at || new Date(c.expires_at) >= now)
     );
+    res.status(200).json({ success: true, data: active });
+  } catch (error) {
+    res.status(200).json({ success: true, data: [] });
+  }
+};
+
+export const getPopupCoupons = async (req, res) => {
+  try {
+    let list = [];
+    try {
+      list = await Coupon.findAll({
+        where: { is_active: true, show_in_popup: true },
+        order: [['discount_value', 'DESC'], ['createdAt', 'DESC']]
+      });
+    } catch (err) {
+      const all = await Coupon.findAll({ order: [['createdAt', 'DESC']] });
+      list = all.filter(c => c.is_active && c.show_in_popup);
+    }
+    const now = new Date();
+    const active = list.filter(c => !c.expires_at || new Date(c.expires_at) >= now);
     res.status(200).json({ success: true, data: active });
   } catch (error) {
     res.status(200).json({ success: true, data: [] });

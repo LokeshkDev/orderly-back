@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowRight } from 'react-icons/fi';
+import { FiArrowRight, FiChevronLeft, FiChevronRight, FiZap, FiPlus } from 'react-icons/fi';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import ProductCard from '../product/ProductCard';
-import { getProducts } from '../../services/api';
+import { getProducts, getSettings } from '../../services/api';
 import { HomeTrendingSkeleton } from '../common/Skeleton';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 import './TrendingArrivalsSection.css';
 
 const DEFAULT_PRODUCTS = [
@@ -16,6 +21,7 @@ const DEFAULT_PRODUCTS = [
     rating: 4.8,
     reviews_count: 142,
     badge: 'BESTSELLER',
+    is_bestseller: true,
     category: 'Tops & T-Shirts',
     brand: 'ORDERLY STUDIO',
     images: [
@@ -37,6 +43,7 @@ const DEFAULT_PRODUCTS = [
     rating: 4.9,
     reviews_count: 98,
     badge: 'NEW',
+    is_new_arrival: true,
     category: 'Shirts',
     brand: 'ROYAL OAK',
     images: [
@@ -58,6 +65,7 @@ const DEFAULT_PRODUCTS = [
     rating: 4.7,
     reviews_count: 86,
     badge: 'TRENDING',
+    is_bestseller: true,
     category: 'Denim',
     brand: 'ORDERLY DENIM',
     images: [
@@ -78,6 +86,7 @@ const DEFAULT_PRODUCTS = [
     rating: 4.95,
     reviews_count: 64,
     badge: 'LUXURY',
+    is_new_arrival: true,
     category: 'Blazers',
     brand: 'ROYAL OAK',
     images: [
@@ -98,6 +107,7 @@ const DEFAULT_PRODUCTS = [
     rating: 4.75,
     reviews_count: 78,
     badge: 'POPULAR',
+    is_bestseller: true,
     category: 'Trousers',
     brand: 'ORDERLY STUDIO',
     images: [
@@ -114,73 +124,232 @@ const DEFAULT_PRODUCTS = [
 const TrendingArrivalsSection = ({ title, subtitle }) => {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [activeTab, setActiveTab] = useState('bestsellers'); // 'bestsellers' | 'new_arrivals'
+
+  const loadData = async () => {
+    try {
+      const [prodRes, settRes] = await Promise.allSettled([
+        getProducts(),
+        getSettings()
+      ]);
+
+      if (prodRes.status === 'fulfilled' && prodRes.value?.success && Array.isArray(prodRes.value.data) && prodRes.value.data.length > 0) {
+        const sanitized = prodRes.value.data.map((prod) => {
+          const rawImg = prod.image || (Array.isArray(prod.images) && prod.images[0]);
+          const validImg = (rawImg && typeof rawImg === 'string' && rawImg.length > 10)
+            ? rawImg
+            : '';
+          return {
+            ...prod,
+            image: validImg
+          };
+        });
+        setProducts(sanitized);
+      } else {
+        setProducts(DEFAULT_PRODUCTS);
+      }
+
+      if (settRes.status === 'fulfilled' && settRes.value?.success && settRes.value.data) {
+        setSettings(settRes.value.data);
+      }
+    } catch {
+      setProducts(DEFAULT_PRODUCTS);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const res = await getProducts();
-        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const sanitized = res.data.map((prod) => {
-            const rawImg = prod.image || (Array.isArray(prod.images) && prod.images[0]);
-            const validImg = (rawImg && typeof rawImg === 'string' && rawImg.length > 10)
-              ? rawImg
-              : '';
-            return {
-              ...prod,
-              image: validImg
-            };
-          });
-          setProducts(sanitized);
-        } else {
-          setProducts(DEFAULT_PRODUCTS);
-        }
-      } catch {
-        setProducts(DEFAULT_PRODUCTS);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadProducts();
+    loadData();
 
-    const handleUpdated = () => loadProducts();
+    const handleUpdated = () => loadData();
     window.addEventListener('orderly_products_updated', handleUpdated);
+    window.addEventListener('orderly_homepage_sections_updated', handleUpdated);
+    window.addEventListener('orderly_site_settings_updated', handleUpdated);
     window.addEventListener('storage', handleUpdated);
     return () => {
       window.removeEventListener('orderly_products_updated', handleUpdated);
+      window.removeEventListener('orderly_homepage_sections_updated', handleUpdated);
+      window.removeEventListener('orderly_site_settings_updated', handleUpdated);
       window.removeEventListener('storage', handleUpdated);
     };
   }, []);
 
+  const config = settings?.trending_arrivals_config || settings?.best_sellers_config || {};
+  const selectedBsIds = Array.isArray(config.selectedBestsellers) 
+    ? config.selectedBestsellers 
+    : (Array.isArray(config.selectedProducts) ? config.selectedProducts : []);
+  const selectedNaIds = Array.isArray(config.selectedNewArrivals) 
+    ? config.selectedNewArrivals 
+    : [];
+
+  const displayMode = config.displayMode || 'tabs';
+  const autoplayDelay = config.autoplayDelay !== undefined ? Number(config.autoplayDelay) : 3500;
+  const eyebrowText = config.eyebrow || subtitle || 'TRENDING NOW';
+  const mainHeading = config.heading || title || 'BEST SELLING & NEW ARRIVALS';
+
+  // Compute Best Sellers List
+  const bestsellerProducts = useMemo(() => {
+    if (selectedBsIds.length > 0) {
+      const matched = products.filter(p => selectedBsIds.includes(p.id));
+      if (matched.length > 0) return matched;
+    }
+    const flagged = products.filter(p => p.is_bestseller || p.badge === 'BESTSELLER' || p.badge === 'HOT' || p.badge === 'POPULAR');
+    return flagged.length > 0 ? flagged : products.slice(0, 8);
+  }, [products, selectedBsIds]);
+
+  // Compute New Arrivals List
+  const newArrivalProducts = useMemo(() => {
+    if (selectedNaIds.length > 0) {
+      const matched = products.filter(p => selectedNaIds.includes(p.id));
+      if (matched.length > 0) return matched;
+    }
+    const flagged = products.filter(p => p.is_new_arrival || p.badge === 'NEW' || p.badge === 'NEW ARRIVAL');
+    return flagged.length > 0 ? flagged : (products.length > 4 ? products.slice(3, 11) : products);
+  }, [products, selectedNaIds]);
+
+  // Helper to render an Auto Carousel
+  const renderProductCarousel = (items, carouselKey) => {
+    if (!items || items.length === 0) {
+      return (
+        <div className="trending-empty-state text-center py-5">
+          <p className="text-muted mb-3">No products available in this section currently.</p>
+          <Link to="/shop" className="btn btn-outline-light btn-sm px-4">
+            BROWSE SHOP CATALOG
+          </Link>
+        </div>
+      );
+    }
+
+    return (
+      <div className="trending-carousel-wrapper position-relative">
+        {/* Desktop Navigation Chevrons */}
+        <button 
+          type="button" 
+          className={`trending-nav-btn trending-nav-prev trending-prev-${carouselKey}`}
+          aria-label="Previous Products"
+        >
+          <FiChevronLeft />
+        </button>
+        <button 
+          type="button" 
+          className={`trending-nav-btn trending-nav-next trending-next-${carouselKey}`}
+          aria-label="Next Products"
+        >
+          <FiChevronRight />
+        </button>
+
+        <Swiper
+          modules={[Navigation, Pagination, Autoplay]}
+          navigation={{
+            prevEl: `.trending-prev-${carouselKey}`,
+            nextEl: `.trending-next-${carouselKey}`
+          }}
+          pagination={{
+            clickable: true,
+            el: `.trending-pagination-${carouselKey}`
+          }}
+          autoplay={autoplayDelay > 0 ? {
+            delay: autoplayDelay,
+            disableOnInteraction: false,
+            pauseOnMouseEnter: true
+          } : false}
+          loop={items.length > 5}
+          spaceBetween={20}
+          slidesPerView={5}
+          breakpoints={{
+            320: { slidesPerView: 2, spaceBetween: 12 },
+            640: { slidesPerView: 2.5, spaceBetween: 14 },
+            768: { slidesPerView: 3, spaceBetween: 16 },
+            1024: { slidesPerView: 4, spaceBetween: 18 },
+            1280: { slidesPerView: 5, spaceBetween: 20 }
+          }}
+          className="trending-products-swiper"
+        >
+          {items.map((product) => (
+            <SwiperSlide key={product.id} className="trending-swiper-slide">
+              <ProductCard product={product} />
+            </SwiperSlide>
+          ))}
+        </Swiper>
+
+        {/* Swiper Pagination Bullets */}
+        <div className={`trending-pagination trending-pagination-${carouselKey}`} />
+      </div>
+    );
+  };
+
   return (
     <section className="trending-arrivals-section py-5">
       <div className="container-fluid px-lg-5">
-        {/* Header Row */}
+        {/* Header Row with Eyebrow, Heading, Tab Pills, and View All Link */}
         <div className="d-flex align-items-end justify-content-between mb-4 flex-wrap gap-3">
           <div>
             <span className="trending-eyebrow-red">
-              {subtitle || 'TRENDING NOW'}
+              {eyebrowText}
             </span>
             <h2 className="trending-main-heading">
-              {title || 'BEST SELLING PRODUCTS'}
+              {mainHeading}
             </h2>
           </div>
+
+          {/* Interactive Tabs Switcher for Tabs Mode */}
+          {displayMode === 'tabs' && (
+            <div className="trending-tabs-pills d-inline-flex align-items-center">
+              <button 
+                type="button" 
+                className={`trending-tab-btn ${activeTab === 'bestsellers' ? 'active' : ''}`}
+                onClick={() => setActiveTab('bestsellers')}
+              >
+                <FiZap className="me-1 tab-icon" /> BEST SELLERS ({bestsellerProducts.length})
+              </button>
+              <button 
+                type="button" 
+                className={`trending-tab-btn ${activeTab === 'new_arrivals' ? 'active' : ''}`}
+                onClick={() => setActiveTab('new_arrivals')}
+              >
+                <FiPlus className="me-1 tab-icon" /> NEW ARRIVALS ({newArrivalProducts.length})
+              </button>
+            </div>
+          )}
 
           <Link to="/shop" className="view-all-products-link">
             VIEW ALL PRODUCTS <FiArrowRight className="ms-1" />
           </Link>
         </div>
 
-        {/* 5-Column Product Grid or Skeleton */}
+        {/* Content Area: Carousel or Skeleton */}
         {loading ? (
           <HomeTrendingSkeleton />
         ) : (
-          <div className="trending-products-grid">
-            {products.slice(0, 5).map((product) => (
-              <div key={product.id} className="trending-grid-col">
-                <ProductCard product={product} />
+          <>
+            {displayMode === 'stacked' ? (
+              <div className="stacked-carousels-container d-flex flex-column gap-5">
+                <div>
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <span className="badge bg-danger text-white px-2 py-1">BEST SELLERS</span>
+                    <h3 className="fs-5 text-white fw-bold mb-0">Customer Favorites & Trending Outfits</h3>
+                  </div>
+                  {renderProductCarousel(bestsellerProducts, 'bs-stacked')}
+                </div>
+
+                <div>
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <span className="badge bg-light text-dark px-2 py-1">NEW ARRIVALS</span>
+                    <h3 className="fs-5 text-white fw-bold mb-0">Fresh Drops & Latest Runway Fits</h3>
+                  </div>
+                  {renderProductCarousel(newArrivalProducts, 'na-stacked')}
+                </div>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="tabbed-carousel-container">
+                {activeTab === 'bestsellers' 
+                  ? renderProductCarousel(bestsellerProducts, 'bs-tab') 
+                  : renderProductCarousel(newArrivalProducts, 'na-tab')}
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>

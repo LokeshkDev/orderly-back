@@ -113,6 +113,10 @@
   }
 }
 
+.shop-sidebar-column {
+  position: relative;
+}
+
 /* 3. DESKTOP FILTER SIDEBAR */
 .desktop-filter-card {
   background-color: #0D0D0D;
@@ -120,7 +124,25 @@
   border-radius: 6px;
   padding: 20px;
   position: sticky;
-  top: 80px;
+  top: 90px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  z-index: 15;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(229, 9, 20, 0.5) rgba(255, 255, 255, 0.05);
+}
+
+.desktop-filter-card::-webkit-scrollbar {
+  width: 4px;
+}
+
+.desktop-filter-card::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.desktop-filter-card::-webkit-scrollbar-thumb {
+  background: rgba(229, 9, 20, 0.5);
+  border-radius: 4px;
 }
 
 .filter-card-header {

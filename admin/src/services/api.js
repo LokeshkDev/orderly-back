@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+const resolvedBase = import.meta.env.VITE_API_BASE_URL || '/api';
+if (import.meta.env.DEV) {
+  // eslint-disable-next-line no-console
+  console.log(`[API] baseURL = ${resolvedBase} (proxied to backend via vite.config.js if /api)`);
+}
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api'
+  baseURL: resolvedBase
 });
 
 api.interceptors.request.use((config) => {
@@ -29,6 +34,10 @@ api.interceptors.response.use(
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
+    }
+    // Surface network errors clearly in devtools for ERR_CONNECTION_REFUSED diagnosis
+    if (!error.response && error.code === 'ERR_NETWORK') {
+      console.error(`[API] Network error – cannot reach ${error.config?.baseURL}${error.config?.url}. Is backend running on http://localhost:5001?`, error.message);
     }
     return Promise.reject(error);
   }

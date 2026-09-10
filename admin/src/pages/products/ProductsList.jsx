@@ -98,6 +98,8 @@ const ProductsList = () => {
     pair_offers: {},
     inventory: {},
     sizeOriginalPrices: {},
+    is_bestseller: false,
+    is_new_arrival: false,
     metaTitle: '',
     metaDescription: '',
     metaKeywords: ''
@@ -198,6 +200,8 @@ const ProductsList = () => {
       inventory: {},
       sizePrices: {},
       sizeOriginalPrices: {},
+      is_bestseller: false,
+      is_new_arrival: false,
       metaTitle: '',
       metaDescription: '',
       metaKeywords: ''
@@ -283,6 +287,8 @@ const ProductsList = () => {
       inventory: initialInventory,
       sizePrices: p.sizePrices || {},
       sizeOriginalPrices: p.sizeOriginalPrices || {},
+      is_bestseller: !!p.is_bestseller,
+      is_new_arrival: !!p.is_new_arrival,
       metaTitle: p.metaTitle || '',
       metaDescription: p.metaDescription || '',
       metaKeywords: p.metaKeywords || ''
@@ -522,6 +528,21 @@ const ProductsList = () => {
     }
   };
 
+  const handleToggleProductFlag = async (productId, flagKey, e) => {
+    if (e) e.stopPropagation();
+    const prod = products.find(p => p.id === productId);
+    if (!prod) return;
+    const nextVal = !prod[flagKey];
+    const updated = products.map(p => p.id === productId ? { ...p, [flagKey]: nextVal } : p);
+    saveProductsToStorage(updated);
+    try {
+      await api.put(`/products/${productId}`, { [flagKey]: nextVal });
+      toast.success(`${prod.name} ${flagKey === 'is_bestseller' ? 'Best Seller' : 'New Arrival'} ${nextVal ? 'enabled' : 'disabled'}`);
+    } catch (err) {
+      toast.error('Failed to update product flag in database');
+    }
+  };
+
   const handleDuplicateProduct = async (product) => {
     try {
       const duplicateData = {
@@ -743,6 +764,8 @@ const ProductsList = () => {
                 <th>CATEGORY</th>
                 <th>PRICE (₹)</th>
                 <th>TOTAL STOCK</th>
+                <th style={{ textAlign: 'center' }}>BEST SELLER</th>
+                <th style={{ textAlign: 'center' }}>NEW ARRIVAL</th>
                 <th>STATUS</th>
                 <th className="text-end">ACTIONS</th>
               </tr>
@@ -750,7 +773,7 @@ const ProductsList = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px' }}>
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '40px' }}>
                     <span className="spinner-border text-danger" role="status" /> Loading catalog from database...
                   </td>
                 </tr>
@@ -783,6 +806,28 @@ const ProductsList = () => {
                       <span className={totalStock === 0 ? 'status-badge-pill draft' : 'badge-count-pill'}>
                         {totalStock} units
                       </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button 
+                        type="button" 
+                        className={`btn btn-sm ${p.is_bestseller ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
+                        style={{ fontSize: '11px', padding: '3px 9px', borderRadius: '20px' }}
+                        onClick={(e) => handleToggleProductFlag(p.id, 'is_bestseller', e)}
+                        title="Click to toggle Best Seller section placement"
+                      >
+                        {p.is_bestseller ? '✓ Active' : '+ Enable'}
+                      </button>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button 
+                        type="button" 
+                        className={`btn btn-sm ${p.is_new_arrival ? 'btn-danger text-white fw-bold' : 'btn-outline-secondary'}`}
+                        style={{ fontSize: '11px', padding: '3px 9px', borderRadius: '20px' }}
+                        onClick={(e) => handleToggleProductFlag(p.id, 'is_new_arrival', e)}
+                        title="Click to toggle New Arrival section placement"
+                      >
+                        {p.is_new_arrival ? '✓ Active' : '+ Enable'}
+                      </button>
                     </td>
                     <td>
                       <span className={`status-badge-pill ${p.status?.toLowerCase() === 'active' ? 'active' : 'draft'}`}>
@@ -1405,7 +1450,37 @@ const ProductsList = () => {
                     </div>
                   </div>
                 </div>
-\n                {/* Status Toggle */}
+
+                {/* Homepage Section Feature Toggles */}
+                <div className="col-12 px-1">
+                  <div className="p-3 bg-light border rounded-3 mb-3">
+                    <label className="admin-form-label mb-2 fw-bold text-dark">HOMEPAGE SECTION PLACEMENT</label>
+                    <div className="d-flex flex-wrap gap-4">
+                      <label className="d-flex align-items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          className="form-check-input mt-0"
+                          checked={!!formData.is_bestseller}
+                          onChange={(e) => setFormData(prev => ({ ...prev, is_bestseller: e.target.checked }))}
+                        />
+                        <span className="fw-bold text-dark">🔥 Best Seller</span>
+                        <span className="text-muted extra-small">(Show in Homepage Best Selling section)</span>
+                      </label>
+                      <label className="d-flex align-items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          className="form-check-input mt-0"
+                          checked={!!formData.is_new_arrival}
+                          onChange={(e) => setFormData(prev => ({ ...prev, is_new_arrival: e.target.checked }))}
+                        />
+                        <span className="fw-bold text-dark">✨ New Arrival</span>
+                        <span className="text-muted extra-small">(Show in Homepage New Arrivals section)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Toggle */}
                 <div className="col-12 px-1">
                   <label className="admin-form-label">CATALOG VISIBILITY STATUS</label>
                   <div className="d-flex gap-4">

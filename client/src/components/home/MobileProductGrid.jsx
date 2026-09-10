@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FiArrowRight } from 'react-icons/fi';
 import ProductCard from '../product/ProductCard';
-import { getProducts } from '../../services/api';
+import { getProducts, getSettings } from '../../services/api';
 import { MobileProductGridSkeleton } from '../common/Skeleton';
 
 const DEFAULT_MOBILE_PRODUCTS = [
@@ -113,13 +113,19 @@ const DEFAULT_MOBILE_PRODUCTS = [
 const MobileProductGrid = () => {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [activeTab, setActiveTab] = useState('bestsellers'); // 'bestsellers' | 'new_arrivals'
 
   useEffect(() => {
-    const loadProducts = async () => {
+    const loadData = async () => {
       try {
-        const res = await getProducts();
-        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const sanitized = res.data.map((prod) => {
+        const [prodRes, settRes] = await Promise.allSettled([
+          getProducts(),
+          getSettings()
+        ]);
+
+        if (prodRes.status === 'fulfilled' && prodRes.value?.success && Array.isArray(prodRes.value.data) && prodRes.value.data.length > 0) {
+          const sanitized = prodRes.value.data.map((prod) => {
             const rawImg = prod.image || (Array.isArray(prod.images) && prod.images[0]);
             const validImg = (rawImg && typeof rawImg === 'string' && rawImg.length > 10)
               ? rawImg
@@ -133,30 +139,71 @@ const MobileProductGrid = () => {
         } else {
           setProducts(DEFAULT_MOBILE_PRODUCTS);
         }
+
+        if (settRes.status === 'fulfilled' && settRes.value?.success && settRes.value.data) {
+          setSettings(settRes.value.data);
+        }
       } catch {
         setProducts(DEFAULT_MOBILE_PRODUCTS);
       } finally {
         setLoading(false);
       }
     };
-    loadProducts();
+    loadData();
 
-    const handleUpdated = () => loadProducts();
+    const handleUpdated = () => loadData();
     window.addEventListener('orderly_products_updated', handleUpdated);
+    window.addEventListener('orderly_homepage_sections_updated', handleUpdated);
+    window.addEventListener('orderly_site_settings_updated', handleUpdated);
     window.addEventListener('storage', handleUpdated);
     return () => {
       window.removeEventListener('orderly_products_updated', handleUpdated);
+      window.removeEventListener('orderly_homepage_sections_updated', handleUpdated);
+      window.removeEventListener('orderly_site_settings_updated', handleUpdated);
       window.removeEventListener('storage', handleUpdated);
     };
   }, []);
 
+  const config = settings?.trending_arrivals_config || settings?.best_sellers_config || {};
+  const selectedBsIds = Array.isArray(config.selectedBestsellers) 
+    ? config.selectedBestsellers 
+    : (Array.isArray(config.selectedProducts) ? config.selectedProducts : []);
+  const selectedNaIds = Array.isArray(config.selectedNewArrivals) 
+    ? config.selectedNewArrivals 
+    : [];
+
+  const eyebrowText = config.eyebrow || 'TRENDING NOW';
+  const mainHeading = config.heading || 'BEST SELLING PRODUCTS';
+
+  // Compute Best Sellers List
+  const bestsellerProducts = useMemo(() => {
+    if (selectedBsIds.length > 0) {
+      const matched = products.filter(p => selectedBsIds.includes(p.id));
+      if (matched.length > 0) return matched;
+    }
+    const flagged = products.filter(p => p.is_bestseller || p.badge === 'BESTSELLER' || p.badge === 'HOT' || p.badge === 'POPULAR');
+    return flagged.length > 0 ? flagged : products.slice(0, 6);
+  }, [products, selectedBsIds]);
+
+  // Compute New Arrivals List
+  const newArrivalProducts = useMemo(() => {
+    if (selectedNaIds.length > 0) {
+      const matched = products.filter(p => selectedNaIds.includes(p.id));
+      if (matched.length > 0) return matched;
+    }
+    const flagged = products.filter(p => p.is_new_arrival || p.badge === 'NEW' || p.badge === 'NEW ARRIVAL');
+    return flagged.length > 0 ? flagged : (products.length > 4 ? products.slice(3, 9) : products);
+  }, [products, selectedNaIds]);
+
+  const displayedList = activeTab === 'bestsellers' ? bestsellerProducts : newArrivalProducts;
+
   return (
     <section className="mobile-only py-3">
       {/* Header */}
-      <div className="d-flex align-items-end justify-content-between px-3 mb-3">
+      <div className="d-flex align-items-end justify-content-between px-3 mb-2">
         <div>
-          <span className="mobile-section-eyebrow">TRENDING NOW</span>
-          <h2 className="mobile-section-title">BEST SELLING PRODUCTS</h2>
+          <span className="mobile-section-eyebrow">{eyebrowText}</span>
+          <h2 className="mobile-section-title">{mainHeading}</h2>
         </div>
 
         <Link to="/shop" className="text-danger fw-bold small text-decoration-none d-flex align-items-center gap-1">
@@ -164,12 +211,32 @@ const MobileProductGrid = () => {
         </Link>
       </div>
 
+      {/* Tabs Switcher for Mobile */}
+      <div className="d-flex px-3 mb-3 gap-2">
+        <button
+          type="button"
+          className={`btn btn-sm ${activeTab === 'bestsellers' ? 'btn-danger text-white fw-bold shadow-sm' : 'btn-outline-secondary text-white'}`}
+          style={{ borderRadius: '20px', fontSize: '0.78rem' }}
+          onClick={() => setActiveTab('bestsellers')}
+        >
+          Best Sellers ({bestsellerProducts.length})
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${activeTab === 'new_arrivals' ? 'btn-danger text-white fw-bold shadow-sm' : 'btn-outline-secondary text-white'}`}
+          style={{ borderRadius: '20px', fontSize: '0.78rem' }}
+          onClick={() => setActiveTab('new_arrivals')}
+        >
+          New Arrivals ({newArrivalProducts.length})
+        </button>
+      </div>
+
       {/* 2 Column App Product Grid or Skeleton */}
       {loading ? (
         <MobileProductGridSkeleton />
       ) : (
         <div className="mobile-product-grid">
-          {products.slice(0, 5).map((product) => (
+          {displayedList.slice(0, 6).map((product) => (
             <div key={product.id}>
               <ProductCard product={product} />
             </div>

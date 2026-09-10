@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 
 export const getProducts = async (req, res) => {
   try {
-    const { category, occasion, brand, search, status, includeDeleted, includeDrafts, all } = req.query;
+    const { category, occasion, brand, search, status, includeDeleted, includeDrafts, all, is_bestseller, is_new_arrival } = req.query;
     const where = {};
 
     // Soft-deleted products are hidden by default (from website and admin).
@@ -12,6 +12,8 @@ export const getProducts = async (req, res) => {
     if (category && category !== 'All') where.category = category;
     if (occasion && occasion !== 'All') where.occasion = occasion;
     if (brand && brand !== 'All') where.brand = brand;
+    if (is_bestseller === 'true') where.is_bestseller = true;
+    if (is_new_arrival === 'true') where.is_new_arrival = true;
 
     // If all or includeDrafts is true (admin requests), show all or filter by requested status.
     // Otherwise, on public website, strictly filter to Active products only!
@@ -67,14 +69,20 @@ export const getProductById = async (req, res) => {
 
 export const createProduct = async (req, res) => {
   try {
-    const productData = req.body;
-    const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : (req.body.last_updated_by || 'Admin');
+    const productData = { ...req.body };
+    const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : (productData.last_updated_by || 'Admin');
     productData.last_updated_by = authorName;
     if (!productData.id) {
       productData.id = 'prod-' + Date.now();
     }
     if (!productData.slug) {
       productData.slug = productData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    }
+    if (productData.is_bestseller !== undefined) {
+      productData.is_bestseller = productData.is_bestseller === true || productData.is_bestseller === 'true' || productData.is_bestseller === 1;
+    }
+    if (productData.is_new_arrival !== undefined) {
+      productData.is_new_arrival = productData.is_new_arrival === true || productData.is_new_arrival === 'true' || productData.is_new_arrival === 1;
     }
     const product = await Product.create(productData);
     return res.status(201).json({ success: true, data: product });
@@ -89,8 +97,18 @@ export const updateProduct = async (req, res) => {
     const product = await Product.findByPk(id);
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
 
-    const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : (req.body.last_updated_by || 'Admin');
-    await product.update({ ...req.body, last_updated_by: authorName });
+    const updateData = { ...req.body };
+    const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : (updateData.last_updated_by || 'Admin');
+    updateData.last_updated_by = authorName;
+
+    if (updateData.is_bestseller !== undefined) {
+      updateData.is_bestseller = updateData.is_bestseller === true || updateData.is_bestseller === 'true' || updateData.is_bestseller === 1;
+    }
+    if (updateData.is_new_arrival !== undefined) {
+      updateData.is_new_arrival = updateData.is_new_arrival === true || updateData.is_new_arrival === 'true' || updateData.is_new_arrival === 1;
+    }
+
+    await product.update(updateData);
     return res.json({ success: true, data: product });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

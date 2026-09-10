@@ -22,6 +22,44 @@ export const DEFAULT_EMAIL_SETTINGS = {
   }
 };
 
+export const DEFAULT_CMS_PAGES = {
+  about: {
+    title: 'About Us',
+    subtitle: 'Our Heritage & Vision',
+    banner_image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1920&auto=format&fit=crop',
+    featured_image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop',
+    content_html: `<h2>Craftsmanship Without Compromise</h2><p>Founded with a mission to eliminate low-grade template clothing, ORDERLY Mens Wear crafts bespoke menswear that commands respect. From Italian flax linen tuxedo shirts to heavy streetwear tees and synchronized father-son heritage sets, every piece undergoes rigorous quality testing.</p><p>Inspired by the aesthetic codes of Zara, Rare Rabbit, and H&M Premium, our garments offer tailored precision, contemporary silhouettes, and timeless sophistication.</p><h3>Our Core Pillars</h3><ul><li><strong>Pure Luxury Fabrics:</strong> Ethically sourced organic linens, Supima cottons, and fine wool blends.</li><li><strong>Artisanal Tailoring:</strong> Structured cuts with handcrafted attention to cuffs, collars, and seams.</li><li><strong>Modern Elegance:</strong> Designs created for the discerning gentleman who values subtle distinction.</li></ul>`
+  },
+  contact: {
+    title: 'Contact Us',
+    subtitle: 'We Are Here To Assist You',
+    banner_image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1920&auto=format&fit=crop',
+    featured_image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=800&auto=format&fit=crop',
+    content_html: `<h2>Concierge & Customer Support</h2><p>Whether you have an inquiry regarding custom sizing, an existing shipment, corporate bulk gifting, or bespoke styling, our dedicated concierge team is available to assist you.</p><h3>Headquarters & Showroom</h3><p><strong>ORDERLY 2.0</strong><br>Valasaravakkam, Kundrathur, Chennai, Tamil Nadu, India.</p><p><strong>Phone:</strong> +91 98765 43210 (Monday to Saturday, 10:00 AM – 7:00 PM IST)<br><strong>Email:</strong> info@orderlymenswear.com<br><strong>WhatsApp VIP Support:</strong> +91 98765 43210</p>`
+  },
+  privacy: {
+    title: 'Privacy Policy',
+    subtitle: 'Commitment To Protecting Your Personal Data',
+    banner_image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920&auto=format&fit=crop',
+    featured_image: '',
+    content_html: `<h2>Your Privacy Matters</h2><p>At ORDERLY, we treat personal data with supreme discretion. This Privacy Policy outlines how your personal information is gathered, utilized, and safeguarded when you visit or transact on orderlymenswear.com.</p><h3>1. Information We Collect</h3><p>When you browse or place an order, we collect essential identifiers including your name, shipping address, contact phone number, email address, and encrypted payment tokenization details.</p><h3>2. How We Use Your Data</h3><ul><li>To process, dispatch, and track your sartorial orders.</li><li>To communicate live shipment milestones and transactional notifications.</li><li>To offer tailored size recommendations and exclusive VIP previews (upon consent).</li></ul><h3>3. Data Protection & Security</h3><p>We implement end-to-end 256-bit SSL encryption and partner solely with PCI-DSS compliant banking gateways. We never sell or lease your personal credentials to third-party marketing entities.</p>`
+  },
+  policy: {
+    title: 'Shipping & Returns Policy',
+    subtitle: 'Seamless Delivery & Doorstep Exchanges',
+    banner_image: 'https://images.unsplash.com/photo-1553413077-190dd305871c?q=80&w=1920&auto=format&fit=crop',
+    featured_image: '',
+    content_html: `<h2>Shipping & Delivery Terms</h2><p>We offer complimentary express shipping across India on orders exceeding ₹2,500. Orders below ₹2,500 incur a flat express shipping fee of ₹199.</p><ul><li><strong>Dispatch Window:</strong> All orders are prepared and dispatched within 24 business hours.</li><li><strong>Metro Deliveries:</strong> Delivered within 48 to 72 hours.</li><li><strong>Non-Metro Deliveries:</strong> Delivered within 3 to 5 business days.</li></ul><h2>15-Day Doorstep Returns & Exchanges</h2><p>If you are not completely enchanted by the fit or finish of your ORDERLY piece, you may request a hassle-free doorstep return or size exchange within 15 days of parcel receipt.</p><ul><li>Garments must remain unworn, unwashed, and intact with all security tags and original luxury packaging box.</li><li>Refunds are initiated instantly to your original payment mode or store credits once quality inspection is completed.</li></ul>`
+  },
+  terms: {
+    title: 'Terms & Conditions',
+    subtitle: 'User Agreement & Sizing Guidelines',
+    banner_image: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?q=80&w=1920&auto=format&fit=crop',
+    featured_image: '',
+    content_html: `<h2>Terms of Service</h2><p>Welcome to ORDERLY. By browsing our boutique, accessing our digital catalog, or placing an order, you agree to be bound by these Terms and Conditions.</p><h3>1. Product Accuracy & Sizing</h3><p>We take meticulous care in representing garments with accurate colors, texture fidelity, and sizing dimensions. Slight variances in natural linen grain or screen calibration may occur.</p><h3>2. Pricing & Payments</h3><p>All prices displayed on our website are inclusive of applicable GST taxes in Indian Rupees (INR). We reserve the right to revise pricing or rectify typographical discrepancies at any moment prior to confirmation.</p><h3>3. Intellectual Property</h3><p>All imagery, styling designs, brand marks, and digital assets are the exclusive intellectual property of ORDERLY Mens Wear. Unauthorized reproduction or commercial distribution is strictly prohibited.</p>`
+  }
+};
+
 export const DEFAULT_FOOTER_SETTINGS = {
   bio: "Orderly is your destination for premium men's wear. Crafted for style, built for comfort, made for you.",
   copyright: "© 2026 Orderly. All Rights Reserved.",
@@ -63,8 +101,8 @@ export const DEFAULT_FOOTER_SETTINGS = {
         { id: 'link-3-1', label: 'About Us', url: '/about' },
         { id: 'link-3-2', label: 'Our Story', url: '/about' },
         { id: 'link-3-3', label: 'Careers', url: '/about' },
-        { id: 'link-3-4', label: 'Privacy Policy', url: '/returns-policy' },
-        { id: 'link-3-5', label: 'Terms & Conditions', url: '/shipping-policy' }
+        { id: 'link-3-4', label: 'Privacy Policy', url: '/privacy-policy' },
+        { id: 'link-3-5', label: 'Terms & Conditions', url: '/terms-and-conditions' }
       ]
     }
   ],
@@ -118,6 +156,7 @@ const DEFAULT_SETTINGS = {
   delivery_settings: DEFAULT_DELIVERY_SETTINGS,
   courier_settings: DEFAULT_COURIER_SETTINGS,
   email_settings: DEFAULT_EMAIL_SETTINGS,
+  cms_pages: DEFAULT_CMS_PAGES,
   footer_settings: DEFAULT_FOOTER_SETTINGS,
   pair_offer_enabled: 'true',
   pair_offer_discount_percent: '25',

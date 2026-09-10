@@ -2,6 +2,7 @@ import express from 'express';
 import {
   validateCoupon,
   getActiveCoupons,
+  getPopupCoupons,
   getCoupons,
   createCoupon,
   updateCoupon,
@@ -17,6 +18,7 @@ const router = express.Router();
 
 router.post('/validate', validateCoupon);
 router.get('/active', getActiveCoupons);
+router.get('/popup', getPopupCoupons);
 
 router.get('/', adminAuth, getCoupons);
 router.post('/', adminAuth, createCoupon);

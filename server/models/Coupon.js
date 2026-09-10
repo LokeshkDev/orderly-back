@@ -48,6 +48,10 @@ const Coupon = sequelize.define('Coupon', {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
   },
+  show_in_popup: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
   description: {
     type: DataTypes.STRING,
     allowNull: true,

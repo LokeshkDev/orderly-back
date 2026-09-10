@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import SEO from '../components/common/SEO';
-import { FiMail, FiPhone, FiMapPin, FiSend, FiCheckCircle, FiClock } from 'react-icons/fi';
+import { FiMail, FiPhone, FiMapPin, FiClock } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { getSettings } from '../services/api';
 
 const ContactUs = () => {
   const [settings, setSettings] = useState(null);
   const [branches, setBranches] = useState([]);
-  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -37,47 +36,104 @@ const ContactUs = () => {
     };
   }, []);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitted(true);
-  };
+  const cmsContact = settings?.cms_pages?.contact || {};
+  const bannerImage = cmsContact.banner_image;
+  const title = cmsContact.title || 'Get In Touch & Visit Our Stores';
+  const subtitle = cmsContact.subtitle || '24/7 VIP CONCIERGE & BOUTIQUE LOCATIONS';
+  const contentHtml = cmsContact.content_html;
+  const featuredImage = cmsContact.featured_image;
 
   return (
     <>
       <SEO 
-        title="Contact & Store Locations | ORDERLY Menswear" 
+        title={`${title} | ORDERLY Menswear`} 
         description="Contact our 24/7 VIP concierge desk or visit ORDERLY menswear store locations across India."
         canonicalPath="/contact"
       />
       <div className="orderly-contact-page py-5">
-        <div className="container-fluid px-lg-5">
-          <div className="section-title-wrapper text-center mb-5">
-            <span className="section-subtitle text-warning font-weight-bold">24/7 VIP CONCIERGE & BOUTIQUE LOCATIONS</span>
-            <h1 className="section-title text-white fw-bold">Get In Touch & Visit Our Stores</h1>
+        {bannerImage && (
+          <div className="cms-hero-banner-container container-fluid px-lg-5 mb-5">
+            <div
+              className="cms-hero-banner rounded-4 shadow-2xl"
+              style={{ backgroundImage: `linear-gradient(to bottom, rgba(10,10,10,0.5), rgba(10,10,10,0.85)), url(${bannerImage})` }}
+            >
+              <div className="cms-hero-content text-center py-5">
+                <span className="badge bg-warning text-dark text-uppercase px-3 py-1 mb-2 font-weight-bold">
+                  {subtitle}
+                </span>
+                <h1 className="display-4 fw-extrabold text-white mt-1 mb-2">{title}</h1>
+                <p className="lead text-muted max-w-700 mx-auto mb-0">
+                  We are here to assist with custom orders, styling, sizing, and boutique appointments.
+                </p>
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* Top Section: Concierge Desk & Message Form */}
-          <div className="row g-4 mb-5">
-            <div className="col-lg-5">
-              <div className="glass-panel p-4 rounded-3 h-100 border border-secondary">
-                <h4 className="mb-4 text-warning fw-bold">ORDERLY VIP Concierge Desk</h4>
-                
+        <div className="container-fluid px-lg-5">
+          {!bannerImage && (
+            <div className="section-title-wrapper text-center mb-5">
+              <span className="section-subtitle text-warning font-weight-bold">{subtitle}</span>
+              <h1 className="section-title text-white fw-bold">{title}</h1>
+            </div>
+          )}
+
+          {/* CMS Rich Content Section (if present) */}
+          {contentHtml && (
+            <div className="cms-contact-rich-section mb-5">
+              <div className="glass-panel p-4 p-md-5 rounded-4 border border-secondary shadow-lg">
+                <div className="row g-4 align-items-center">
+                  {featuredImage && (
+                    <div className="col-lg-5 text-center">
+                      <img
+                        src={featuredImage}
+                        alt="ORDERLY Showroom"
+                        loading="lazy"
+                        decoding="async"
+                        className="img-fluid rounded-4 shadow-2xl"
+                        style={{ maxHeight: '420px', objectFit: 'cover', width: '100%' }}
+                      />
+                    </div>
+                  )}
+                  <div className={featuredImage ? 'col-lg-7' : 'col-12'}>
+                    <div
+                      className="cms-rich-html-content"
+                      dangerouslySetInnerHTML={{ __html: contentHtml }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Top Section: VIP Concierge Desk */}
+          <div className="concierge-desk-wrapper mb-5">
+            <div className="glass-panel p-4 p-md-5 rounded-3 border border-secondary">
+              <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 border-bottom border-secondary pb-3">
+                <div>
+                  <span className="badge bg-danger text-uppercase px-3 py-1 mb-2">Priority Support</span>
+                  <h3 className="text-warning fw-bold mb-1">ORDERLY VIP Concierge Desk</h3>
+                  <p className="text-muted small mb-0">Dedicated assistance for bespoke styling, sizing guidance, order tracking, and private boutique appointments.</p>
+                </div>
+              </div>
+
+              <div className="row g-4">
                 {settings?.contact_phone && (
-                  <div className="d-flex align-items-start gap-3 mb-4">
-                    <FiPhone className="fs-3 text-warning mt-1" />
-                    <div>
+                  <div className="col-md-6 col-lg-3">
+                    <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
+                      <FiPhone className="fs-3 text-warning mb-2" />
                       <h6 className="text-white mb-1">Direct Phone Concierge</h6>
-                      <a href={`tel:${settings.contact_phone}`} className="text-muted text-decoration-none small">{settings.contact_phone}</a>
+                      <a href={`tel:${settings.contact_phone}`} className="text-muted text-decoration-none small d-block">{settings.contact_phone}</a>
                     </div>
                   </div>
                 )}
 
                 {settings?.contact_whatsapp && (
-                  <div className="d-flex align-items-start gap-3 mb-4">
-                    <FaWhatsapp className="fs-3 text-success mt-1" />
-                    <div>
+                  <div className="col-md-6 col-lg-3">
+                    <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
+                      <FaWhatsapp className="fs-3 text-success mb-2" />
                       <h6 className="text-white mb-1">WhatsApp Instant Support</h6>
-                      <a href={`https://wa.me/${settings.contact_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-success text-decoration-none small fw-bold">
+                      <a href={`https://wa.me/${settings.contact_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-success text-decoration-none small fw-bold d-block">
                         Chat on WhatsApp ({settings.contact_whatsapp})
                       </a>
                     </div>
@@ -85,19 +141,19 @@ const ContactUs = () => {
                 )}
 
                 {settings?.contact_email && (
-                  <div className="d-flex align-items-start gap-3 mb-4">
-                    <FiMail className="fs-3 text-danger mt-1" />
-                    <div>
+                  <div className="col-md-6 col-lg-3">
+                    <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
+                      <FiMail className="fs-3 text-danger mb-2" />
                       <h6 className="text-white mb-1">VIP Support Email</h6>
-                      <a href={`mailto:${settings.contact_email}`} className="text-muted text-decoration-none small">{settings.contact_email}</a>
+                      <a href={`mailto:${settings.contact_email}`} className="text-muted text-decoration-none small d-block">{settings.contact_email}</a>
                     </div>
                   </div>
                 )}
 
                 {settings?.support_hours && (
-                  <div className="d-flex align-items-start gap-3 mb-4">
-                    <FiClock className="fs-3 text-warning mt-1" />
-                    <div>
+                  <div className="col-md-6 col-lg-3">
+                    <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
+                      <FiClock className="fs-3 text-warning mb-2" />
                       <h6 className="text-white mb-1">Concierge Operating Hours</h6>
                       <p className="text-muted small mb-0">{settings.support_hours}</p>
                     </div>
@@ -105,46 +161,15 @@ const ContactUs = () => {
                 )}
 
                 {settings?.contact_address && (
-                  <div className="d-flex align-items-start gap-3">
-                    <FiMapPin className="fs-3 text-danger mt-1" />
-                    <div>
-                      <h6 className="text-white mb-1">Corporate Headquarters</h6>
-                      <p className="text-muted small mb-0">{settings.contact_address}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="col-lg-7">
-              <div className="glass-panel p-4 p-md-5 rounded-3 border border-secondary">
-                <h4 className="mb-4 text-white">Send Us A Message</h4>
-                {submitted ? (
-                  <div className="alert alert-success p-4 rounded text-center">
-                    <FiCheckCircle className="fs-2 me-2" /> Message received! Our concierge will contact you within 2 hours.
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmit}>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <input type="text" placeholder="Your Name *" required className="form-control bg-dark text-white border-secondary py-2.5" />
-                      </div>
-                      <div className="col-md-6">
-                        <input type="email" placeholder="Your Email *" required className="form-control bg-dark text-white border-secondary py-2.5" />
-                      </div>
-                      <div className="col-12">
-                        <input type="text" placeholder="Subject" className="form-control bg-dark text-white border-secondary py-2.5" />
-                      </div>
-                      <div className="col-12">
-                        <textarea rows="4" placeholder="How can we assist you today? *" required className="form-control bg-dark text-white border-secondary"></textarea>
-                      </div>
-                      <div className="col-12">
-                        <button type="submit" className="btn-primary-orderly px-4 py-3">
-                          <FiSend /> Send Message
-                        </button>
+                  <div className="col-12 mt-3">
+                    <div className="p-3 rounded-2 bg-dark bg-opacity-50 border border-secondary d-flex align-items-start gap-3">
+                      <FiMapPin className="fs-3 text-danger mt-1 flex-shrink-0" />
+                      <div>
+                        <h6 className="text-white mb-1">Corporate Headquarters</h6>
+                        <p className="text-muted small mb-0">{settings.contact_address}</p>
                       </div>
                     </div>
-                  </form>
+                  </div>
                 )}
               </div>
             </div>

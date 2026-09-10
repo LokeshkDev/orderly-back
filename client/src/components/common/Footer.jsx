@@ -40,8 +40,8 @@ const DEFAULT_COLUMNS = [
       { id: 'link-3-1', label: 'About Us', url: '/about' },
       { id: 'link-3-2', label: 'Our Story', url: '/about' },
       { id: 'link-3-3', label: 'Careers', url: '/about' },
-      { id: 'link-3-4', label: 'Privacy Policy', url: '/returns-policy' },
-      { id: 'link-3-5', label: 'Terms & Conditions', url: '/shipping-policy' }
+      { id: 'link-3-4', label: 'Privacy Policy', url: '/privacy-policy' },
+      { id: 'link-3-5', label: 'Terms & Conditions', url: '/terms-and-conditions' }
     ]
   }
 ];

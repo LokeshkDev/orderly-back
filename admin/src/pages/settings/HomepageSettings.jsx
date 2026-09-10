@@ -5,7 +5,7 @@ import {
   FiEye, FiEyeOff, FiArrowUp, FiArrowDown, FiLayers, FiSliders, FiFilm,
   FiVolume2, FiShare2, FiCheck, FiSearch, FiGlobe, FiInstagram, FiFacebook, FiYoutube,
   FiShoppingBag, FiTruck, FiRotateCcw, FiShield, FiHeadphones, FiExternalLink, FiSettings, FiTag, FiGift, FiFileText,
-  FiMonitor, FiSmartphone, FiX
+  FiMonitor, FiSmartphone, FiX, FiTrendingUp, FiZap
 } from 'react-icons/fi';
 import { FaWhatsapp, FaTwitter, FaPinterest } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -112,18 +112,26 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
   });
   const [dbCategories, setDbCategories] = useState([]);
 
-  // Best Sellers Config State
+  // Trending & Best Sellers / New Arrivals Config State
   const [bestSellersConfig, setBestSellersConfig] = useState({
     eyebrow: 'TRENDING NOW',
-    heading: 'BEST SELLING PRODUCTS',
+    heading: 'BEST SELLING & NEW ARRIVALS',
+    bestsellerHeading: 'BEST SELLING PRODUCTS',
+    newArrivalHeading: 'NEW ARRIVALS',
+    displayMode: 'tabs', // 'tabs' | 'stacked'
+    autoplayDelay: 3500,
+    selectedBestsellers: [],
+    selectedNewArrivals: [],
     productSource: 'Best Selling',
-    selectedProducts: [],
-    productLimit: 5,
+    productLimit: 10,
     showRating: true,
     showWishlist: true,
     showAddToCart: true
   });
   const [dbProducts, setDbProducts] = useState([]);
+  const [trendingAdminTab, setTrendingAdminTab] = useState('bestsellers');
+  const [trendingSearch, setTrendingSearch] = useState('');
+  const [trendingCategoryFilter, setTrendingCategoryFilter] = useState('All');
 
   // Promo Blocks Config State
   const [promotionsConfig, setPromotionsConfig] = useState({
@@ -229,8 +237,10 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       }
 
       // 4. Database Products
+      let fetchedProds = [];
       if (prodsRes.status === 'fulfilled' && prodsRes.value.data?.success && Array.isArray(prodsRes.value.data.data)) {
-        setDbProducts(prodsRes.value.data.data);
+        fetchedProds = prodsRes.value.data.data;
+        setDbProducts(fetchedProds);
       }
 
       // 5. Site Settings
@@ -251,7 +261,34 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         }
         if (st.service_features) setServiceFeatures(st.service_features);
         if (st.collections_config) setCollectionsConfig(prev => ({ ...prev, ...st.collections_config }));
-        if (st.best_sellers_config) setBestSellersConfig(prev => ({ ...prev, ...st.best_sellers_config }));
+        
+        const bConfig = st.trending_arrivals_config || st.best_sellers_config;
+        if (bConfig) {
+          const bsFromDb = fetchedProds.filter(p => p.is_bestseller).map(p => p.id);
+          const naFromDb = fetchedProds.filter(p => p.is_new_arrival).map(p => p.id);
+          const initialBs = Array.isArray(bConfig.selectedBestsellers) && bConfig.selectedBestsellers.length > 0 
+            ? bConfig.selectedBestsellers 
+            : (Array.isArray(bConfig.selectedProducts) && bConfig.selectedProducts.length > 0 ? bConfig.selectedProducts : (bsFromDb.length > 0 ? bsFromDb : fetchedProds.slice(0, 5).map(p => p.id)));
+          const initialNa = Array.isArray(bConfig.selectedNewArrivals) && bConfig.selectedNewArrivals.length > 0 
+            ? bConfig.selectedNewArrivals 
+            : (naFromDb.length > 0 ? naFromDb : fetchedProds.slice(2, 7).map(p => p.id));
+
+          setBestSellersConfig(prev => ({
+            ...prev,
+            ...bConfig,
+            selectedBestsellers: initialBs,
+            selectedNewArrivals: initialNa
+          }));
+        } else if (fetchedProds.length > 0) {
+          const bsFromDb = fetchedProds.filter(p => p.is_bestseller).map(p => p.id);
+          const naFromDb = fetchedProds.filter(p => p.is_new_arrival).map(p => p.id);
+          setBestSellersConfig(prev => ({
+            ...prev,
+            selectedBestsellers: bsFromDb.length > 0 ? bsFromDb : fetchedProds.slice(0, 5).map(p => p.id),
+            selectedNewArrivals: naFromDb.length > 0 ? naFromDb : fetchedProds.slice(2, 7).map(p => p.id)
+          }));
+        }
+
         if (st.promotions_config) setPromotionsConfig(prev => ({ ...prev, ...st.promotions_config }));
         if (st.lookbook_config) setLookbookConfig(prev => ({ ...prev, ...st.lookbook_config }));
         if (st.newsletter_config) setNewsletterConfig(prev => ({ ...prev, ...st.newsletter_config }));
@@ -266,6 +303,66 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Toggle individual product on/off for Best Sellers or New Arrivals
+  const handleToggleSectionProduct = async (productId, sectionType) => {
+    const isBs = sectionType === 'bestsellers';
+    const listKey = isBs ? 'selectedBestsellers' : 'selectedNewArrivals';
+    const currentList = Array.isArray(bestSellersConfig[listKey]) ? bestSellersConfig[listKey] : [];
+    const isCurrentlyActive = currentList.includes(productId);
+    const nextList = isCurrentlyActive 
+      ? currentList.filter(id => id !== productId) 
+      : [...currentList, productId];
+
+    setBestSellersConfig(prev => ({
+      ...prev,
+      [listKey]: nextList
+    }));
+
+    // Directly sync the product flag in MySQL DB
+    try {
+      const flagKey = isBs ? 'is_bestseller' : 'is_new_arrival';
+      await api.put(`/products/${productId}`, { [flagKey]: !isCurrentlyActive });
+      setDbProducts(prev => prev.map(p => p.id === productId ? { ...p, [flagKey]: !isCurrentlyActive } : p));
+      toast.success(`Product ${!isCurrentlyActive ? 'added to' : 'removed from'} ${isBs ? 'Best Sellers' : 'New Arrivals'}`);
+    } catch (e) {
+      console.warn('Product flag sync note:', e);
+    }
+  };
+
+  // Bulk toggle for current filtered view
+  const handleBulkToggle = (sectionType, turnOn) => {
+    const isBs = sectionType === 'bestsellers';
+    const listKey = isBs ? 'selectedBestsellers' : 'selectedNewArrivals';
+    const targetProducts = dbProducts.filter(p => {
+      const matchesSearch = !trendingSearch || p.name.toLowerCase().includes(trendingSearch.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(trendingSearch.toLowerCase()));
+      const matchesCat = trendingCategoryFilter === 'All' || p.category === trendingCategoryFilter;
+      return matchesSearch && matchesCat;
+    });
+
+    const targetIds = targetProducts.map(p => p.id);
+    const currentList = Array.isArray(bestSellersConfig[listKey]) ? bestSellersConfig[listKey] : [];
+    let nextList;
+    if (turnOn) {
+      nextList = Array.from(new Set([...currentList, ...targetIds]));
+    } else {
+      nextList = currentList.filter(id => !targetIds.includes(id));
+    }
+
+    setBestSellersConfig(prev => ({
+      ...prev,
+      [listKey]: nextList
+    }));
+
+    // Sync DB flags in background
+    const flagKey = isBs ? 'is_bestseller' : 'is_new_arrival';
+    targetIds.forEach(id => {
+      api.put(`/products/${id}`, { [flagKey]: turnOn }).catch(() => {});
+    });
+    setDbProducts(prev => prev.map(p => targetIds.includes(p.id) ? { ...p, [flagKey]: turnOn } : p));
+
+    toast.info(`${turnOn ? 'Enabled' : 'Disabled'} ${targetIds.length} products for ${isBs ? 'Best Sellers' : 'New Arrivals'}`);
+  };
 
   // Save / Publish All Homepage Configurations to DB
   const handlePublishHomepage = async () => {
@@ -287,6 +384,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         service_features: serviceFeatures,
         collections_config: collectionsConfig,
         best_sellers_config: bestSellersConfig,
+        trending_arrivals_config: bestSellersConfig,
         promotions_config: promotionsConfig,
         lookbook_config: lookbookConfig,
         newsletter_config: newsletterConfig,
@@ -509,7 +607,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           <FiGrid /> Collections Grid
         </button>
         <button className={`admin-tab-btn ${activeTab === 'best_sellers' ? 'active' : ''}`} onClick={() => handleTabChange('best_sellers')}>
-          <FiShoppingBag /> Best Selling Products
+          <FiTrendingUp /> Trending & New Arrivals
         </button>
         <button className={`admin-tab-btn ${activeTab === 'promotions' ? 'active' : ''}`} onClick={() => handleTabChange('promotions')}>
           <FiGift /> Promo Blocks
@@ -1032,62 +1130,217 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         </div>
       )}
 
-      {/* TAB 6: BEST SELLING PRODUCTS */}
+      {/* TAB 6: TRENDING & NEW ARRIVALS (BEST SELLERS & NEW ARRIVALS TOGGLE CONTROL) */}
       {activeTab === 'best_sellers' && (
         <div className="admin-card-white p-4">
-          <div className="mb-3 border-bottom pb-3">
-            <h4 className="fw-bold text-dark mb-1">Best Selling Products Section</h4>
-            <p className="text-muted small mb-0">Configure product section headers and display options.</p>
+          <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3 flex-wrap gap-2">
+            <div>
+              <h4 className="fw-bold text-dark mb-1">Trending & New Arrivals Control Center</h4>
+              <p className="text-muted small mb-0">Control titles, carousel autoplay, and toggle individual products ON/OFF for Best Selling and New Arrivals collections.</p>
+            </div>
+            <button className="btn-admin-red d-flex align-items-center gap-2" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> {savingAll ? 'Publishing...' : 'Save & Publish Trending & Arrivals'}
+            </button>
           </div>
 
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label className="admin-form-label">Section Eyebrow</label>
-              <input 
-                type="text" 
-                className="admin-input"
-                value={bestSellersConfig.eyebrow}
-                onChange={(e) => setBestSellersConfig(prev => ({ ...prev, eyebrow: e.target.value }))}
-              />
-            </div>
+          {/* Section Presentation Settings */}
+          <div className="p-3 bg-light rounded-3 border mb-4">
+            <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+              <FiSliders /> Section Configuration & Display Settings
+            </h6>
+            <div className="row g-3">
+              <div className="col-md-3">
+                <label className="admin-form-label small">Section Eyebrow</label>
+                <input 
+                  type="text" 
+                  className="admin-input form-control-sm"
+                  value={bestSellersConfig.eyebrow || 'TRENDING NOW'}
+                  onChange={(e) => setBestSellersConfig(prev => ({ ...prev, eyebrow: e.target.value }))}
+                />
+              </div>
 
-            <div className="col-md-6">
-              <label className="admin-form-label">Section Main Heading</label>
-              <input 
-                type="text" 
-                className="admin-input"
-                value={bestSellersConfig.heading}
-                onChange={(e) => setBestSellersConfig(prev => ({ ...prev, heading: e.target.value }))}
-              />
-            </div>
+              <div className="col-md-3">
+                <label className="admin-form-label small">Section Main Heading</label>
+                <input 
+                  type="text" 
+                  className="admin-input form-control-sm"
+                  value={bestSellersConfig.heading || 'BEST SELLING & NEW ARRIVALS'}
+                  onChange={(e) => setBestSellersConfig(prev => ({ ...prev, heading: e.target.value }))}
+                />
+              </div>
 
-            <div className="col-md-6">
-              <label className="admin-form-label">Product Display Limit</label>
-              <input 
-                type="number" 
-                className="admin-input"
-                value={bestSellersConfig.productLimit}
-                onChange={(e) => setBestSellersConfig(prev => ({ ...prev, productLimit: Number(e.target.value) || 5 }))}
-              />
-            </div>
+              <div className="col-md-3">
+                <label className="admin-form-label small">Display Layout Mode</label>
+                <select 
+                  className="form-select admin-input form-control-sm"
+                  value={bestSellersConfig.displayMode || 'tabs'}
+                  onChange={(e) => setBestSellersConfig(prev => ({ ...prev, displayMode: e.target.value }))}
+                >
+                  <option value="tabs">Tabbed Switcher (Best Sellers & New Arrivals in one)</option>
+                  <option value="stacked">Stacked (Show both sections sequentially)</option>
+                </select>
+              </div>
 
-            <div className="col-md-6">
-              <label className="admin-form-label">Product Source Strategy</label>
-              <select 
-                className="form-select admin-input"
-                value={bestSellersConfig.productSource}
-                onChange={(e) => setBestSellersConfig(prev => ({ ...prev, productSource: e.target.value }))}
+              <div className="col-md-3">
+                <label className="admin-form-label small">Auto Carousel Delay (ms)</label>
+                <select 
+                  className="form-select admin-input form-control-sm"
+                  value={bestSellersConfig.autoplayDelay || 3500}
+                  onChange={(e) => setBestSellersConfig(prev => ({ ...prev, autoplayDelay: Number(e.target.value) }))}
+                >
+                  <option value={2500}>Fast (2.5 seconds)</option>
+                  <option value={3500}>Balanced (3.5 seconds) - Recommended</option>
+                  <option value={5000}>Relaxed (5.0 seconds)</option>
+                  <option value={0}>Disabled (Manual Scroll Only)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-Tabs: Best Selling Products vs New Arrivals */}
+          <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2 flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                className={`btn btn-sm d-inline-flex align-items-center gap-2 ${trendingAdminTab === 'bestsellers' ? 'btn-danger text-white fw-bold shadow-sm' : 'btn-outline-secondary'}`}
+                onClick={() => setTrendingAdminTab('bestsellers')}
               >
-                <option value="Best Selling">Best Selling Products</option>
-                <option value="Latest Products">Latest Products</option>
-                <option value="Featured Products">Featured Products</option>
+                <FiZap /> Best Selling Products ({bestSellersConfig.selectedBestsellers?.length || 0} Enabled)
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm d-inline-flex align-items-center gap-2 ${trendingAdminTab === 'new_arrivals' ? 'btn-danger text-white fw-bold shadow-sm' : 'btn-outline-secondary'}`}
+                onClick={() => setTrendingAdminTab('new_arrivals')}
+              >
+                <FiPlus /> New Arrivals ({bestSellersConfig.selectedNewArrivals?.length || 0} Enabled)
+              </button>
+            </div>
+
+            <div className="d-flex align-items-center gap-2">
+              <button 
+                type="button" 
+                className="btn btn-outline-success btn-sm"
+                onClick={() => handleBulkToggle(trendingAdminTab, true)}
+                title="Enable all filtered products for this section"
+              >
+                <FiCheck /> Enable All Filtered
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-outline-secondary btn-sm"
+                onClick={() => handleBulkToggle(trendingAdminTab, false)}
+                title="Disable all filtered products for this section"
+              >
+                <FiX /> Disable All Filtered
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Category Filter */}
+          <div className="row g-2 align-items-center mb-3">
+            <div className="col-md-7">
+              <div className="position-relative">
+                <input 
+                  type="text" 
+                  placeholder={`Search products to toggle for ${trendingAdminTab === 'bestsellers' ? 'Best Sellers' : 'New Arrivals'}...`}
+                  className="admin-input form-control-sm ps-5"
+                  value={trendingSearch}
+                  onChange={(e) => setTrendingSearch(e.target.value)}
+                />
+                <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+              </div>
+            </div>
+            <div className="col-md-5">
+              <select 
+                className="admin-select form-control-sm"
+                value={trendingCategoryFilter}
+                onChange={(e) => setTrendingCategoryFilter(e.target.value)}
+              >
+                <option value="All">All Categories</option>
+                {Array.from(new Set(dbProducts.map(p => p.category).filter(Boolean))).map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-top">
-            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
-              <FiCheck /> Save & Publish Best Sellers
+          {/* Product Toggle Table */}
+          <div className="table-responsive border rounded-3">
+            <table className="admin-matrix-table align-middle mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th style={{ width: '60px' }}>MEDIA</th>
+                  <th>PRODUCT NAME</th>
+                  <th>SKU</th>
+                  <th>CATEGORY</th>
+                  <th>PRICE</th>
+                  <th>SECTION STATUS</th>
+                  <th className="text-end pe-4" style={{ width: '180px' }}>TOGGLE VISIBILITY</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dbProducts.filter(p => {
+                  const matchesSearch = !trendingSearch || p.name.toLowerCase().includes(trendingSearch.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(trendingSearch.toLowerCase()));
+                  const matchesCat = trendingCategoryFilter === 'All' || p.category === trendingCategoryFilter;
+                  return matchesSearch && matchesCat;
+                }).map(p => {
+                  const isBs = trendingAdminTab === 'bestsellers';
+                  const list = isBs ? (bestSellersConfig.selectedBestsellers || []) : (bestSellersConfig.selectedNewArrivals || []);
+                  const isActive = list.includes(p.id);
+
+                  return (
+                    <tr key={p.id} className={isActive ? 'bg-light bg-opacity-25' : ''}>
+                      <td>
+                        <img 
+                          src={p.images?.[0] || '/logo.png'} 
+                          alt={p.name} 
+                          style={{ width: '40px', height: '48px', objectFit: p.images?.[0] ? 'cover' : 'contain', background: '#050505', borderRadius: '4px' }} 
+                          onError={(e) => { e.target.src = '/logo.png'; }}
+                        />
+                      </td>
+                      <td>
+                        <strong className="text-dark d-block">{p.name}</strong>
+                        {p.badge && <span className="cat-slug-badge me-1" style={{ fontSize: '10px' }}>{p.badge}</span>}
+                      </td>
+                      <td><code className="cat-slug-badge">{p.sku || p.id}</code></td>
+                      <td><span className="badge bg-secondary bg-opacity-10 text-dark">{p.category}</span></td>
+                      <td><strong>₹{p.price}</strong></td>
+                      <td>
+                        {isActive ? (
+                          <span className="badge bg-success bg-opacity-10 text-success border border-success fw-bold">
+                            <FiCheck className="me-1" /> VISIBLE IN {isBs ? 'BEST SELLERS' : 'NEW ARRIVALS'}
+                          </span>
+                        ) : (
+                          <span className="badge bg-light text-muted border">
+                            HIDDEN
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-end pe-4">
+                        <div className="d-flex align-items-center justify-content-end gap-2">
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${isActive ? 'btn-success text-white' : 'btn-outline-secondary'}`}
+                            onClick={() => handleToggleSectionProduct(p.id, trendingAdminTab)}
+                            style={{ minWidth: '95px', fontWeight: 600 }}
+                          >
+                            {isActive ? '✓ ON' : 'OFF'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 pt-3 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <span className="text-muted small">
+              Tip: Toggling updates the product instantly and saves when clicking Publish.
+            </span>
+            <button className="btn-admin-red d-flex align-items-center gap-2" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Trending & Arrivals
             </button>
           </div>
         </div>

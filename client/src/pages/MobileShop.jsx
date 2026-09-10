@@ -60,17 +60,31 @@ const MobileShop = () => {
     return rawSlugOrName;
   }, [categoriesList]);
 
-  const rawInitialCat = slug || categoryParam || 'All';
+  // Parse categories from URL
+  const parseCategories = useCallback((param, allCats = categoriesList) => {
+    if (!param || param === 'All') return [];
+    return param
+      .split(',')
+      .map(p => p.trim())
+      .filter(Boolean)
+      .map(p => resolveCategoryName(p, allCats))
+      .filter(p => p && p !== 'All');
+  }, [resolveCategoryName, categoriesList]);
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(rawInitialCat);
-  const [selectedBrand, setSelectedBrand] = useState(brandParam);
-  const [selectedColor, setSelectedColor] = useState('All');
-  const [selectedSize, setSelectedSize] = useState('All');
-  const [minPrice, setMinPrice] = useState(499);
-  const [maxPrice, setMaxPrice] = useState(4999);
-  const [appliedMinPrice, setAppliedMinPrice] = useState(499);
-  const [appliedMaxPrice, setAppliedMaxPrice] = useState(50000);
+  const [selectedCategories, setSelectedCategories] = useState(() => {
+    if (slug) {
+      const resolved = resolveCategoryName(slug);
+      return resolved && resolved !== 'All' ? [resolved] : [];
+    }
+    return parseCategories(categoryParam);
+  });
+  const [selectedSizes, setSelectedSizes] = useState([]);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(10000);
+  const [appliedMinPrice, setAppliedMinPrice] = useState(0);
+  const [appliedMaxPrice, setAppliedMaxPrice] = useState(100000);
   const [sortBy, setSortBy] = useState('popularity');
   const [inStockOnly, setInStockOnly] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
@@ -82,12 +96,8 @@ const MobileShop = () => {
   // Accordion state inside mobile filter drawer
   const [accordionOpen, setAccordionOpen] = useState({
     categories: true,
-    brand: false,
     price: true,
     size: false,
-    color: false,
-    rating: false,
-    discount: false,
     availability: false
   });
 
@@ -99,39 +109,37 @@ const MobileShop = () => {
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const [catRes, brandRes] = await Promise.all([getCategories(), getBrands()]);
+        const catRes = await getCategories();
         if (catRes && catRes.success && Array.isArray(catRes.data) && catRes.data.length > 0) {
           setCategoriesList(catRes.data);
           const activeCats = catRes.data.filter(c => c.is_active !== false).map(c => c.name);
           if (activeCats.length > 0) setCategoryOptions(activeCats);
 
           if (slug) {
-            setSelectedCategory(resolveCategoryName(slug, catRes.data));
+            const resolved = resolveCategoryName(slug, catRes.data);
+            if (resolved && resolved !== 'All') setSelectedCategories([resolved]);
           } else if (categoryParam) {
-            setSelectedCategory(resolveCategoryName(categoryParam, catRes.data));
+            setSelectedCategories(parseCategories(categoryParam, catRes.data));
           }
-        }
-
-        if (brandRes && brandRes.success && Array.isArray(brandRes.data) && brandRes.data.length > 0) {
-          const activeBrands = brandRes.data.filter(b => b.is_active !== false).map(b => b.name);
-          if (activeBrands.length > 0) setBrandOptions(activeBrands);
         }
       } catch (err) {
         console.warn('Failed to load filter options:', err.message);
       }
     };
     loadFilters();
-  }, [slug, categoryParam, resolveCategoryName]);
+  }, [slug, categoryParam, resolveCategoryName, parseCategories]);
 
   // Sync state when URL params change
   useEffect(() => {
     if (slug) {
-      setSelectedCategory(resolveCategoryName(slug));
+      const resolved = resolveCategoryName(slug);
+      setSelectedCategories(resolved && resolved !== 'All' ? [resolved] : []);
+    } else if (categoryParam) {
+      setSelectedCategories(parseCategories(categoryParam));
     } else {
-      setSelectedCategory(categoryParam ? resolveCategoryName(categoryParam) : 'All');
+      setSelectedCategories([]);
     }
-    setSelectedBrand(brandParam || 'All');
-  }, [categoryParam, brandParam, slug, resolveCategoryName]);
+  }, [categoryParam, slug, resolveCategoryName, parseCategories]);
 
   // Fetch product dataset from API
   useEffect(() => {
@@ -159,33 +167,114 @@ const MobileShop = () => {
     };
   }, []);
 
+  // Dynamic price bounds
+  const priceBounds = useMemo(() => {
+    const singles = productsList.filter(p => !p.type?.includes('combo') && !p.is_combo && typeof p.price === 'number');
+    if (singles.length === 0) return { min: 0, max: 10000 };
+    const prices = singles.map(p => p.price);
+    return {
+      min: Math.floor(Math.min(...prices) / 100) * 100 || 0,
+      max: Math.ceil(Math.max(...prices) / 500) * 500 || 10000
+    };
+  }, [productsList]);
+
+  useEffect(() => {
+    if (priceBounds.min !== undefined && priceBounds.max !== undefined) {
+      setMinPrice(priceBounds.min);
+      setMaxPrice(priceBounds.max);
+    }
+  }, [priceBounds]);
+
+  // Dynamically extract categories
+  const dynamicCategories = useMemo(() => {
+    const catMap = new Map();
+    categoriesList.filter(c => c.is_active !== false).forEach(c => {
+      if (c.name) catMap.set(c.name.toLowerCase().trim(), c.name.trim());
+    });
+    const singles = productsList.filter(p => !p.type?.includes('combo') && !p.is_combo);
+    singles.forEach(p => {
+      if (p.category && typeof p.category === 'string') {
+        const key = p.category.toLowerCase().trim();
+        if (!catMap.has(key)) {
+          catMap.set(key, p.category.trim());
+        }
+      }
+    });
+    const list = Array.from(catMap.values());
+    return list.length > 0 ? list : ['Shirts', 'T-Shirts', 'Pants', 'Jackets', 'Accessories'];
+  }, [categoriesList, productsList]);
+
   // Dynamic category counts
   const categoryCounts = useMemo(() => {
     const counts = {};
     const singles = productsList.filter(p => !p.type?.includes('combo') && !p.is_combo);
     singles.forEach(p => {
-      const cat = p.category || 'Shirts';
-      counts[cat] = (counts[cat] || 0) + 1;
+      dynamicCategories.forEach(cat => {
+        if (matchesCategoryAlias(p.category, cat)) {
+          counts[cat] = (counts[cat] || 0) + 1;
+        }
+      });
     });
     return counts;
-  }, [productsList]);
+  }, [productsList, dynamicCategories]);
 
-  // Dynamic brand counts
-  const brandCounts = useMemo(() => {
-    const counts = {};
+  // Dynamically extract sizes
+  const availableSizes = useMemo(() => {
+    const sizeSet = new Set();
     const singles = productsList.filter(p => !p.type?.includes('combo') && !p.is_combo);
     singles.forEach(p => {
-      const b = p.brand || 'Orderly';
-      counts[b] = (counts[b] || 0) + 1;
+      if (Array.isArray(p.sizes)) {
+        p.sizes.forEach(s => s && typeof s === 'string' && sizeSet.add(s.trim().toUpperCase()));
+      } else if (typeof p.sizes === 'string') {
+        p.sizes.split(',').forEach(s => s && sizeSet.add(s.trim().toUpperCase()));
+      }
+      if (p.inventory && typeof p.inventory === 'object') {
+        Object.keys(p.inventory).forEach(k => {
+          if (k && k !== 'total' && Number(p.inventory[k]) > 0) {
+            sizeSet.add(k.trim().toUpperCase());
+          }
+        });
+      }
     });
-    return counts;
+    const standardOrder = ['XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL', '3XL', 'XXXL', '4XL', 'FREE SIZE'];
+    return Array.from(sizeSet).sort((a, b) => {
+      const idxA = standardOrder.indexOf(a);
+      const idxB = standardOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      const numA = parseFloat(a);
+      const numB = parseFloat(b);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      return a.localeCompare(b);
+    });
   }, [productsList]);
+
+  const handleCategoryToggle = (cat) => {
+    setSelectedCategories(prev => {
+      const exists = prev.includes(cat);
+      const next = exists ? prev.filter(c => c !== cat) : [...prev, cat];
+      if (next.length === 0) {
+        searchParams.delete('category');
+        setSearchParams(searchParams);
+      } else {
+        setSearchParams({ category: next.join(',') });
+      }
+      return next;
+    });
+  };
+
+  const handleSizeToggle = (sz) => {
+    setSelectedSizes(prev => 
+      prev.includes(sz) ? prev.filter(s => s !== sz) : [...prev, sz]
+    );
+  };
 
   // Filtered & Sorted products calculation
   const filteredProducts = useMemo(() => {
     let result = productsList.filter(product => {
       if (!product) return false;
-      // Strict Single Product Check (Exclude all Combos/Bundles)
+      // Strict Single Product Check
       if (
         product.type === 'combo' ||
         product.is_combo ||
@@ -202,42 +291,69 @@ const MobileShop = () => {
         const q = searchParam.trim().toLowerCase();
         const nameMatch = product.name?.toLowerCase().includes(q);
         const catMatch = product.category?.toLowerCase().includes(q);
-        const brandMatch = product.brand?.toLowerCase().includes(q);
         const descMatch = product.description?.toLowerCase().includes(q);
-        if (!nameMatch && !catMatch && !brandMatch && !descMatch) {
+        if (!nameMatch && !catMatch && !descMatch) {
           return false;
         }
       }
-      if (selectedCategory !== 'All' && !matchesCategoryAlias(product.category, selectedCategory)) {
-        return false;
+      // Multi-Category Check
+      if (selectedCategories.length > 0) {
+        const matchedCat = selectedCategories.some(cat => matchesCategoryAlias(product.category, cat));
+        if (!matchedCat) return false;
       }
-      if (selectedBrand !== 'All' && product.brand?.toLowerCase() !== selectedBrand.toLowerCase()) {
-        return false;
+      // Multi-Size Check
+      if (selectedSizes.length > 0) {
+        const pSizes = new Set();
+        if (Array.isArray(product.sizes)) {
+          product.sizes.forEach(s => s && pSizes.add(s.trim().toUpperCase()));
+        } else if (typeof product.sizes === 'string') {
+          product.sizes.split(',').forEach(s => s && pSizes.add(s.trim().toUpperCase()));
+        }
+        if (product.inventory && typeof product.inventory === 'object') {
+          Object.keys(product.inventory).forEach(k => {
+            if (k && k !== 'total' && Number(product.inventory[k]) > 0) {
+              pSizes.add(k.trim().toUpperCase());
+            }
+          });
+        }
+        const hasAnySize = selectedSizes.some(sz => pSizes.has(sz.toUpperCase()));
+        if (!hasAnySize) return false;
       }
-      if (selectedColor !== 'All' && !product.colors?.some(c => c.name === selectedColor)) {
-        return false;
-      }
-      if (selectedSize !== 'All' && !product.sizes?.includes(selectedSize)) {
-        return false;
-      }
-      if (product.price < appliedMinPrice || product.price > appliedMaxPrice) {
+      // Price Filter
+      const prodPrice = Number(product.price || 0);
+      if (prodPrice < appliedMinPrice || prodPrice > appliedMaxPrice) {
         return false;
       }
       if (inStockOnly) {
         const totalStock = Object.values(product.inventory || {}).reduce((a, b) => a + Number(b || 0), 0);
-        if (totalStock <= 0) return false;
+        if (totalStock <= 0 && product.inStock === false) return false;
       }
       return true;
     });
 
-    return result.sort((a, b) => {
-      if (sortBy === 'price-low') return a.price - b.price;
-      if (sortBy === 'price-high') return b.price - a.price;
-      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-      if (sortBy === 'newest') return b.id - a.id;
-      return 0;
+    // Dynamic non-mutating sort
+    return [...result].sort((a, b) => {
+      const priceA = Number(a.price || 0);
+      const priceB = Number(b.price || 0);
+      if (sortBy === 'price-low') return priceA - priceB;
+      if (sortBy === 'price-high') return priceB - priceA;
+      if (sortBy === 'rating') return (Number(b.rating) || 0) - (Number(a.rating) || 0);
+      if (sortBy === 'newest') {
+        const dateA = new Date(a.createdAt || a.created_at || 0).getTime();
+        const dateB = new Date(b.createdAt || b.created_at || 0).getTime();
+        if (dateA && dateB && dateA !== dateB) return dateB - dateA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      }
+      if (sortBy === 'discount') {
+        const origA = Number(a.originalPrice || a.original_price || priceA);
+        const origB = Number(b.originalPrice || b.original_price || priceB);
+        const discA = origA > priceA ? ((origA - priceA) / origA) * 100 : 0;
+        const discB = origB > priceB ? ((origB - priceB) / origB) * 100 : 0;
+        return discB - discA;
+      }
+      return (Number(b.popularity || b.sales_count) || 0) - (Number(a.popularity || a.sales_count) || 0);
     });
-  }, [productsList, selectedCategory, selectedBrand, selectedColor, selectedSize, appliedMinPrice, appliedMaxPrice, sortBy, inStockOnly, searchParam]);
+  }, [productsList, selectedCategories, selectedSizes, appliedMinPrice, appliedMaxPrice, sortBy, inStockOnly, searchParam]);
 
   const displayedProducts = useMemo(() => {
     return filteredProducts.slice(0, displayCount);
@@ -250,28 +366,30 @@ const MobileShop = () => {
   };
 
   const clearAllFilters = () => {
-    setSelectedCategory('All');
-    setSelectedBrand('All');
-    setSelectedColor('All');
-    setSelectedSize('All');
-    setMinPrice(499);
-    setMaxPrice(4999);
+    setSelectedCategories([]);
+    setSelectedSizes([]);
+    setMinPrice(priceBounds.min || 0);
+    setMaxPrice(priceBounds.max || 10000);
     setAppliedMinPrice(0);
-    setAppliedMaxPrice(50000);
+    setAppliedMaxPrice(100000);
     setInStockOnly(false);
     setSortBy('popularity');
     setDisplayCount(10);
     setSearchParams({});
   };
 
-  const hasActiveFilters = selectedCategory !== 'All' || selectedBrand !== 'All' || selectedColor !== 'All' || selectedSize !== 'All' || appliedMaxPrice < 50000 || inStockOnly || searchParam !== '';
+  const hasActiveFilters = selectedCategories.length > 0 || selectedSizes.length > 0 || appliedMaxPrice < 100000 || appliedMinPrice > 0 || inStockOnly || (searchParam && searchParam.trim() !== '');
 
-  const displayCategoryList = categoryOptions.length > 0 ? categoryOptions : ['Shirts', 'T-Shirts', 'Pants', 'Jackets', 'Hoodies & Sweatshirts', 'Accessories'];
+  const pageTitle = useMemo(() => {
+    if (selectedCategories.length === 0) return 'Shop All Menswear';
+    if (selectedCategories.length === 1) return selectedCategories[0];
+    return `${selectedCategories.length} Categories`;
+  }, [selectedCategories]);
 
   return (
     <>
       <SEO 
-        title={`${selectedCategory !== 'All' ? selectedCategory : 'Shop All'} | ORDERLY Mobile Shopping App`}
+        title={`${pageTitle} | ORDERLY Mobile Shopping App`}
         description="Shop luxury men's shirts, oversized tees, selvedge denim, trousers and blazers at ORDERLY."
       />
 
@@ -288,16 +406,24 @@ const MobileShop = () => {
           <div className="mobile-shop-hero-content">
             <span className="mobile-hero-eyebrow">SHOP &rarr;</span>
             <h1 className="mobile-hero-title">
-              {selectedCategory !== 'All' ? selectedCategory.toUpperCase() : 'ALL PRODUCTS'}
+              {selectedCategories.length === 0 
+                ? 'ALL PRODUCTS' 
+                : selectedCategories.length === 1 
+                  ? selectedCategories[0].toUpperCase() 
+                  : `${selectedCategories.length} CATEGORIES`}
             </h1>
             <div className="mobile-breadcrumb">
               <Link to="/" className="mobile-breadcrumb-link">Home</Link>
               <span className="mobile-breadcrumb-sep">&gt;</span>
-              <Link to="/shop" className="mobile-breadcrumb-link">Shop</Link>
-              <span className="mobile-breadcrumb-sep">&gt;</span>
-              <span className="mobile-breadcrumb-current">
-                {selectedCategory !== 'All' ? selectedCategory : 'All Products'}
-              </span>
+              <Link to="/shop" className="mobile-breadcrumb-link" onClick={clearAllFilters}>Shop</Link>
+              {selectedCategories.length > 0 && (
+                <>
+                  <span className="mobile-breadcrumb-sep">&gt;</span>
+                  <span className="mobile-breadcrumb-current">
+                    {selectedCategories.join(', ')}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -362,6 +488,7 @@ const MobileShop = () => {
                 <option value="newest">Sort By: Newest</option>
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
+                <option value="discount">Biggest Savings</option>
                 <option value="rating">Highest Rated</option>
               </select>
             </div>
@@ -375,24 +502,24 @@ const MobileShop = () => {
                   Search: "{searchParam}" <FiX onClick={() => setSearchParams({})} />
                 </span>
               )}
-              {selectedCategory !== 'All' && (
+              {selectedCategories.map(cat => (
+                <span key={cat} className="mobile-chip-tag">
+                  {cat} <FiX onClick={() => handleCategoryToggle(cat)} />
+                </span>
+              ))}
+              {selectedSizes.map(sz => (
+                <span key={sz} className="mobile-chip-tag">
+                  Size: {sz} <FiX onClick={() => handleSizeToggle(sz)} />
+                </span>
+              ))}
+              {(appliedMaxPrice < (priceBounds.max || 10000) || appliedMinPrice > (priceBounds.min || 0)) && (
                 <span className="mobile-chip-tag">
-                  {selectedCategory} <FiX onClick={() => { setSelectedCategory('All'); setSearchParams({}); }} />
+                  ₹{appliedMinPrice} – ₹{appliedMaxPrice} <FiX onClick={() => { setAppliedMinPrice(0); setAppliedMaxPrice(100000); }} />
                 </span>
               )}
-              {selectedBrand !== 'All' && (
+              {inStockOnly && (
                 <span className="mobile-chip-tag">
-                  Brand: {selectedBrand} <FiX onClick={() => setSelectedBrand('All')} />
-                </span>
-              )}
-              {selectedSize !== 'All' && (
-                <span className="mobile-chip-tag">
-                  Size: {selectedSize} <FiX onClick={() => setSelectedSize('All')} />
-                </span>
-              )}
-              {appliedMaxPrice < 50000 && (
-                <span className="mobile-chip-tag">
-                  Max ₹{appliedMaxPrice} <FiX onClick={() => setAppliedMaxPrice(50000)} />
+                  In Stock Only <FiX onClick={() => setInStockOnly(false)} />
                 </span>
               )}
               <button className="mobile-reset-link" onClick={clearAllFilters}>Reset</button>
@@ -568,19 +695,15 @@ const MobileShop = () => {
 
                   {accordionOpen.categories && (
                     <div className="mobile-accordion-content">
-                      {displayCategoryList.map((cat, idx) => {
-                        const count = categoryCounts[cat] || (124 - idx * 18);
-                        const isChecked = selectedCategory === cat;
+                      {dynamicCategories.map((cat, idx) => {
+                        const count = categoryCounts[cat] || 0;
+                        const isChecked = selectedCategories.includes(cat);
                         return (
                           <label key={idx} className="mobile-filter-check-row">
                             <input 
                               type="checkbox"
                               checked={isChecked}
-                              onChange={() => {
-                                setSelectedCategory(isChecked ? 'All' : cat);
-                                if (isChecked) setSearchParams({});
-                                else setSearchParams({ category: cat });
-                              }}
+                              onChange={() => handleCategoryToggle(cat)}
                             />
                             <span className="cat-name">{cat}</span>
                             <span className="cat-count">({count})</span>
@@ -591,40 +714,7 @@ const MobileShop = () => {
                   )}
                 </div>
 
-                {/* 2. BRAND ACCORDION */}
-                <div className="mobile-accordion-group">
-                  <button 
-                    type="button" 
-                    className="mobile-accordion-header"
-                    onClick={() => toggleAccordion('brand')}
-                  >
-                    <span>BRAND</span>
-                    {accordionOpen.brand ? <FiChevronUp /> : <FiChevronDown />}
-                  </button>
-
-                  {accordionOpen.brand && (
-                    <div className="mobile-accordion-content">
-                      {brandOptions.map((brand, idx) => {
-                        const count = brandCounts[brand] || (156 - idx * 30);
-                        const isChecked = selectedBrand === brand;
-                        return (
-                          <label key={idx} className="mobile-filter-check-row">
-                            <input 
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => setSelectedBrand(isChecked ? 'All' : brand)}
-                            />
-                            <span className="cat-name">{brand}</span>
-                            <span className="cat-count">({count})</span>
-                          </label>
-                        );
-                      })}
-                      <span className="mobile-view-more-brands">+ View More</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. PRICE ACCORDION */}
+                {/* 2. PRICE ACCORDION */}
                 <div className="mobile-accordion-group">
                   <button 
                     type="button" 
@@ -640,15 +730,15 @@ const MobileShop = () => {
                       <div className="mb-3">
                         <input 
                           type="range"
-                          min="499"
-                          max="10000"
-                          step="500"
+                          min={priceBounds.min || 0}
+                          max={priceBounds.max || 10000}
+                          step="100"
                           value={maxPrice}
                           onChange={(e) => setMaxPrice(Number(e.target.value))}
                           className="mobile-price-slider w-100"
                         />
                         <div className="d-flex justify-content-between text-white-50 extra-small mt-1">
-                          <span>₹{minPrice}</span>
+                          <span>₹{minPrice.toLocaleString()}</span>
                           <span>₹{maxPrice.toLocaleString()}</span>
                         </div>
                       </div>
@@ -684,7 +774,7 @@ const MobileShop = () => {
                   )}
                 </div>
 
-                {/* 4. SIZE ACCORDION */}
+                {/* 3. SIZE ACCORDION */}
                 <div className="mobile-accordion-group">
                   <button 
                     type="button" 
@@ -698,16 +788,20 @@ const MobileShop = () => {
                   {accordionOpen.size && (
                     <div className="mobile-accordion-content">
                       <div className="mobile-sizes-chips">
-                        {['S', 'M', 'L', 'XL', 'XXL'].map((sz, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            className={`mobile-size-btn ${selectedSize === sz ? 'active' : ''}`}
-                            onClick={() => setSelectedSize(selectedSize === sz ? 'All' : sz)}
-                          >
-                            {sz}
-                          </button>
-                        ))}
+                        {availableSizes.length > 0 ? (
+                          availableSizes.map((sz, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              className={`mobile-size-btn ${selectedSizes.includes(sz) ? 'active' : ''}`}
+                              onClick={() => handleSizeToggle(sz)}
+                            >
+                              {sz}
+                            </button>
+                          ))
+                        ) : (
+                          <span className="text-muted small">Standard Sizes</span>
+                        )}
                       </div>
                     </div>
                   )}

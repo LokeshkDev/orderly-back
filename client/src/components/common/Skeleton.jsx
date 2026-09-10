@@ -99,11 +99,10 @@ export const MobileProductGridSkeleton = () => (
 );
 
 export const MobileCategorySkeleton = () => (
-  <div className="d-flex gap-2 overflow-hidden px-3">
+  <div className="d-flex gap-3 overflow-hidden px-3">
     {[1, 2, 3, 4, 5].map((i) => (
-      <div key={i} className="flex-shrink-0 text-center" style={{ width: '80px' }}>
-        <SkeletonBox width="68px" height="68px" borderRadius="50%" className="mx-auto mb-2" />
-        <SkeletonBox width="60px" height="12px" className="mx-auto" />
+      <div key={i} className="flex-shrink-0" style={{ width: '140px', height: '200px' }}>
+        <SkeletonBox width="140px" height="200px" borderRadius="6px" />
       </div>
     ))}
   </div>

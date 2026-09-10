@@ -131,11 +131,7 @@ const MobileComboDetail = ({
 
   return (
     <div className="orderly-mobile-combo-pdp">
-      {/* ── 0. ANNOUNCEMENT BAR & MOBILE HEADER ───────────────────── */}
-      <div className="mobile-announcement-bar">
-        Free Express Delivery on Luxury Combos | Handcrafted Bespoke Fits
-      </div>
-
+      {/* ── 0. MOBILE HEADER ────────────────────────────────────── */}
       <MobileHeader onOpenMenu={() => setIsMenuOpen(true)} />
       <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 

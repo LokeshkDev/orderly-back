@@ -65,9 +65,9 @@ const MobileHomepage = () => {
       case 'trust_features':
         return <MobileTrustFeatures key={sec.section_key} />;
       case 'shop_by_category':
-        return <MobileCategories key={sec.section_key} />;
+        return <MobileCategories key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
       case 'combo_categories':
-        return <div key={sec.section_key} className="orderly-deferred-section"><MobileComboCategories /></div>;
+        return <div key={sec.section_key} className="orderly-deferred-section"><MobileComboCategories key={sec.section_key} title={sec.title} subtitle={sec.subtitle} /></div>;
       case 'trending_arrivals':
         return <div key={sec.section_key} className="orderly-deferred-section"><MobileProductGrid /></div>;
       case 'promo_offers':

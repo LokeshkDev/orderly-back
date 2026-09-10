@@ -36,7 +36,7 @@ const DEFAULT_MOBILE_CATS = [
   }
 ];
 
-const MobileCategories = () => {
+const MobileCategories = ({ title, subtitle }) => {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [cmsEyebrow, setCmsEyebrow] = useState('');
@@ -123,8 +123,8 @@ const MobileCategories = () => {
     <section className="mobile-only py-3">
       {/* Header */}
       <div className="mobile-section-header">
-        <span className="mobile-section-eyebrow">{cmsEyebrow || 'EXPLORE COLLECTIONS'}</span>
-        <h2 className="mobile-section-title">{cmsHeading || 'DISCOVER YOUR STYLE'}</h2>
+        <span className="mobile-section-eyebrow">{subtitle || cmsEyebrow || 'EXPLORE COLLECTIONS'}</span>
+        <h2 className="mobile-section-title">{title || cmsHeading || 'DISCOVER YOUR STYLE'}</h2>
       </div>
 
       {/* Horizontal Touch Scrollable Category Cards or Skeleton */}

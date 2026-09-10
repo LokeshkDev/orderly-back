@@ -210,11 +210,7 @@ const MobileProductDetail = ({
 
   return (
     <div className="orderly-mobile-pdp">
-      {/* ── 0. ANNOUNCEMENT BAR & MOBILE HEADER ───────────────────── */}
-      <div className="mobile-announcement-bar">
-        Free Shipping on Orders Above <span className="mobile-announcement-highlight">₹1499</span> | Easy 7 Days Returns
-      </div>
-
+      {/* ── 0. MOBILE HEADER ────────────────────────────────────── */}
       <MobileHeader onOpenMenu={() => setIsMenuOpen(true)} />
       <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 

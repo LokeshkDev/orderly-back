@@ -36,7 +36,7 @@ const DEFAULT_MOBILE_COMBO_CATS = [
   }
 ];
 
-const MobileComboCategories = () => {
+const MobileComboCategories = ({ title, subtitle }) => {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
 
@@ -77,8 +77,8 @@ const MobileComboCategories = () => {
     <section className="mobile-only py-3">
       {/* Header */}
       <div className="mobile-section-header">
-        <span className="mobile-section-eyebrow">CURATED COMBO SETS</span>
-        <h2 className="mobile-section-title">EXPLORE COMBO CATEGORIES</h2>
+        <span className="mobile-section-eyebrow">{subtitle || 'CURATED COMBO SETS'}</span>
+        <h2 className="mobile-section-title">{title || 'EXPLORE COMBO CATEGORIES'}</h2>
       </div>
 
       {/* Horizontal Touch Scrollable Category Cards or Skeleton */}
@@ -90,24 +90,26 @@ const MobileComboCategories = () => {
             <Link 
               key={idx} 
               to={`/combos?category=${encodeURIComponent(cat.categoryQuery)}`} 
-              className="mobile-category-pill"
+              className="mobile-category-card"
             >
-              <div className="mobile-category-avatar">
-                {cat.image && cat.image.length > 0 ? (
-                  <img 
-                    src={cat.image} 
-                    alt={cat.name} 
-                    className="mobile-category-avatar-img"
-                    width="68"
-                    height="68"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <div className="mobile-category-avatar-img orderly-avatar-fallback">O</div>
-                )}
+              {cat.image && cat.image.length > 0 ? (
+                <img 
+                  src={cat.image} 
+                  alt={cat.name} 
+                  className="mobile-category-img"
+                  width="140"
+                  height="180"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <div className="mobile-category-img orderly-img-fallback">ORDERLY</div>
+              )}
+              <div className="mobile-category-overlay" />
+              <div className="mobile-category-info">
+                <div className="mobile-category-name">{cat.name}</div>
+                <span className="mobile-category-sub">{cat.sub}</span>
               </div>
-              <span className="mobile-category-name">{cat.name}</span>
             </Link>
           ))}
         </div>

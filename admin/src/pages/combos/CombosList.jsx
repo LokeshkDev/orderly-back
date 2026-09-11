@@ -311,11 +311,48 @@ const CombosList = () => {
   // Duplicate Combo - mirrors ProductsList handleDuplicateProduct
   const handleDuplicateCombo = async (combo) => {
     try {
+      // 1. Clean base name (strip any existing (Copy ...) tags)
+      const baseName = (combo.name || 'Combo')
+        .replace(/\s*\((?:Copy(?:\s*\d+)?)\)$/i, '')
+        .trim();
+
+      // Determine next copy number cleanly
+      const existingCopies = combos.filter(c => {
+        const cName = (c.name || '').trim();
+        const regex = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s*\\(Copy(?:\\s*(\\d+))?\\))?$`, 'i');
+        return regex.test(cName);
+      });
+
+      let nextCopyNum = 1;
+      if (existingCopies.length > 0) {
+        existingCopies.forEach(c => {
+          const match = (c.name || '').match(/\(Copy(?:\s*(\d+))?\)/i);
+          if (match) {
+            const num = match[1] ? parseInt(match[1], 10) : 1;
+            if (num >= nextCopyNum) nextCopyNum = num + 1;
+          }
+        });
+      }
+      const duplicateName = nextCopyNum === 1 ? `${baseName} (Copy)` : `${baseName} (Copy ${nextCopyNum})`;
+
+      // 2. Clean base slug from baseName, with zero timestamps
+      const baseSlug = baseName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'combo';
+
+      let candidateSlug = nextCopyNum === 1 ? `${baseSlug}-copy` : `${baseSlug}-copy-${nextCopyNum}`;
+      let slugCounter = nextCopyNum;
+      while (combos.some(c => (c.slug || '').toLowerCase() === candidateSlug.toLowerCase())) {
+        slugCounter++;
+        candidateSlug = `${baseSlug}-copy-${slugCounter}`;
+      }
+
       const duplicateData = {
         ...combo,
         id: `combo-${Date.now()}`,
-        name: `${combo.name} (Copy)`,
-        slug: `${combo.slug || combo.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-copy-${Date.now()}`,
+        name: duplicateName,
+        slug: candidateSlug,
         status: 'Inactive'
       };
 

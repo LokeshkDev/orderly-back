@@ -52,9 +52,23 @@ export const getProductById = async (req, res) => {
       where.status = 'Active';
     }
 
-    const product = await Product.findOne({
+    let product = await Product.findOne({
       where
     });
+
+    // Fallback: If not found and id looks like a copy-chained slug, try matching prefix or cleaned slug
+    if (!product && typeof id === 'string' && (id.includes('-copy-') || id.includes('copy'))) {
+      const cleanPrefix = id.replace(/(?:-copy(?:-\d+)?)+.*/gi, '').replace(/-\d{10,}.*/g, '').trim();
+      if (cleanPrefix) {
+        product = await Product.findOne({
+          where: {
+            slug: { [Op.like]: `${cleanPrefix}%` },
+            deleted: false,
+            ...(all !== 'true' && includeDrafts !== 'true' ? { status: 'Active' } : {})
+          }
+        });
+      }
+    }
 
     if (!product) {
       return res.json({ success: false, data: null });
@@ -75,9 +89,33 @@ export const createProduct = async (req, res) => {
     if (!productData.id) {
       productData.id = 'prod-' + Date.now();
     }
-    if (!productData.slug) {
-      productData.slug = productData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    // Clean and normalize slug (strip raw copy timestamps and duplicates)
+    let rawSlug = productData.slug;
+    if (!rawSlug) {
+      rawSlug = (productData.name || 'product')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    } else {
+      rawSlug = rawSlug
+        .replace(/(?:-copy(?:-\d+)?)+-\d{10,}/gi, '-copy')
+        .replace(/(?:-copy)+/gi, '-copy')
+        .replace(/-\d{10,}/g, '')
+        .replace(/[^a-z0-9-]+/g, '')
+        .replace(/-+/g, '-')
+        .replace(/(^-|-$)/g, '');
     }
+
+    // Ensure uniqueness in database
+    let candidateSlug = rawSlug || 'product';
+    let counter = 1;
+    while (await Product.findOne({ where: { slug: candidateSlug } })) {
+      counter++;
+      candidateSlug = `${rawSlug}-${counter}`;
+    }
+    productData.slug = candidateSlug;
+
     if (productData.is_bestseller !== undefined) {
       productData.is_bestseller = productData.is_bestseller === true || productData.is_bestseller === 'true' || productData.is_bestseller === 1;
     }
@@ -126,5 +164,34 @@ export const deleteProduct = async (req, res) => {
     return res.json({ success: true, message: 'Product deleted successfully' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const sanitizeDuplicateProductSlugs = async () => {
+  try {
+    const messyProducts = await Product.findAll({
+      where: {
+        slug: { [Op.like]: '%-copy-%' }
+      }
+    });
+    for (const p of messyProducts) {
+      if (/\d{10,}/.test(p.slug)) {
+        let cleanBase = p.slug
+          .replace(/(?:-copy(?:-\d+)?)+-\d{10,}.*/gi, '-copy')
+          .replace(/-\d{10,}/g, '')
+          .replace(/[^a-z0-9-]+/g, '')
+          .replace(/-+/g, '-')
+          .replace(/(^-|-$)/g, '');
+        let newSlug = cleanBase;
+        let count = 1;
+        while (await Product.findOne({ where: { slug: newSlug, id: { [Op.ne]: p.id } } })) {
+          count++;
+          newSlug = `${cleanBase}-${count}`;
+        }
+        await p.update({ slug: newSlug });
+      }
+    }
+  } catch (e) {
+    // Database connection or table might be optional/offline
   }
 };

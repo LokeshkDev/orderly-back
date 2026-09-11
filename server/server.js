@@ -29,6 +29,7 @@ import productsRoutes from './routes/products.routes.js';
 import combosRoutes from './routes/combos.routes.js';
 import sitemapRoutes from './routes/sitemap.routes.js';
 import Combo from './models/Combo.js';
+import { sanitizeDuplicateProductSlugs } from './controllers/product.controller.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -266,6 +267,7 @@ const startServer = async () => {
       }
     }
     console.log(`✅ Seeded ${seededCombosCount} missing master combos (combos in sync)`);
+    await sanitizeDuplicateProductSlugs();
   } catch (error) {
     console.warn('⚠️ MySQL connection note:', error.message);
   }

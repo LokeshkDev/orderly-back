@@ -233,8 +233,8 @@ const CartDrawer = () => {
         {/* Footer & Compact Collapsible Tariff Accordion */}
         {cart.length > 0 && (
           <div className="cart-drawer-footer">
-            {/* Standalone Coupon Apply Box (Outside Price Accordion) */}
-            <div className="coupon-box mb-2">
+            {/* Standalone Coupon Apply Box (Desktop Only — on mobile, coupons are applied on checkout page) */}
+            <div className="coupon-box mb-2 d-none d-md-block">
               {appliedCoupon ? (
                 <div className="coupon-applied-alert">
                   <span><FiCheckCircle /> Coupon <strong>{appliedCoupon.code}</strong> applied! You save {formatPrice(discountAmount)}</span>

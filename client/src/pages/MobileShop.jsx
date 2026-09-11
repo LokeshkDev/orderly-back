@@ -430,8 +430,8 @@ const MobileShop = () => {
 
         {/* 5. MOBILE FILTER & TOOLBAR STRIP MATCHING REFERENCE SCREENSHOT */}
         <div className="mobile-shop-controls-container">
-          {/* Top Filter Button Bar */}
-          <div className="mobile-filter-bar-row">
+          {/* Main Filter & Sort Controls Row (Same Row) */}
+          <div className="mobile-filter-sort-row">
             <button 
               type="button" 
               className="mobile-filter-btn"
@@ -442,15 +442,24 @@ const MobileShop = () => {
               {hasActiveFilters && <span className="mobile-active-filter-dot" />}
             </button>
 
-            {hasActiveFilters && (
-              <button type="button" className="mobile-clear-all-link" onClick={clearAllFilters}>
-                Clear All
-              </button>
-            )}
+            <div className="mobile-sort-select-wrapper">
+              <select 
+                className="mobile-sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="popularity">Sort By: Popularity</option>
+                <option value="newest">Sort By: Newest</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="discount">Biggest Savings</option>
+                <option value="rating">Highest Rated</option>
+              </select>
+            </div>
           </div>
 
-          {/* Toolbar Row: Single (Table) & 2 Grid View, Product Count & Sort Dropdown */}
-          <div className="mobile-toolbar-row">
+          {/* Sub Toolbar Row: Single (Table) & 2 Grid View, Product Count & Clear All */}
+          <div className="mobile-sub-toolbar-row">
             <div className="d-flex align-items-center gap-2">
               <div className="mobile-view-toggle-btns">
                 <button 
@@ -478,20 +487,11 @@ const MobileShop = () => {
               </span>
             </div>
 
-            <div className="mobile-sort-select-wrapper">
-              <select 
-                className="mobile-sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="popularity">Sort By: Popularity</option>
-                <option value="newest">Sort By: Newest</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="discount">Biggest Savings</option>
-                <option value="rating">Highest Rated</option>
-              </select>
-            </div>
+            {hasActiveFilters && (
+              <button type="button" className="mobile-clear-all-link ms-auto" onClick={clearAllFilters}>
+                Clear All
+              </button>
+            )}
           </div>
 
           {/* Active Filter Chips */}

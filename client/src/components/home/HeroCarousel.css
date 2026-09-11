@@ -304,9 +304,56 @@
   right: 24px;
 }
 
+/* Mobile & Tablet View: Banner buttons on a single row with small size */
+@media (max-width: 1024px) {
+  .hero-btn-group {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 380px !important;
+  }
+
+  .btn-hero-solid-red,
+  .btn-hero-outline {
+    flex: 1 1 0 !important;
+    padding: 8px 12px !important;
+    font-size: 0.74rem !important;
+    letter-spacing: 0.05em !important;
+    white-space: nowrap !important;
+    min-height: 36px !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+}
+
 @media (max-width: 768px) {
   .custom-hero-arrow {
     display: none;
+  }
+
+  .hero-btn-group {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 340px !important;
+  }
+
+  .btn-hero-solid-red,
+  .btn-hero-outline {
+    flex: 1 1 0 !important;
+    padding: 7px 10px !important;
+    font-size: 0.70rem !important;
+    letter-spacing: 0.04em !important;
+    white-space: nowrap !important;
+    min-height: 34px !important;
+    text-align: center !important;
+    justify-content: center !important;
   }
 }
 

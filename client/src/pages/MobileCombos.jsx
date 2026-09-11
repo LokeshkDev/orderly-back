@@ -226,15 +226,15 @@ const MobileCombos = () => {
 
             {/* SINGLE CARD COMBO CATEGORIES LIST (1 CARD PER ROW) */}
             <div className="mobile-combo-categories-container px-3 py-3">
-              <div className="d-flex align-items-center justify-content-between mb-3">
+              <div className="m-combo-sec-header mb-3">
                 <h3 className="m-combo-sec-title">
-                  <FiLayers className="text-danger me-2" />
+                  <FiLayers className="text-danger me-1.5" />
                   EXPLORE BY CATEGORY
                 </h3>
-                <div className="d-flex align-items-center gap-2">
+                <div className="m-combo-header-actions">
                   <button 
                     type="button" 
-                    className="btn-primary-orderly px-2.5 py-1 extra-small fw-bold"
+                    className="m-combo-view-all-btn"
                     onClick={() => handleCategorySelect('all-combos')}
                   >
                     View All ({combos.length})
@@ -400,7 +400,7 @@ const MobileCombos = () => {
                         </div>
 
                         {/* Dynamic Multi-Product Combo Cover */}
-                        <Link to={`/combo/${combo.id}`} className="mobile-cover-card-link">
+                        <Link to={`/combo/${combo.slug || combo.id}`} className="mobile-cover-card-link">
                           <ComboCover
                             items={combo.items}
                             images={combo.images}
@@ -411,7 +411,7 @@ const MobileCombos = () => {
 
                         {/* Info Body */}
                         <div className="mobile-combo-info-body">
-                          <Link to={`/combo/${combo.id}`} className="mobile-combo-title-link">
+                          <Link to={`/combo/${combo.slug || combo.id}`} className="mobile-combo-title-link">
                             <h3 className="mobile-combo-title">{combo.name}</h3>
                           </Link>
 
@@ -420,17 +420,22 @@ const MobileCombos = () => {
                           </div>
 
                           <div className="mobile-combo-price-row">
-                            <span className="mobile-offer-price">₹{combo.offer_price?.toLocaleString()}</span>
-                            {combo.original_price && (
-                              <span className="mobile-original-price">₹{combo.original_price?.toLocaleString()}</span>
+                            <span className="mobile-offer-price">
+                              ₹{(Number(combo.offer_price || combo.price) || 0).toLocaleString()}
+                            </span>
+                            {combo.original_price && combo.original_price > (combo.offer_price || combo.price) && (
+                              <span className="mobile-original-price">
+                                ₹{Number(combo.original_price).toLocaleString()}
+                              </span>
                             )}
-                            {combo.original_price && combo.offer_price && combo.original_price > combo.offer_price && (
-                              <span className="mobile-save-tag">SAVE ₹{(combo.original_price - combo.offer_price).toLocaleString()}</span>
-                            )}
+                            <span className="mobile-save-tag">SAVE {discountPct}%</span>
                           </div>
 
-                          <Link to={`/combo/${combo.id}`} className="btn-mobile-view-combo-cta">
-                            VIEW COMBO &rarr;
+                          <Link
+                            to={`/combo/${combo.slug || combo.id}`}
+                            className="btn-mobile-view-combo-cta"
+                          >
+                            VIEW COMBO →
                           </Link>
                         </div>
                       </div>
@@ -438,16 +443,27 @@ const MobileCombos = () => {
                   })}
                 </div>
               ) : (
-                <div className="mobile-combos-empty text-center py-5">
-                  <FiLayers style={{ fontSize: '3rem', color: '#475569', marginBottom: '12px' }} />
-                  <h4 className="text-white mb-1">No Combos in this Category</h4>
-                  <p className="text-muted small mb-3">No combo sets are currently added under "{activeCategoryObj?.name}".</p>
-                  <button 
-                    type="button" 
-                    className="btn-admin-red px-4 py-2"
-                    onClick={() => handleCategorySelect('All')}
+                <div className="text-center py-5 text-muted">
+                  <p className="mb-2">No combos found matching your filters.</p>
+                  <button
+                    type="button"
+                    className="btn btn-outline-light btn-sm"
+                    onClick={clearAllFilters}
                   >
-                    View All Categories
+                    Reset Filters
+                  </button>
+                </div>
+              )}
+
+              {/* Load More Button */}
+              {displayedCombos.length < filteredCombos.length && (
+                <div className="text-center pt-3 pb-2">
+                  <button
+                    type="button"
+                    className="btn-mobile-load-more w-100"
+                    onClick={() => setDisplayCount((prev) => prev + 12)}
+                  >
+                    Load More Sets ({filteredCombos.length - displayedCombos.length} Remaining)
                   </button>
                 </div>
               )}
@@ -457,7 +473,7 @@ const MobileCombos = () => {
 
         {/* Filter Drawer Popup (Price Limit) */}
         {isFilterDrawerOpen && (
-          <div className="mobile-drawer-backdrop" onClick={() => setIsFilterDrawerOpen(false)}>
+          <div className="mobile-combos-sheet-backdrop" onClick={() => setIsFilterDrawerOpen(false)}>
             <div className="mobile-bottom-drawer" onClick={(e) => e.stopPropagation()}>
               <div className="mobile-drawer-header">
                 <h4 className="mb-0 font-weight-bold">Filter Combos</h4>
@@ -467,7 +483,7 @@ const MobileCombos = () => {
               </div>
 
               <div className="mobile-drawer-body py-3">
-                <label className="admin-form-label mb-2">MAX PRICE LIMIT</label>
+                <label className="text-muted small fw-bold mb-2 text-uppercase letter-spacing-1">MAX PRICE LIMIT</label>
                 <div className="d-flex flex-column gap-2">
                   {[50000, 3000, 6000, 10000].map(price => (
                     <label key={price} className="mobile-filter-radio-row">
@@ -493,7 +509,7 @@ const MobileCombos = () => {
 
         {/* Sort Drawer Popup */}
         {isSortDrawerOpen && (
-          <div className="mobile-drawer-backdrop" onClick={() => setIsSortDrawerOpen(false)}>
+          <div className="mobile-combos-sheet-backdrop" onClick={() => setIsSortDrawerOpen(false)}>
             <div className="mobile-bottom-drawer" onClick={(e) => e.stopPropagation()}>
               <div className="mobile-drawer-header">
                 <h4 className="mb-0 font-weight-bold">Sort Combos</h4>

@@ -526,5 +526,10 @@
   .cart-drawer-footer {
     padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px));
   }
+
+  /* Coupon code applied only in checkout page — remove on mobile cart */
+  .coupon-box {
+    display: none !important;
+  }
 }
 

@@ -22,7 +22,15 @@ const ProductsList = () => {
       try {
         const res = await api.get('/products?all=true');
         if (res.data && res.data.success && Array.isArray(res.data.data)) {
-          const dbList = res.data.data;
+          const dbList = res.data.data.map(p => {
+            if (p.slug && /\d{10,}/.test(p.slug) && p.slug.includes('copy')) {
+              return {
+                ...p,
+                slug: p.slug.replace(/(?:-copy(?:-\d+)?)+-\d{10,}.*/gi, '-copy').replace(/-\d{10,}/g, '').replace(/-+/g, '-').replace(/(^-|-$)/g, '')
+              };
+            }
+            return p;
+          });
           setProducts(dbList);
           try {
             localStorage.setItem('orderly_db_products', JSON.stringify(dbList));
@@ -545,12 +553,49 @@ const ProductsList = () => {
 
   const handleDuplicateProduct = async (product) => {
     try {
+      // 1. Clean base name (strip any existing (Copy ...) tags)
+      const baseName = (product.name || 'Product')
+        .replace(/\s*\((?:Copy(?:\s*\d+)?)\)$/i, '')
+        .trim();
+
+      // Determine next copy number cleanly
+      const existingCopies = products.filter(p => {
+        const pName = (p.name || '').trim();
+        const regex = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s*\\(Copy(?:\\s*(\\d+))?\\))?$`, 'i');
+        return regex.test(pName);
+      });
+
+      let nextCopyNum = 1;
+      if (existingCopies.length > 0) {
+        existingCopies.forEach(p => {
+          const match = (p.name || '').match(/\(Copy(?:\s*(\d+))?\)/i);
+          if (match) {
+            const num = match[1] ? parseInt(match[1], 10) : 1;
+            if (num >= nextCopyNum) nextCopyNum = num + 1;
+          }
+        });
+      }
+      const duplicateName = nextCopyNum === 1 ? `${baseName} (Copy)` : `${baseName} (Copy ${nextCopyNum})`;
+
+      // 2. Clean base slug from baseName, with zero timestamps
+      const baseSlug = baseName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'product';
+
+      let candidateSlug = nextCopyNum === 1 ? `${baseSlug}-copy` : `${baseSlug}-copy-${nextCopyNum}`;
+      let slugCounter = nextCopyNum;
+      while (products.some(p => (p.slug || '').toLowerCase() === candidateSlug.toLowerCase())) {
+        slugCounter++;
+        candidateSlug = `${baseSlug}-copy-${slugCounter}`;
+      }
+
       const duplicateData = {
         ...product,
         id: `prod-${Date.now()}`,
         sku: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
-        name: `${product.name} (Copy)`,
-        slug: `${product.slug || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-copy-${Date.now()}`,
+        name: duplicateName,
+        slug: candidateSlug,
         status: 'Draft'
       };
       

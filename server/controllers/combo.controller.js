@@ -187,10 +187,20 @@ export const updateCombo = async (req, res) => {
 export const deleteCombo = async (req, res) => {
   try {
     const { id } = req.params;
-    const combo = await Combo.findByPk(id);
+    const { hard } = req.query;
+
+    const combo = await Combo.findOne({
+      where: {
+        [Op.or]: [{ id }, { slug: id }]
+      }
+    });
     if (!combo) return res.status(404).json({ success: false, message: 'Combo not found' });
 
-    await combo.update({ deleted: true });
+    if (hard === 'true' || combo.deleted) {
+      await combo.destroy();
+    } else {
+      await combo.update({ deleted: true });
+    }
     return res.json({ success: true, message: 'Combo deleted successfully' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

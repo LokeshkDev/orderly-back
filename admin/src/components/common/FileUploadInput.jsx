@@ -86,20 +86,11 @@ const FileUploadInput = ({
         onChange(uploadedUrl);
         toast.success(`${type === 'video' ? 'Video' : 'Image'} uploaded successfully!`);
       } else {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          onChange(e.target.result);
-          toast.success(`${type === 'video' ? 'Video' : 'Image'} attached successfully!`);
-        };
-        reader.readAsDataURL(file);
+        toast.error('Upload failed: ' + (res.data?.message || 'Storage server rejected file'));
       }
     } catch (err) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        onChange(e.target.result);
-        toast.success(`${type === 'video' ? 'Video' : 'Image'} loaded successfully!`);
-      };
-      reader.readAsDataURL(file);
+      console.error('Upload error:', err);
+      toast.error('Upload failed: ' + (err.response?.data?.message || err.message || 'Network error'));
     } finally {
       setUploading(false);
     }

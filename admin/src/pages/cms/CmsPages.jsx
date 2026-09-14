@@ -7,8 +7,13 @@ import {
   FiInfo,
   FiImage,
   FiCheckCircle,
-  FiLayers
+  FiLayers,
+  FiPhone,
+  FiMail,
+  FiClock,
+  FiMapPin
 } from 'react-icons/fi';
+import { FaWhatsapp } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
 import FileUploadInput from '../../components/common/FileUploadInput.jsx';
@@ -106,6 +111,13 @@ const CmsPages = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pagesData, setPagesData] = useState(DEFAULT_PAGE_DATA);
+  const [contactDetails, setContactDetails] = useState({
+    contact_phone: '+91 98765 43210',
+    contact_whatsapp: '+91 98765 43210',
+    contact_email: 'info@orderlymenswear.com',
+    support_hours: 'Monday – Saturday: 10:00 AM – 7:00 PM IST',
+    contact_address: 'ORDERLY 2.0, Valasaravakkam, Kundrathur, Chennai, Tamil Nadu, India'
+  });
 
   useEffect(() => {
     fetchSettings();
@@ -115,10 +127,20 @@ const CmsPages = () => {
     try {
       setLoading(true);
       const res = await api.get('/settings');
-      if (res.data && res.data.success && res.data.data?.cms_pages) {
-        setPagesData({
-          ...DEFAULT_PAGE_DATA,
-          ...res.data.data.cms_pages
+      if (res.data && res.data.success) {
+        const d = res.data.data || {};
+        if (d.cms_pages) {
+          setPagesData({
+            ...DEFAULT_PAGE_DATA,
+            ...d.cms_pages
+          });
+        }
+        setContactDetails({
+          contact_phone: d.contact_phone || '+91 98765 43210',
+          contact_whatsapp: d.contact_whatsapp || d.contact_phone || '+91 98765 43210',
+          contact_email: d.contact_email || 'info@orderlymenswear.com',
+          support_hours: d.support_hours || 'Monday – Saturday: 10:00 AM – 7:00 PM IST',
+          contact_address: d.contact_address || 'ORDERLY 2.0, Valasaravakkam, Kundrathur, Chennai, Tamil Nadu, India'
         });
       }
     } catch (err) {
@@ -142,10 +164,21 @@ const CmsPages = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const res = await api.post('/settings', {
-        cms_pages: pagesData
+      const res = await api.put('/settings', {
+        cms_pages: pagesData,
+        ...contactDetails
       });
       if (res.data && res.data.success) {
+        // Instant sync in localStorage and custom event
+        try {
+          const cached = localStorage.getItem('orderly_site_settings');
+          const parsed = cached ? JSON.parse(cached) : {};
+          parsed.cms_pages = pagesData;
+          Object.assign(parsed, contactDetails);
+          localStorage.setItem('orderly_site_settings', JSON.stringify(parsed));
+          window.dispatchEvent(new CustomEvent('orderly_settings_updated'));
+        } catch {}
+
         toast.success('CMS Pages saved and published successfully!');
       } else {
         toast.error(res.data?.message || 'Failed to save CMS settings');
@@ -315,6 +348,84 @@ const CmsPages = () => {
               )}
             </div>
           </div>
+
+          {/* CONTACT TAB EXCLUSIVE: ORDERLY VIP CONCIERGE DESK SETTINGS */}
+          {activeTab === 'contact' && (
+            <div className="admin-card-white p-4 mb-4 rounded-3 border">
+              <h5 className="section-subtitle mb-3 d-flex align-items-center gap-2 text-dark font-weight-bold">
+                <FiPhone className="text-danger" /> ORDERLY VIP Concierge Desk Settings
+              </h5>
+              <p className="small text-muted mb-3">
+                Manage live contact details displayed on the VIP Concierge Desk section of the website Contact page.
+              </p>
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label className="admin-form-label d-flex align-items-center gap-1">
+                    <FiPhone /> Direct Phone Concierge
+                  </label>
+                  <input
+                    type="text"
+                    className="admin-input"
+                    value={contactDetails.contact_phone}
+                    onChange={(e) => setContactDetails(p => ({ ...p, contact_phone: e.target.value }))}
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+
+                <div className="col-md-6">
+                  <label className="admin-form-label d-flex align-items-center gap-1">
+                    <FaWhatsapp className="text-success" /> WhatsApp VIP Support Number
+                  </label>
+                  <input
+                    type="text"
+                    className="admin-input"
+                    value={contactDetails.contact_whatsapp}
+                    onChange={(e) => setContactDetails(p => ({ ...p, contact_whatsapp: e.target.value }))}
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+
+                <div className="col-md-6">
+                  <label className="admin-form-label d-flex align-items-center gap-1">
+                    <FiMail /> VIP Support Email Address
+                  </label>
+                  <input
+                    type="email"
+                    className="admin-input"
+                    value={contactDetails.contact_email}
+                    onChange={(e) => setContactDetails(p => ({ ...p, contact_email: e.target.value }))}
+                    placeholder="info@orderlymenswear.com"
+                  />
+                </div>
+
+                <div className="col-md-6">
+                  <label className="admin-form-label d-flex align-items-center gap-1">
+                    <FiClock /> Concierge Support Timings / Hours
+                  </label>
+                  <input
+                    type="text"
+                    className="admin-input"
+                    value={contactDetails.support_hours}
+                    onChange={(e) => setContactDetails(p => ({ ...p, support_hours: e.target.value }))}
+                    placeholder="Monday – Saturday: 10:00 AM – 7:00 PM IST"
+                  />
+                </div>
+
+                <div className="col-12">
+                  <label className="admin-form-label d-flex align-items-center gap-1">
+                    <FiMapPin /> Corporate Head Office Address
+                  </label>
+                  <textarea
+                    rows="2"
+                    className="admin-textarea"
+                    value={contactDetails.contact_address}
+                    onChange={(e) => setContactDetails(p => ({ ...p, contact_address: e.target.value }))}
+                    placeholder="ORDERLY 2.0, Valasaravakkam, Kundrathur, Chennai, Tamil Nadu, India"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* WORDPAD-STYLE RICH CONTENT EDITABLE */}
           <div className="cms-editor-section">

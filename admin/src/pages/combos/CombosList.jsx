@@ -51,13 +51,13 @@ const CombosList = () => {
     setLoading(true);
     try {
       const [combosRes, productsRes, catsRes] = await Promise.all([
-        api.get('/combos?includeDeleted=true'),
+        api.get('/combos?all=true'),
         api.get('/products?all=true'),
         api.get('/categories?type=combo')
       ]);
 
       if (combosRes.data && combosRes.data.success && Array.isArray(combosRes.data.data)) {
-        setCombos(combosRes.data.data);
+        setCombos(combosRes.data.data.filter(c => !c.deleted));
       } else {
         setCombos([]);
       }
@@ -299,11 +299,12 @@ const CombosList = () => {
         const res = await api.delete(`/combos/${id}`);
         if (res.data && res.data.success) {
           toast.success(`Combo "${name}" removed from catalog.`);
+          setCombos(prev => prev.filter(c => String(c.id) !== String(id) && String(c.slug) !== String(id)));
           loadData();
           window.dispatchEvent(new CustomEvent('orderly_combos_updated'));
         }
       } catch (err) {
-        toast.error('Failed to delete combo.');
+        toast.error(err.response?.data?.message || 'Failed to delete combo.');
       }
     }
   };
@@ -377,6 +378,8 @@ const CombosList = () => {
 
   // Filter combos by search term, category & dropdown filters
   const filteredCombos = combos.filter(c => {
+    if (c.deleted) return false;
+
     const matchesSearch = 
       c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.badge?.toLowerCase().includes(searchTerm.toLowerCase()) ||

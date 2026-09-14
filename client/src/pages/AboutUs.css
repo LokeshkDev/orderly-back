@@ -18,9 +18,120 @@
   display: inline-block;
 }
 
+.about-story-eyebrow {
+  letter-spacing: 0.15em;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .about-hero-title {
   font-family: var(--font-heading, inherit);
   letter-spacing: -0.02em;
+}
+
+.about-story-title,
+.cms-rich-html-content h1,
+.cms-rich-html-content h2 {
+  font-family: var(--font-heading, inherit);
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin-top: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.cms-hero-banner {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* CMS Rich HTML Content within About Us */
+.cms-rich-html-content {
+  color: #94a3b8;
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.cms-rich-html-content h3 {
+  font-family: var(--font-heading, inherit);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f59e0b;
+  margin-top: 2rem;
+  margin-bottom: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.cms-rich-html-content h4,
+.cms-rich-html-content h5,
+.cms-rich-html-content h6 {
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.cms-rich-html-content p {
+  color: #94a3b8;
+  font-size: 1rem;
+  line-height: 1.8;
+  margin-bottom: 1.25rem;
+}
+
+.cms-rich-html-content p:first-of-type {
+  font-size: 1.125rem;
+  line-height: 1.85;
+  color: #cbd5e1;
+  font-weight: 400;
+}
+
+.cms-rich-html-content strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.cms-rich-html-content ul {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.cms-rich-html-content li {
+  position: relative;
+  padding-left: 1.75rem;
+  margin-bottom: 0.85rem;
+  color: #94a3b8;
+  line-height: 1.7;
+}
+
+.cms-rich-html-content li::before {
+  content: '✦';
+  position: absolute;
+  left: 0;
+  color: #f59e0b;
+  font-size: 0.85rem;
+  top: 1px;
+}
+
+.cms-rich-html-content a {
+  color: #f59e0b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+}
+
+.cms-rich-html-content a:hover {
+  color: #fbbf24;
 }
 
 .max-w-700 {

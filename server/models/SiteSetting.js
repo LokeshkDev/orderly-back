@@ -13,7 +13,7 @@ const SiteSetting = sequelize.define('SiteSetting', {
     unique: 'uq_sitesettings_setting_key',
   },
   setting_value: {
-    type: DataTypes.TEXT,
+    type: DataTypes.TEXT('long'),
     allowNull: true,
   },
   setting_type: {

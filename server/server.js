@@ -213,7 +213,7 @@ const startServer = async () => {
   }
   try {
     if (dbConnected) {
-      await sequelize.sync({ alter: true });
+      await sequelize.sync();
       console.log('✅ Database Schema Synced');
     } else {
       console.warn('⚠️ Skipping DB sync - no connection');

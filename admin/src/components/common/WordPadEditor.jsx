@@ -160,20 +160,11 @@ const WordPadEditor = ({
         setImageUrl(res.data.data.url);
         toast.success('Image uploaded successfully!');
       } else {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setImageUrl(e.target.result);
-          toast.success('Image attached!');
-        };
-        reader.readAsDataURL(file);
+        toast.error('Upload failed: ' + (res.data?.message || 'Storage rejected file'));
       }
     } catch (err) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImageUrl(e.target.result);
-        toast.success('Image attached locally!');
-      };
-      reader.readAsDataURL(file);
+      console.error('WordPad image upload error:', err);
+      toast.error('Upload failed: ' + (err.response?.data?.message || err.message || 'Network error'));
     } finally {
       setImageUploading(false);
     }

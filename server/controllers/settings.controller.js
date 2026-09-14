@@ -221,7 +221,9 @@ export const updateSettings = async (req, res) => {
             setting_value: value,
             setting_type: type
           });
-        } catch (err) {}
+        } catch (err) {
+          console.error('[Settings] Error upserting key:', item?.key, err?.message);
+        }
       }
     } else if (payload && typeof payload === 'object') {
       for (const [key, rawVal] of Object.entries(payload)) {
@@ -233,11 +235,14 @@ export const updateSettings = async (req, res) => {
             setting_value: value,
             setting_type: type
           });
-        } catch (err) {}
+        } catch (err) {
+          console.error('[Settings] Error upserting key:', key, err?.message);
+        }
       }
     }
     res.status(200).json({ success: true, message: 'Settings saved' });
   } catch (error) {
+    console.error('[Settings] bulkUpdateSettings error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

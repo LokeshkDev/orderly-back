@@ -118,59 +118,62 @@ const ContactUs = () => {
               </div>
 
               <div className="row g-4">
-                {settings?.contact_phone && (
-                  <div className="col-md-6 col-lg-3">
-                    <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
-                      <FiPhone className="fs-3 text-warning mb-2" />
-                      <h6 className="text-white mb-1">Direct Phone Concierge</h6>
-                      <a href={`tel:${settings.contact_phone}`} className="text-muted text-decoration-none small d-block">{settings.contact_phone}</a>
-                    </div>
+                <div className="col-md-6 col-lg-3">
+                  <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
+                    <FiPhone className="fs-3 text-warning mb-2" />
+                    <h6 className="text-white mb-1">Direct Phone Concierge</h6>
+                    <a href={`tel:${(settings?.contact_phone || '+91 98765 43210').replace(/[^0-9+]/g, '')}`} className="text-muted text-decoration-none small d-block">
+                      {settings?.contact_phone || '+91 98765 43210'}
+                    </a>
                   </div>
-                )}
+                </div>
 
-                {settings?.contact_whatsapp && (
-                  <div className="col-md-6 col-lg-3">
-                    <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
-                      <FaWhatsapp className="fs-3 text-success mb-2" />
-                      <h6 className="text-white mb-1">WhatsApp Instant Support</h6>
-                      <a href={`https://wa.me/${settings.contact_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-success text-decoration-none small fw-bold d-block">
-                        Chat on WhatsApp ({settings.contact_whatsapp})
-                      </a>
-                    </div>
+                <div className="col-md-6 col-lg-3">
+                  <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
+                    <FaWhatsapp className="fs-3 text-success mb-2" />
+                    <h6 className="text-white mb-1">WhatsApp Instant Support</h6>
+                    <a
+                      href={`https://wa.me/${(settings?.contact_whatsapp || settings?.contact_phone || '+919876543210').replace(/[^0-9]/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-success text-decoration-none small fw-bold d-block"
+                    >
+                      Chat on WhatsApp ({settings?.contact_whatsapp || settings?.contact_phone || '+91 98765 43210'})
+                    </a>
                   </div>
-                )}
+                </div>
 
-                {settings?.contact_email && (
-                  <div className="col-md-6 col-lg-3">
-                    <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
-                      <FiMail className="fs-3 text-danger mb-2" />
-                      <h6 className="text-white mb-1">VIP Support Email</h6>
-                      <a href={`mailto:${settings.contact_email}`} className="text-muted text-decoration-none small d-block">{settings.contact_email}</a>
-                    </div>
+                <div className="col-md-6 col-lg-3">
+                  <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
+                    <FiMail className="fs-3 text-danger mb-2" />
+                    <h6 className="text-white mb-1">VIP Support Email</h6>
+                    <a href={`mailto:${settings?.contact_email || 'info@orderlymenswear.com'}`} className="text-muted text-decoration-none small d-block">
+                      {settings?.contact_email || 'info@orderlymenswear.com'}
+                    </a>
                   </div>
-                )}
+                </div>
 
-                {settings?.support_hours && (
-                  <div className="col-md-6 col-lg-3">
-                    <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
-                      <FiClock className="fs-3 text-warning mb-2" />
-                      <h6 className="text-white mb-1">Concierge Operating Hours</h6>
-                      <p className="text-muted small mb-0">{settings.support_hours}</p>
-                    </div>
+                <div className="col-md-6 col-lg-3">
+                  <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
+                    <FiClock className="fs-3 text-warning mb-2" />
+                    <h6 className="text-white mb-1">Concierge Operating Hours</h6>
+                    <p className="text-muted small mb-0">
+                      {settings?.support_hours || 'Monday – Saturday: 10:00 AM – 7:00 PM IST'}
+                    </p>
                   </div>
-                )}
+                </div>
 
-                {settings?.contact_address && (
-                  <div className="col-12 mt-3">
-                    <div className="p-3 rounded-2 bg-dark bg-opacity-50 border border-secondary d-flex align-items-start gap-3">
-                      <FiMapPin className="fs-3 text-danger mt-1 flex-shrink-0" />
-                      <div>
-                        <h6 className="text-white mb-1">Corporate Headquarters</h6>
-                        <p className="text-muted small mb-0">{settings.contact_address}</p>
-                      </div>
+                <div className="col-12 mt-3">
+                  <div className="p-3 rounded-2 bg-dark bg-opacity-50 border border-secondary d-flex align-items-start gap-3">
+                    <FiMapPin className="fs-3 text-danger mt-1 flex-shrink-0" />
+                    <div>
+                      <h6 className="text-white mb-1">Corporate Headquarters</h6>
+                      <p className="text-muted small mb-0">
+                        {settings?.contact_address || 'ORDERLY 2.0, Valasaravakkam, Kundrathur, Chennai, Tamil Nadu, India'}
+                      </p>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>

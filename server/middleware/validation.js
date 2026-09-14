@@ -2,17 +2,35 @@ import { body, query, param, validationResult } from 'express-validator';
 import DOMPurify from 'isomorphic-dompurify';
 
 export const sanitizeInput = (req, res, next) => {
-  const sanitize = (obj) => {
+  // If editing settings or CMS pages, allow rich-text HTML formatting tags
+  const isSettingsOrCms = req.originalUrl && (req.originalUrl.includes('/settings') || req.originalUrl.includes('/cms'));
+
+  const sanitize = (obj, keyName = '') => {
     if (typeof obj === 'string') {
+      if (isSettingsOrCms || keyName === 'content_html' || keyName === 'cms_pages' || keyName === 'description') {
+        return DOMPurify.sanitize(obj, {
+          ALLOWED_TAGS: [
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'hr',
+            'b', 'strong', 'i', 'em', 'u', 'del', 's', 'strike',
+            'ul', 'ol', 'li', 'span', 'div', 'font',
+            'a', 'img', 'figure', 'figcaption', 'blockquote', 'pre', 'code',
+            'table', 'thead', 'tbody', 'tr', 'th', 'td'
+          ],
+          ALLOWED_ATTR: [
+            'href', 'src', 'alt', 'title', 'target', 'rel', 'class',
+            'style', 'color', 'size', 'face', 'align', 'width', 'height', 'border'
+          ]
+        });
+      }
       return DOMPurify.sanitize(obj, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
     }
     if (Array.isArray(obj)) {
-      return obj.map(sanitize);
+      return obj.map(item => sanitize(item, keyName));
     }
     if (obj && typeof obj === 'object') {
       const sanitized = {};
       for (const [key, value] of Object.entries(obj)) {
-        sanitized[key] = sanitize(value);
+        sanitized[key] = sanitize(value, key);
       }
       return sanitized;
     }

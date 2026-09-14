@@ -5,7 +5,14 @@ import { getSettings } from '../services/api';
 import './AboutUs.css';
 
 const AboutUs = () => {
-  const [settings, setSettings] = useState(null);
+  const [settings, setSettings] = useState(() => {
+    try {
+      const cached = localStorage.getItem('orderly_site_settings');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
     let active = true;
@@ -31,6 +38,81 @@ const AboutUs = () => {
   const bannerImage = cmsAbout.banner_image;
   const featuredImage = cmsAbout.featured_image || settings?.about_us_image;
   const contentHtml = cmsAbout.content_html;
+
+  const formatContentHtml = (html) => {
+    if (!html) return '';
+    let cleaned = html.trim();
+
+    // If it already has rich HTML markup (h1-h6, p, ul, ol, table, etc.), preserve user's formatting directly
+    const hasRichMarkup = /<\s*(?:h[1-6]|p|ul|ol|table|blockquote)\b[^>]*>/i.test(cleaned);
+    if (hasRichMarkup) {
+      cleaned = cleaned.replace(/Compromis(?:e)?([A-Z])/g, 'Compromise $1');
+      return cleaned;
+    }
+
+    // Otherwise, parse raw/unformatted text as per the atelier story design:
+    cleaned = cleaned.replace(/Compromis(?:e)?([A-Z])/g, 'Compromise $1');
+    cleaned = cleaned.replace(/testing\.Inspired/g, 'testing. Inspired');
+    cleaned = cleaned.replace(/sophistication\.Our/g, 'sophistication. Our');
+    cleaned = cleaned.replace(/PillarsPure/g, 'Pillars: Pure');
+    cleaned = cleaned.replace(/blends\.Artisanal/g, 'blends. Artisanal');
+    cleaned = cleaned.replace(/seams\.Modern/g, 'seams. Modern');
+
+    if (/Our Core Pillars/i.test(cleaned)) {
+      const [introPart, pillarsPart] = cleaned.split(/Our Core Pillars:?/i);
+      
+      let formattedIntro = '';
+      let remainingIntro = introPart.trim();
+      const titleMatch = remainingIntro.match(/^(Craftsmanship Without Compromise|[^.\n]{10,60})/i);
+      if (titleMatch) {
+        formattedIntro += `<h2>${titleMatch[1].trim()}</h2>`;
+        remainingIntro = remainingIntro.substring(titleMatch[1].length).trim();
+      }
+
+      const introSentences = remainingIntro.split(/(?<=\.)\s+/).filter(Boolean);
+      if (introSentences.length > 0) {
+        if (introSentences.length >= 2) {
+          const mid = Math.ceil(introSentences.length / 2);
+          formattedIntro += `<p>${introSentences.slice(0, mid).join(' ')}</p>`;
+          formattedIntro += `<p>${introSentences.slice(mid).join(' ')}</p>`;
+        } else {
+          formattedIntro += `<p>${remainingIntro}</p>`;
+        }
+      }
+
+      let formattedPillars = '<h3>Our Core Pillars</h3><ul>';
+      const pillarItems = (pillarsPart || '')
+        .split(/(?:Pure Luxury Fabrics:|Artisanal Tailoring:|Modern Elegance:)/i)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const pillarTitles = ['Pure Luxury Fabrics', 'Artisanal Tailoring', 'Modern Elegance'];
+      if (pillarItems.length > 0) {
+        pillarItems.forEach((item, idx) => {
+          const pTitle = pillarTitles[idx] || 'Pillar';
+          formattedPillars += `<li><strong>${pTitle}:</strong> ${item.replace(/^\s*:\s*/, '')}</li>`;
+        });
+      } else {
+        formattedPillars += `<li>${pillarsPart}</li>`;
+      }
+      formattedPillars += '</ul>';
+
+      return formattedIntro + formattedPillars;
+    }
+
+    const parts = cleaned.split(/\n\n+/).filter(Boolean);
+    return parts.map((part, idx) => {
+      if (idx === 0 && part.length < 80) {
+        return `<h2>${part}</h2>`;
+      }
+      return `<p>${part}</p>`;
+    }).join('');
+  };
+
+  const cleanHtml = formatContentHtml(contentHtml);
+  const hasHeading = cleanHtml && /<\s*h[12][^>]*>/i.test(cleanHtml);
+  const hasEyebrow = cleanHtml && /the atelier story/i.test(cleanHtml);
+  const defaultStoryTitle = settings?.about_us_title || 'Craftsmanship Without Compromise';
 
   return (
     <>
@@ -91,16 +173,28 @@ const AboutUs = () => {
             </div>
 
             <div className="col-lg-7 fade-in-right">
-              {contentHtml ? (
-                <div
-                  className="cms-rich-html-content"
-                  dangerouslySetInnerHTML={{ __html: contentHtml }}
-                />
+              {!hasEyebrow && (
+                <span className="text-warning fw-bold text-uppercase about-story-eyebrow d-inline-block mb-2">
+                  THE ATELIER STORY
+                </span>
+              )}
+
+              {cleanHtml ? (
+                <>
+                  {!hasHeading && (
+                    <h2 className="about-story-title text-white fw-extrabold fs-1 mt-1 mb-4">
+                      {defaultStoryTitle}
+                    </h2>
+                  )}
+                  <div
+                    className="cms-rich-html-content"
+                    dangerouslySetInnerHTML={{ __html: cleanHtml }}
+                  />
+                </>
               ) : (
                 <>
-                  <span className="text-warning fw-bold text-uppercase letter-spacing-2 small">THE ATELIER STORY</span>
-                  <h2 className="text-white fw-extrabold fs-1 mt-1 mb-4">
-                    {settings?.about_us_title || 'Craftsmanship Without Compromise'}
+                  <h2 className="about-story-title text-white fw-extrabold fs-1 mt-1 mb-4">
+                    {defaultStoryTitle}
                   </h2>
                   <p className="about-body-p lead text-muted mb-4">
                     {settings?.about_us_text_1 || 'At ORDERLY, we believe that true luxury lies in the details — from the single-needle stitching on our 100% European linen shirts to the custom horn buttons on our double-breasted blazers.'}

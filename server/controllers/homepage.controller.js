@@ -34,38 +34,38 @@ export const HOMEPAGE_SECTION_DEFAULTS = [
     display_order: 4
   },
   {
+    section_key: 'video_banner',
+    title: 'Video Campaign Section',
+    subtitle: 'EXPERIENCE THE CRAFT',
+    is_visible: true,
+    display_order: 5
+  },
+  {
     section_key: 'trending_arrivals',
     title: 'BEST SELLING PRODUCTS',
     subtitle: 'TRENDING NOW',
     is_visible: true,
-    display_order: 5
+    display_order: 6
   },
   {
     section_key: 'promo_offers',
     title: 'Promotional Offers Area',
     subtitle: 'Combo offers, 50% Off banner, New arrivals',
     is_visible: true,
-    display_order: 6
+    display_order: 7
   },
   {
     section_key: 'lookbook_banner',
     title: 'The Lookbook Editorial',
     subtitle: 'Large luxury editorial campaign banner',
     is_visible: true,
-    display_order: 7
+    display_order: 8
   },
   {
     section_key: 'newsletter_section',
     title: 'Newsletter VIP Club',
     subtitle: 'STAY IN THE LOOP',
     is_visible: true,
-    display_order: 8
-  },
-  {
-    section_key: 'video_banner',
-    title: 'Video Campaign Banner',
-    subtitle: 'Homepage video campaign',
-    is_visible: false,
     display_order: 9
   },
   {

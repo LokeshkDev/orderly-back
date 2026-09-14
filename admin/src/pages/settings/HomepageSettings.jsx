@@ -5,7 +5,7 @@ import {
   FiEye, FiEyeOff, FiArrowUp, FiArrowDown, FiLayers, FiSliders, FiFilm,
   FiVolume2, FiShare2, FiCheck, FiSearch, FiGlobe, FiInstagram, FiFacebook, FiYoutube,
   FiShoppingBag, FiTruck, FiRotateCcw, FiShield, FiHeadphones, FiExternalLink, FiSettings, FiTag, FiGift, FiFileText,
-  FiMonitor, FiSmartphone, FiX, FiTrendingUp, FiZap
+  FiMonitor, FiSmartphone, FiX, FiTrendingUp, FiZap, FiPlay
 } from 'react-icons/fi';
 import { FaWhatsapp, FaTwitter, FaPinterest } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -13,7 +13,7 @@ import api from '../../services/api.js';
 import Modal from '../../components/common/Modal';
 import FileUploadInput from '../../components/common/FileUploadInput';
 import StatusBadge from '../../components/common/StatusBadge';
-import { getYouTubeThumbnail } from '../../utils/videoUtils';
+import { getYouTubeThumbnail, getYouTubeVideoId } from '../../utils/videoUtils';
 import './HomepageSettings.css';
 
 const DEFAULT_SECTIONS = [
@@ -21,11 +21,11 @@ const DEFAULT_SECTIONS = [
   { section_key: 'trust_features', title: 'Trust & Service Features Bar', subtitle: 'Free Shipping, Easy Returns, Premium Quality & Support', is_visible: true, display_order: 2 },
   { section_key: 'shop_by_category', title: 'Shop by Category (Collections)', subtitle: 'Discover Your Style categories grid', is_visible: true, display_order: 3 },
   { section_key: 'combo_categories', title: 'Shop by Combo Category', subtitle: 'Curated combo category grid', is_visible: true, display_order: 4 },
-  { section_key: 'trending_arrivals', title: 'Best Selling Products', subtitle: 'Handpicked products grid', is_visible: true, display_order: 5 },
-  { section_key: 'promo_offers', title: 'Promotional Offers (3 Blocks)', subtitle: 'Combo offers, 50% Off banner, New arrivals', is_visible: true, display_order: 6 },
-  { section_key: 'lookbook_banner', title: 'The Lookbook Editorial', subtitle: 'Large luxury editorial campaign banner', is_visible: true, display_order: 7 },
-  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', subtitle: 'Email subscription CTA banner', is_visible: true, display_order: 8 },
-  { section_key: 'video_banner', title: 'Video Campaign Showcase', subtitle: 'Brand film carousel', is_visible: false, display_order: 9 },
+  { section_key: 'video_banner', title: 'Video Campaign Section', subtitle: 'YouTube Brand Video Showcase', is_visible: true, display_order: 5 },
+  { section_key: 'trending_arrivals', title: 'Best Selling Products', subtitle: 'Handpicked products grid', is_visible: true, display_order: 6 },
+  { section_key: 'promo_offers', title: 'Promotional Offers (3 Blocks)', subtitle: 'Combo offers, 50% Off banner, New arrivals', is_visible: true, display_order: 7 },
+  { section_key: 'lookbook_banner', title: 'The Lookbook Editorial', subtitle: 'Large luxury editorial campaign banner', is_visible: true, display_order: 8 },
+  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', subtitle: 'Email subscription CTA banner', is_visible: true, display_order: 9 },
   { section_key: 'shop_by_occasion', title: 'Shop By Occasion', subtitle: 'Occasion-based shopping grid', is_visible: false, display_order: 10 },
   { section_key: 'featured_brands', title: 'Catchy Combo Bundles', subtitle: 'Multi-piece bundle deals', is_visible: false, display_order: 11 }
 ];
@@ -192,6 +192,18 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
     }
   });
 
+  // Video Banner Section State
+  const [videoBannerConfig, setVideoBannerConfig] = useState({
+    enabled: true,
+    youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    autoplay: false,
+    title: 'EXPERIENCE THE CRAFT',
+    subtitle: 'CAMPAIGN FILM',
+    description: "A cinematic glimpse into Orderly's signature tailoring, precision cuts, and refined luxury textures.",
+    cover_image: '',
+    badge_text: 'EXCLUSIVE PREVIEW'
+  });
+
   // Global Settings State
   const [globalSettings, setGlobalSettings] = useState({
     primaryColor: '#050505',
@@ -289,6 +301,14 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
           }));
         }
 
+        if (st.video_banner_config) {
+          setVideoBannerConfig(prev => ({ ...prev, ...st.video_banner_config }));
+          setSections(prev => prev.map(s => s.section_key === 'video_banner' ? {
+            ...s,
+            title: st.video_banner_config.title || s.title,
+            subtitle: st.video_banner_config.subtitle || s.subtitle
+          } : s));
+        }
         if (st.promotions_config) setPromotionsConfig(prev => ({ ...prev, ...st.promotions_config }));
         if (st.lookbook_config) setLookbookConfig(prev => ({ ...prev, ...st.lookbook_config }));
         if (st.newsletter_config) setNewsletterConfig(prev => ({ ...prev, ...st.newsletter_config }));
@@ -310,49 +330,48 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
     const listKey = isBs ? 'selectedBestsellers' : 'selectedNewArrivals';
     const currentList = Array.isArray(bestSellersConfig[listKey]) ? bestSellersConfig[listKey] : [];
     const isCurrentlyActive = currentList.includes(productId);
-    const nextList = isCurrentlyActive 
-      ? currentList.filter(id => id !== productId) 
+
+    // Optimistic UI state update
+    const updatedList = isCurrentlyActive 
+      ? currentList.filter(id => id !== productId)
       : [...currentList, productId];
 
     setBestSellersConfig(prev => ({
       ...prev,
-      [listKey]: nextList
+      [listKey]: updatedList
     }));
 
-    // Directly sync the product flag in MySQL DB
+    // Sync product record flag in DB
+    const flagKey = isBs ? 'is_bestseller' : 'is_new_arrival';
     try {
-      const flagKey = isBs ? 'is_bestseller' : 'is_new_arrival';
       await api.put(`/products/${productId}`, { [flagKey]: !isCurrentlyActive });
       setDbProducts(prev => prev.map(p => p.id === productId ? { ...p, [flagKey]: !isCurrentlyActive } : p));
-      toast.success(`Product ${!isCurrentlyActive ? 'added to' : 'removed from'} ${isBs ? 'Best Sellers' : 'New Arrivals'}`);
-    } catch (e) {
-      console.warn('Product flag sync note:', e);
+      toast.success(`${isCurrentlyActive ? 'Removed from' : 'Added to'} ${isBs ? 'Best Sellers' : 'New Arrivals'}`);
+    } catch (err) {
+      toast.error('Failed to update product status');
     }
   };
+
+  const filteredTrendingProducts = dbProducts.filter(p => {
+    const matchesSearch = !trendingSearch || p.name.toLowerCase().includes(trendingSearch.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(trendingSearch.toLowerCase()));
+    const matchesCat = trendingCategoryFilter === 'All' || p.category === trendingCategoryFilter;
+    return matchesSearch && matchesCat;
+  });
 
   // Bulk toggle for current filtered view
   const handleBulkToggle = (sectionType, turnOn) => {
     const isBs = sectionType === 'bestsellers';
     const listKey = isBs ? 'selectedBestsellers' : 'selectedNewArrivals';
-    const targetProducts = dbProducts.filter(p => {
-      const matchesSearch = !trendingSearch || p.name.toLowerCase().includes(trendingSearch.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(trendingSearch.toLowerCase()));
-      const matchesCat = trendingCategoryFilter === 'All' || p.category === trendingCategoryFilter;
-      return matchesSearch && matchesCat;
+    const targetIds = filteredTrendingProducts.map(p => p.id);
+    if (targetIds.length === 0) return;
+
+    setBestSellersConfig(prev => {
+      const existing = prev[listKey] || [];
+      const updated = turnOn 
+        ? Array.from(new Set([...existing, ...targetIds]))
+        : existing.filter(id => !targetIds.includes(id));
+      return { ...prev, [listKey]: updated };
     });
-
-    const targetIds = targetProducts.map(p => p.id);
-    const currentList = Array.isArray(bestSellersConfig[listKey]) ? bestSellersConfig[listKey] : [];
-    let nextList;
-    if (turnOn) {
-      nextList = Array.from(new Set([...currentList, ...targetIds]));
-    } else {
-      nextList = currentList.filter(id => !targetIds.includes(id));
-    }
-
-    setBestSellersConfig(prev => ({
-      ...prev,
-      [listKey]: nextList
-    }));
 
     // Sync DB flags in background
     const flagKey = isBs ? 'is_bestseller' : 'is_new_arrival';
@@ -368,14 +387,25 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
   const handlePublishHomepage = async () => {
     setSavingAll(true);
     try {
-      // 1. Save Section Order & Visibility
-      const sectionsPayload = sections.map((s, idx) => ({
-        section_key: s.section_key,
-        title: s.title,
-        subtitle: s.subtitle,
-        is_visible: s.is_visible !== false,
-        display_order: idx + 1
-      }));
+      // 1. Save Section Order & Visibility with synced video banner titles
+      const sectionsPayload = sections.map((s, idx) => {
+        if (s.section_key === 'video_banner') {
+          return {
+            section_key: s.section_key,
+            title: videoBannerConfig.title || s.title || 'Video Campaign Section',
+            subtitle: videoBannerConfig.subtitle || s.subtitle || 'CAMPAIGN FILM',
+            is_visible: s.is_visible !== false,
+            display_order: idx + 1
+          };
+        }
+        return {
+          section_key: s.section_key,
+          title: s.title,
+          subtitle: s.subtitle,
+          is_visible: s.is_visible !== false,
+          display_order: idx + 1
+        };
+      });
       await api.put('/homepage/sections', sectionsPayload);
 
       // 2. Save JSON Configurations into SiteSetting DB Table
@@ -383,6 +413,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         announcement_config: announcementConfig,
         service_features: serviceFeatures,
         collections_config: collectionsConfig,
+        video_banner_config: videoBannerConfig,
         best_sellers_config: bestSellersConfig,
         trending_arrivals_config: bestSellersConfig,
         promotions_config: promotionsConfig,
@@ -605,6 +636,9 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         </button>
         <button className={`admin-tab-btn ${activeTab === 'collections' ? 'active' : ''}`} onClick={() => handleTabChange('collections')}>
           <FiGrid /> Collections Grid
+        </button>
+        <button className={`admin-tab-btn ${activeTab === 'video' ? 'active' : ''}`} onClick={() => handleTabChange('video')}>
+          <FiVideo /> Video Section
         </button>
         <button className={`admin-tab-btn ${activeTab === 'best_sellers' ? 'active' : ''}`} onClick={() => handleTabChange('best_sellers')}>
           <FiTrendingUp /> Trending & New Arrivals
@@ -1126,6 +1160,205 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
             <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
               <FiCheck /> Save & Publish Collections
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: VIDEO CAMPAIGN SECTION (BEFORE TRENDING NOW) */}
+      {activeTab === 'video' && (
+        <div className="admin-card-white p-4">
+          <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3 flex-wrap gap-2">
+            <div>
+              <h4 className="fw-bold text-dark mb-1">Video Campaign Section</h4>
+              <p className="text-muted small mb-0">Configure your homepage brand video, YouTube link, autoplay toggle, poster image, and headlines.</p>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <span className="badge bg-light text-dark border px-3 py-2">
+                Positioned directly before <strong>TRENDING NOW</strong>
+              </span>
+            </div>
+          </div>
+
+          <div className="row g-4">
+            {/* Left Column: Form Controls */}
+            <div className="col-lg-7">
+              {/* Autoplay & Section Enable Card */}
+              <div className="card border-0 bg-light p-3 mb-4 rounded-3">
+                <div className="d-flex align-items-center justify-content-between">
+                  <div>
+                    <h6 className="fw-bold mb-1 text-dark">Autoplay Video on Page Load</h6>
+                    <p className="text-muted small mb-0">
+                      When enabled, the video automatically plays in muted loop mode when customers load the homepage. Customers can click to unmute.
+                    </p>
+                  </div>
+                  <div className="form-check form-switch fs-4 mb-0">
+                    <input 
+                      type="checkbox" 
+                      className="form-check-input"
+                      role="switch"
+                      id="videoAutoplaySwitch"
+                      checked={Boolean(videoBannerConfig.autoplay)}
+                      onChange={(e) => setVideoBannerConfig(prev => ({ ...prev, autoplay: e.target.checked }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* YouTube Link Field */}
+              <div className="mb-3">
+                <label className="admin-form-label fw-bold">
+                  YouTube Video Link <span className="text-danger">*</span>
+                </label>
+                <div className="input-group">
+                  <span className="input-group-text bg-white text-danger">
+                    <FiYoutube />
+                  </span>
+                  <input 
+                    type="text" 
+                    className="admin-input form-control"
+                    placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/..."
+                    value={videoBannerConfig.youtube_url || ''}
+                    onChange={(e) => setVideoBannerConfig(prev => ({ ...prev, youtube_url: e.target.value }))}
+                  />
+                </div>
+                <div className="d-flex align-items-center justify-content-between mt-1">
+                  <span className="form-text text-muted extra-small">
+                    Supports YouTube standard URLs, youtu.be short links, and Shorts URLs.
+                  </span>
+                  {videoBannerConfig.youtube_url && (
+                    <span className={`badge ${getYouTubeVideoId(videoBannerConfig.youtube_url) ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'} small`}>
+                      {getYouTubeVideoId(videoBannerConfig.youtube_url) ? `✓ ID: ${getYouTubeVideoId(videoBannerConfig.youtube_url)}` : '⚠ Invalid YouTube URL'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Title & Subtitle */}
+              <div className="row g-3 mb-3">
+                <div className="col-md-6">
+                  <label className="admin-form-label">Section Tagline / Subtitle</label>
+                  <input 
+                    type="text" 
+                    className="admin-input"
+                    placeholder="e.g. CAMPAIGN FILM"
+                    value={videoBannerConfig.subtitle || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setVideoBannerConfig(prev => ({ ...prev, subtitle: val }));
+                      setSections(prev => prev.map(s => s.section_key === 'video_banner' ? { ...s, subtitle: val } : s));
+                    }}
+                  />
+                </div>
+
+                <div className="col-md-6">
+                  <label className="admin-form-label">Section Main Title</label>
+                  <input 
+                    type="text" 
+                    className="admin-input"
+                    placeholder="e.g. EXPERIENCE THE CRAFT"
+                    value={videoBannerConfig.title || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setVideoBannerConfig(prev => ({ ...prev, title: val }));
+                      setSections(prev => prev.map(s => s.section_key === 'video_banner' ? { ...s, title: val } : s));
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="mb-3">
+                <label className="admin-form-label">Campaign Description (Optional)</label>
+                <textarea 
+                  rows={2}
+                  className="admin-input"
+                  placeholder="A brief editorial caption describing the campaign film..."
+                  value={videoBannerConfig.description || ''}
+                  onChange={(e) => setVideoBannerConfig(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+
+              {/* Cover Image Upload */}
+              <div className="mb-3">
+                <FileUploadInput 
+                  value={videoBannerConfig.cover_image || ''} 
+                  onChange={(url) => setVideoBannerConfig(prev => ({ ...prev, cover_image: url }))} 
+                  type="image" 
+                  folder="videos" 
+                  label="Custom Video Poster / Thumbnail (Optional)" 
+                  placeholder="Upload high-res poster image or leave empty for YouTube thumbnail..." 
+                />
+                <span className="form-text text-muted extra-small">
+                  If left blank, the system automatically pulls the maximum-resolution official YouTube thumbnail.
+                </span>
+              </div>
+            </div>
+
+            {/* Right Column: Live Interactive Preview */}
+            <div className="col-lg-5">
+              <div className="border rounded-3 p-3 bg-dark text-white shadow-sm">
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <span className="badge bg-danger small">HOMEPAGE LIVE PREVIEW</span>
+                  <span className="text-secondary small">
+                    {videoBannerConfig.autoplay ? 'Mode: Autoplay (Muted)' : 'Mode: Play Button'}
+                  </span>
+                </div>
+
+                {/* Video Card Preview */}
+                <div className="position-relative rounded-3 overflow-hidden bg-black ratio ratio-16x9 shadow-lg">
+                  {videoBannerConfig.autoplay && getYouTubeVideoId(videoBannerConfig.youtube_url) ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${getYouTubeVideoId(videoBannerConfig.youtube_url)}?autoplay=1&mute=1&loop=1&playlist=${getYouTubeVideoId(videoBannerConfig.youtube_url)}&controls=1`}
+                      title="Video Preview"
+                      className="w-100 h-100 border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <>
+                      <img 
+                        src={videoBannerConfig.cover_image || getYouTubeThumbnail(videoBannerConfig.youtube_url, 'maxresdefault') || getYouTubeThumbnail(videoBannerConfig.youtube_url, 'hqdefault') || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1200'} 
+                        alt="Preview Poster"
+                        className="w-100 h-100 object-fit-cover"
+                        onError={(e) => {
+                          const hq = getYouTubeThumbnail(videoBannerConfig.youtube_url, 'hqdefault');
+                          if (hq && e.currentTarget.src !== hq) {
+                            e.currentTarget.src = hq;
+                          }
+                        }}
+                      />
+                      <div className="position-absolute top-0 start-0 w-100 h-100 bg-black bg-opacity-40 d-flex flex-column align-items-center justify-content-center">
+                        <div className="rounded-circle bg-white bg-opacity-25 border border-white border-2 text-white shadow-lg d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>
+                          <FiPlay size={24} style={{ marginLeft: '3px' }} />
+                        </div>
+                        <span className="mt-2 text-white extra-small fw-semibold letter-spacing-1">CLICK TO PLAY</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="text-center mt-3">
+                  <span className="text-danger text-uppercase fw-semibold" style={{ fontSize: '0.75rem', letterSpacing: '0.08em' }}>
+                    {videoBannerConfig.subtitle || 'CAMPAIGN FILM'}
+                  </span>
+                  <h6 className="fw-bold text-white mb-1">
+                    {videoBannerConfig.title || 'EXPERIENCE THE CRAFT'}
+                  </h6>
+                  {videoBannerConfig.description && (
+                    <p className="text-secondary small mb-0">
+                      {videoBannerConfig.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Video Section
+            </button>
+            <span className="text-muted small">Changes will reflect immediately across desktop & mobile homepage.</span>
           </div>
         </div>
       )}

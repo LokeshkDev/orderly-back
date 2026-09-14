@@ -20,11 +20,11 @@ const DEFAULT_HOMEPAGE_SECTIONS = [
   { section_key: 'trust_features', title: 'Trust & Service Features Bar', is_visible: true, display_order: 2 },
   { section_key: 'shop_by_category', title: 'DISCOVER YOUR STYLE', is_visible: true, display_order: 3 },
   { section_key: 'combo_categories', title: 'EXPLORE COMBO CATEGORIES', is_visible: true, display_order: 4 },
-  { section_key: 'trending_arrivals', title: 'BEST SELLING PRODUCTS', is_visible: true, display_order: 5 },
-  { section_key: 'promo_offers', title: 'Promotional Offers', is_visible: true, display_order: 6 },
-  { section_key: 'lookbook_banner', title: 'The Lookbook 2026', is_visible: true, display_order: 7 },
-  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', is_visible: true, display_order: 8 },
-  { section_key: 'video_banner', title: 'Video Banner', is_visible: false, display_order: 9 },
+  { section_key: 'video_banner', title: 'Campaign Video', subtitle: 'EXPERIENCE THE CRAFT', is_visible: true, display_order: 5 },
+  { section_key: 'trending_arrivals', title: 'BEST SELLING PRODUCTS', is_visible: true, display_order: 6 },
+  { section_key: 'promo_offers', title: 'Promotional Offers', is_visible: true, display_order: 7 },
+  { section_key: 'lookbook_banner', title: 'The Lookbook 2026', is_visible: true, display_order: 8 },
+  { section_key: 'newsletter_section', title: 'Newsletter VIP Club', is_visible: true, display_order: 9 },
   { section_key: 'shop_by_occasion', title: 'Shop by Occasion', is_visible: false, display_order: 10 },
   { section_key: 'featured_brands', title: 'Catchy Combo Bundles', is_visible: false, display_order: 11 }
 ];

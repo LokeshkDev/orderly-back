@@ -161,7 +161,17 @@ const DEFAULT_SETTINGS = {
   pair_offer_enabled: 'true',
   pair_offer_discount_percent: '25',
   pair_offer_min_products: '2',
-  pair_offer_settings: DEFAULT_PAIR_OFFER_SETTINGS
+  pair_offer_settings: DEFAULT_PAIR_OFFER_SETTINGS,
+  video_banner_config: {
+    enabled: true,
+    youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    autoplay: false,
+    title: 'EXPERIENCE THE CRAFT',
+    subtitle: 'CAMPAIGN FILM',
+    description: "A cinematic glimpse into Orderly's signature tailoring, precision cuts, and refined luxury textures.",
+    cover_image: '',
+    badge_text: 'EXCLUSIVE PREVIEW'
+  }
 };
 
 const parseValue = (row) => {

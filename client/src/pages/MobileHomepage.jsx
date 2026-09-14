@@ -11,6 +11,7 @@ import MobileLookbook from '../components/home/MobileLookbook';
 import MobileNewsletter from '../components/home/MobileNewsletter';
 import MobileFooterAccordion from '../components/common/MobileFooterAccordion';
 import BottomNavbar from '../components/common/BottomNavbar';
+import VideoBannerSection from '../components/home/VideoBannerSection';
 import { getHomepageSections } from '../services/api';
 import '../styles/MobileHomepage.css';
 
@@ -19,10 +20,11 @@ const DEFAULT_MOBILE_SECTIONS = [
   { section_key: 'trust_features', is_visible: true, display_order: 2 },
   { section_key: 'shop_by_category', is_visible: true, display_order: 3 },
   { section_key: 'combo_categories', is_visible: true, display_order: 4 },
-  { section_key: 'trending_arrivals', is_visible: true, display_order: 5 },
-  { section_key: 'promo_offers', is_visible: true, display_order: 6 },
-  { section_key: 'lookbook_banner', is_visible: true, display_order: 7 },
-  { section_key: 'newsletter_section', is_visible: true, display_order: 8 }
+  { section_key: 'video_banner', is_visible: true, display_order: 5 },
+  { section_key: 'trending_arrivals', is_visible: true, display_order: 6 },
+  { section_key: 'promo_offers', is_visible: true, display_order: 7 },
+  { section_key: 'lookbook_banner', is_visible: true, display_order: 8 },
+  { section_key: 'newsletter_section', is_visible: true, display_order: 9 }
 ];
 
 const MobileHomepage = () => {
@@ -68,6 +70,8 @@ const MobileHomepage = () => {
         return <MobileCategories key={sec.section_key} title={sec.title} subtitle={sec.subtitle} />;
       case 'combo_categories':
         return <div key={sec.section_key} className="orderly-deferred-section"><MobileComboCategories key={sec.section_key} title={sec.title} subtitle={sec.subtitle} /></div>;
+      case 'video_banner':
+        return <div key={sec.section_key} className="orderly-deferred-section"><VideoBannerSection title={sec.title} subtitle={sec.subtitle} /></div>;
       case 'trending_arrivals':
         return <div key={sec.section_key} className="orderly-deferred-section"><MobileProductGrid /></div>;
       case 'promo_offers':

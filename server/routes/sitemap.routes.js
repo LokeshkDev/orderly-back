@@ -34,7 +34,9 @@ router.get(['/sitemap.xml', '/sitemap'], async (req, res) => {
       { url: '/about', priority: '0.5', changefreq: 'monthly' },
       { url: '/contact', priority: '0.5', changefreq: 'monthly' },
       { url: '/shipping-policy', priority: '0.3', changefreq: 'monthly' },
-      { url: '/returns-policy', priority: '0.3', changefreq: 'monthly' }
+      { url: '/returns-policy', priority: '0.3', changefreq: 'monthly' },
+      { url: '/terms-and-conditions', priority: '0.3', changefreq: 'monthly' },
+      { url: '/privacy-policy', priority: '0.3', changefreq: 'monthly' }
     ];
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';

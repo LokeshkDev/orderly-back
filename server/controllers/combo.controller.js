@@ -1,6 +1,26 @@
 import Combo from '../models/Combo.js';
 import Product from '../models/Product.js';
 import { Op } from 'sequelize';
+import sequelize from '../config/db.js';
+
+let comboSchemaEnsured = false;
+export const ensureComboColumnsExist = async () => {
+  if (comboSchemaEnsured) return;
+  const queries = [
+    "ALTER TABLE `Combos` ADD COLUMN `cover_image` VARCHAR(255) NULL;",
+    "ALTER TABLE `combos` ADD COLUMN `cover_image` VARCHAR(255) NULL;",
+    "ALTER TABLE `Combos` ADD COLUMN `last_updated_by` VARCHAR(255) DEFAULT 'Super Admin';",
+    "ALTER TABLE `combos` ADD COLUMN `last_updated_by` VARCHAR(255) DEFAULT 'Super Admin';",
+    "ALTER TABLE `Combos` ADD COLUMN `deleted` TINYINT(1) DEFAULT 0;",
+    "ALTER TABLE `combos` ADD COLUMN `deleted` TINYINT(1) DEFAULT 0;"
+  ];
+  for (const q of queries) {
+    try {
+      await sequelize.query(q);
+    } catch (e) {}
+  }
+  comboSchemaEnsured = true;
+};
 
 const extractProductPrimaryImage = (p) => {
   if (!p) return null;
@@ -45,23 +65,26 @@ const syncComboPrimaryImages = async (combos) => {
     });
 
     comboList.forEach(c => {
+      const syncedPrimaryImages = [];
+      if (c.cover_image && typeof c.cover_image === 'string' && c.cover_image.trim()) {
+        syncedPrimaryImages.push(c.cover_image.trim());
+      }
       if (Array.isArray(c.items) && c.items.length > 0) {
-        const syncedPrimaryImages = [];
         c.items.forEach(it => {
           if (it && it.productId && productMap.has(String(it.productId))) {
             const livePrimary = productMap.get(String(it.productId));
-            if (livePrimary) {
+            if (livePrimary && !syncedPrimaryImages.includes(livePrimary)) {
               it.primaryImage = livePrimary;
               syncedPrimaryImages.push(livePrimary);
             }
           } else if (it) {
             const fallback = it.primaryImage || it.images?.[0] || it.colors?.[0]?.images?.[0] || it.image;
-            if (fallback) syncedPrimaryImages.push(fallback);
+            if (fallback && !syncedPrimaryImages.includes(fallback)) syncedPrimaryImages.push(fallback);
           }
         });
-        if (syncedPrimaryImages.length > 0) {
-          c.images = syncedPrimaryImages;
-        }
+      }
+      if (syncedPrimaryImages.length > 0) {
+        c.images = syncedPrimaryImages;
       }
     });
   } catch (err) {
@@ -73,6 +96,7 @@ const syncComboPrimaryImages = async (combos) => {
 
 export const getCombos = async (req, res) => {
   try {
+    await ensureComboColumnsExist();
     const { search, status, category, category_slug, includeDeleted } = req.query;
     const where = {};
 
@@ -100,13 +124,30 @@ export const getCombos = async (req, res) => {
     await syncComboPrimaryImages(combos);
     return res.json({ success: true, count: combos.length, data: combos });
   } catch (err) {
-    console.warn('⚠️ Combos DB query warning:', err.message);
-    return res.status(500).json({ success: false, message: err.message, data: [] });
+    // Retry once after forcing schema check if column was missing
+    try {
+      comboSchemaEnsured = false;
+      await ensureComboColumnsExist();
+      const { search, status, category, category_slug, includeDeleted } = req.query;
+      const where = {};
+      if (includeDeleted !== 'true') where.deleted = false;
+      if (status) where.status = status;
+      if (category) where[Op.or] = [{ category }, { category_slug: category }];
+      if (category_slug) where.category_slug = category_slug;
+      if (search) where[Op.or] = [{ name: { [Op.like]: `%${search}%` } }, { badge: { [Op.like]: `%${search}%` } }, { category: { [Op.like]: `%${search}%` } }];
+      const combos = await Combo.findAll({ where, order: [['createdAt', 'DESC']] });
+      await syncComboPrimaryImages(combos);
+      return res.json({ success: true, count: combos.length, data: combos });
+    } catch (retryErr) {
+      console.warn('⚠️ Combos DB query warning:', retryErr.message);
+      return res.status(500).json({ success: false, message: retryErr.message, data: [] });
+    }
   }
 };
 
 export const getComboById = async (req, res) => {
   try {
+    await ensureComboColumnsExist();
     const { id } = req.params;
     const combo = await Combo.findOne({
       where: {
@@ -128,6 +169,7 @@ export const getComboById = async (req, res) => {
 
 export const createCombo = async (req, res) => {
   try {
+    await ensureComboColumnsExist();
     const comboData = req.body;
     if (!comboData.id) {
       comboData.id = 'combo-' + Date.now();
@@ -158,6 +200,7 @@ export const createCombo = async (req, res) => {
 
 export const updateCombo = async (req, res) => {
   try {
+    await ensureComboColumnsExist();
     const { id } = req.params;
     const combo = await Combo.findByPk(id);
     if (!combo) return res.status(404).json({ success: false, message: 'Combo not found' });
@@ -186,6 +229,7 @@ export const updateCombo = async (req, res) => {
 
 export const deleteCombo = async (req, res) => {
   try {
+    await ensureComboColumnsExist();
     const { id } = req.params;
     const { hard } = req.query;
 

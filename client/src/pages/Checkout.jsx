@@ -129,11 +129,18 @@ const Checkout = () => {
   }, []);
 
   const codEnabled = String(siteSettings?.cod_enabled ?? 'true') !== 'false';
+
+  useEffect(() => {
+    if (!codEnabled && paymentMethod === 'cod') {
+      setPaymentMethod('online');
+    }
+  }, [codEnabled, paymentMethod]);
+
   const codAdvancePercentage = Number(paymentConfig.codAdvancePercentage) || 10;
   const codAdvanceAmount = Math.max(0, Math.round((Number(subtotal) || 0) * (codAdvancePercentage / 100) + (Number(shippingCost) || 0)));
   const codBalanceDue = Math.max(0, Math.round((Number(total) || 0) - codAdvanceAmount));
-  const paymentDueNow = paymentMethod === 'cod' ? codAdvanceAmount : Number(total) || 0;
-  const paymentLabel = paymentMethod === 'cod' ? 'COD Advance' : 'Online Payment';
+  const paymentDueNow = (paymentMethod === 'cod' && codEnabled) ? codAdvanceAmount : Number(total) || 0;
+  const paymentLabel = (paymentMethod === 'cod' && codEnabled) ? 'COD Advance' : 'Online Payment';
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -525,15 +532,10 @@ const Checkout = () => {
                 <div className="checkout-block glass-panel p-4">
                   <h5 className="block-title mb-4">2. Select Payment Method</h5>
 
-                  {codEnabled ? (
+                  {codEnabled && (
                     <div className="payment-note mb-3">
                       <FiShield className="me-2" />
                       COD requires a {codAdvancePercentage}% advance of subtotal + delivery charges. You will pay the balance on delivery.
-                    </div>
-                  ) : (
-                    <div className="payment-note mb-3 text-warning">
-                      <FiAlertCircle className="me-2" />
-                      Cash on Delivery is currently disabled by admin.
                     </div>
                   )}
 

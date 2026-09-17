@@ -6,6 +6,7 @@ import {
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
 import ComboCover from '../../components/common/ComboCover';
+import FileUploadInput from '../../components/common/FileUploadInput';
 import './CombosList.css';
 
 const CombosList = () => {
@@ -184,6 +185,7 @@ const CombosList = () => {
         badge: comboToEdit.badge || '',
         status: comboToEdit.status || 'Active',
         description: comboToEdit.description || '',
+        cover_image: comboToEdit.cover_image || comboToEdit.images?.[0] || '',
         images: derivedImages.length > 0 ? derivedImages : (comboToEdit.images || []),
         is_existing_products_combo: comboToEdit.is_existing_products_combo ?? (mode === 'existing'),
         items: enrichedItems
@@ -210,6 +212,7 @@ const CombosList = () => {
         badge: '',
         status: 'Active',
         description: '',
+        cover_image: '',
         images: derivedImages,
         is_existing_products_combo: (mode === 'existing'),
         items: itemsArr
@@ -260,14 +263,19 @@ const CombosList = () => {
       return;
     }
 
-    // Always auto-derive combo cover images from primary product images
+    // Derive combo images from primary product images
     const derivedImages = formData.items
       ?.map(it => it.primaryImage || it.image)
-      .filter(Boolean);
+      .filter(Boolean) || [];
+
+    const finalImages = formData.cover_image
+      ? [formData.cover_image, ...derivedImages.filter(img => img !== formData.cover_image)]
+      : (derivedImages.length > 0 ? derivedImages : formData.images);
 
     const finalCombo = {
       ...formData,
-      images: derivedImages && derivedImages.length > 0 ? derivedImages : formData.images,
+      cover_image: formData.cover_image || (finalImages.length > 0 ? finalImages[0] : ''),
+      images: finalImages,
       pieces_count: piecesCount,
       slug: formData.slug || formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
     };
@@ -571,8 +579,8 @@ const CombosList = () => {
                           <ComboCover 
                             items={combo.items} 
                             images={combo.images} 
+                            coverImage={combo.cover_image}
                             comboName={combo.name} 
-                            showPlusBadge={false} 
                           />
                         </div>
                         <div className="min-w-0">
@@ -751,6 +759,18 @@ const CombosList = () => {
                       value={formData.badge}
                       onChange={(e) => setFormData(prev => ({ ...prev, badge: e.target.value }))}
                       placeholder="e.g. SAVE 30% OFF"
+                    />
+                  </div>
+
+                  {/* Combo Cover Image Upload Input */}
+                  <div className="col-12 border-top pt-3 mt-3">
+                    <FileUploadInput
+                      label="COMBO COVER IMAGE (SHOWS AS PRIMARY PRODUCT COVER IMAGE)"
+                      folder="combos"
+                      value={formData.cover_image || ''}
+                      onChange={(url) => setFormData(prev => ({ ...prev, cover_image: url }))}
+                      recommendedSize="Recommended: 1200 x 800 px (3:2 Aspect Ratio, Max 10MB)"
+                      placeholder="Upload or paste Combo Cover Image URL..."
                     />
                   </div>
 

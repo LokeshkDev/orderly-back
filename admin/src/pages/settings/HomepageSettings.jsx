@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   FiGrid, FiImage, FiVideo, FiSave, FiPlus, FiEdit, FiTrash2, 
-  FiEye, FiEyeOff, FiArrowUp, FiArrowDown, FiLayers, FiSliders, FiFilm,
-  FiVolume2, FiShare2, FiCheck, FiSearch, FiGlobe, FiInstagram, FiFacebook, FiYoutube,
+  FiEye, FiEyeOff, FiArrowUp, FiArrowDown, FiLayers, FiSliders, FiFilm, FiMenu,
+  FiVolume2, FiShare2, FiCheck, FiSearch, FiGlobe, FiInstagram, FiFacebook, FiYoutube, FiTwitter, FiLinkedin,
   FiShoppingBag, FiTruck, FiRotateCcw, FiShield, FiHeadphones, FiExternalLink, FiSettings, FiTag, FiGift, FiFileText,
-  FiMonitor, FiSmartphone, FiX, FiTrendingUp, FiZap, FiPlay
+  FiMonitor, FiSmartphone, FiX, FiTrendingUp, FiZap, FiPlay, FiChevronDown, FiChevronUp, FiCornerDownRight
 } from 'react-icons/fi';
-import { FaWhatsapp, FaTwitter, FaPinterest } from 'react-icons/fa';
+import { FaWhatsapp, FaTwitter, FaPinterest, FaTiktok } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
 import Modal from '../../components/common/Modal';
@@ -15,6 +15,90 @@ import FileUploadInput from '../../components/common/FileUploadInput';
 import StatusBadge from '../../components/common/StatusBadge';
 import { getYouTubeThumbnail, getYouTubeVideoId } from '../../utils/videoUtils';
 import './HomepageSettings.css';
+
+const DEFAULT_FOOTER_SETTINGS = {
+  bio: "Orderly is your destination for premium men's wear. Crafted for style, built for comfort, made for you.",
+  copyright: "© 2026 Orderly. All Rights Reserved.",
+  social_links: [
+    { id: 'soc-1', platform: 'facebook', name: 'Facebook', url: 'https://facebook.com', enabled: true },
+    { id: 'soc-2', platform: 'instagram', name: 'Instagram', url: 'https://instagram.com', enabled: true },
+    { id: 'soc-3', platform: 'twitter', name: 'Twitter / X', url: 'https://twitter.com', enabled: true },
+    { id: 'soc-4', platform: 'youtube', name: 'YouTube', url: 'https://youtube.com', enabled: true }
+  ],
+  columns: [
+    {
+      id: 'col-1',
+      title: 'SHOP',
+      links: [
+        { id: 'link-1-1', label: 'All Products', url: '/shop' },
+        { id: 'link-1-2', label: 'Shirts', url: '/shop?category=Shirts' },
+        { id: 'link-1-3', label: 'T-Shirts', url: '/shop?category=Tees' },
+        { id: 'link-1-4', label: 'Pants', url: '/shop?category=Pants' },
+        { id: 'link-1-5', label: 'Jackets', url: '/shop?category=Jackets' },
+        { id: 'link-1-6', label: 'Accessories', url: '/shop?category=Accessories' }
+      ]
+    },
+    {
+      id: 'col-2',
+      title: 'CUSTOMER CARE',
+      links: [
+        { id: 'link-2-1', label: 'Track Order', url: '/contact' },
+        { id: 'link-2-2', label: 'Returns & Refunds', url: '/returns-policy' },
+        { id: 'link-2-3', label: 'Shipping Policy', url: '/shipping-policy' },
+        { id: 'link-2-4', label: 'Size Guide', url: '/about' },
+        { id: 'link-2-5', label: 'FAQs', url: '/contact' },
+        { id: 'link-2-6', label: 'Contact Us', url: '/contact' }
+      ]
+    },
+    {
+      id: 'col-3',
+      title: 'COMPANY',
+      links: [
+        { id: 'link-3-1', label: 'About Us', url: '/about' },
+        { id: 'link-3-2', label: 'Our Story', url: '/about' },
+        { id: 'link-3-3', label: 'Careers', url: '/about' },
+        { id: 'link-3-4', label: 'Privacy Policy', url: '/returns-policy' },
+        { id: 'link-3-5', label: 'Terms & Conditions', url: '/shipping-policy' }
+      ]
+    }
+  ]
+};
+
+const SOCIAL_PLATFORMS = [
+  { key: 'facebook', name: 'Facebook', icon: <FiFacebook /> },
+  { key: 'instagram', name: 'Instagram', icon: <FiInstagram /> },
+  { key: 'twitter', name: 'Twitter / X', icon: <FiTwitter /> },
+  { key: 'youtube', name: 'YouTube', icon: <FiYoutube /> },
+  { key: 'whatsapp', name: 'WhatsApp', icon: <FaWhatsapp /> },
+  { key: 'linkedin', name: 'LinkedIn', icon: <FiLinkedin /> },
+  { key: 'pinterest', name: 'Pinterest', icon: <FaPinterest /> },
+  { key: 'tiktok', name: 'TikTok', icon: <FaTiktok /> }
+];
+
+const DEFAULT_HEADER_MENU_LINKS = [
+  { 
+    id: 'nav-1', 
+    label: 'SHOP', 
+    url: '/shop', 
+    enabled: true, 
+    is_external: false,
+    sub_items: [
+      { id: 'sub-1-1', label: 'ALL PRODUCTS', url: '/shop', enabled: true },
+      { id: 'sub-1-2', label: 'SHIRTS', url: '/shop?category=Shirts', enabled: true },
+      { id: 'sub-1-3', label: 'T-SHIRTS & POLOS', url: '/shop?category=Tees', enabled: true },
+      { id: 'sub-1-4', label: 'PANTS & DENIM', url: '/shop?category=Pants', enabled: true },
+      { id: 'sub-1-5', label: 'JACKETS', url: '/shop?category=Jackets', enabled: true }
+    ]
+  },
+  { 
+    id: 'nav-2', 
+    label: 'COMBOS', 
+    url: '/combos', 
+    enabled: true, 
+    is_external: false,
+    sub_items: []
+  }
+];
 
 const DEFAULT_SECTIONS = [
   { section_key: 'hero_carousel', title: 'Hero Carousel', subtitle: 'Main editorial hero slider', is_visible: true, display_order: 1 },
@@ -180,7 +264,7 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
     discountCode: 'ORDERLY10'
   });
 
-  // Footer Config State
+  // Footer Config State & Full CMS Columns & Social Links State
   const [footerConfig, setFooterConfig] = useState({
     bio: "Orderly is your destination for premium men's wear. Crafted for style, built for comfort, made for you.",
     copyright: '© 2026 Orderly. All Rights Reserved.',
@@ -191,6 +275,19 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
       youtube: 'https://youtube.com'
     }
   });
+
+  const [footerSettings, setFooterSettings] = useState(DEFAULT_FOOTER_SETTINGS);
+  const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
+  const [editingSocial, setEditingSocial] = useState(null);
+  const [socialForm, setSocialForm] = useState({ platform: 'instagram', name: 'Instagram', url: '', enabled: true });
+  const [isColModalOpen, setIsColModalOpen] = useState(false);
+  const [colTitleInput, setColTitleInput] = useState('');
+
+  // Header Navbar Menu Links State
+  const [headerMenuLinks, setHeaderMenuLinks] = useState(DEFAULT_HEADER_MENU_LINKS);
+  const [isHeaderNavModalOpen, setIsHeaderNavModalOpen] = useState(false);
+  const [editingHeaderNav, setEditingHeaderNav] = useState(null);
+  const [headerNavForm, setHeaderNavForm] = useState({ label: '', url: '/shop', enabled: true, is_external: false });
 
   // Video Banner Section State
   const [videoBannerConfig, setVideoBannerConfig] = useState({
@@ -313,6 +410,29 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         if (st.lookbook_config) setLookbookConfig(prev => ({ ...prev, ...st.lookbook_config }));
         if (st.newsletter_config) setNewsletterConfig(prev => ({ ...prev, ...st.newsletter_config }));
         if (st.footer_config) setFooterConfig(prev => ({ ...prev, ...st.footer_config }));
+        if (st.footer_settings) {
+          try {
+            const parsedFooter = typeof st.footer_settings === 'string'
+              ? JSON.parse(st.footer_settings)
+              : st.footer_settings;
+            if (parsedFooter && typeof parsedFooter === 'object') {
+              setFooterSettings({
+                ...DEFAULT_FOOTER_SETTINGS,
+                ...parsedFooter
+              });
+            }
+          } catch (e) {}
+        }
+        if (st.header_menu_links) {
+          try {
+            const parsedNav = typeof st.header_menu_links === 'string'
+              ? JSON.parse(st.header_menu_links)
+              : st.header_menu_links;
+            if (Array.isArray(parsedNav) && parsedNav.length > 0) {
+              setHeaderMenuLinks(parsedNav);
+            }
+          } catch (e) {}
+        }
         if (st.global_homepage_settings) setGlobalSettings(prev => ({ ...prev, ...st.global_homepage_settings }));
       }
     } catch (err) {
@@ -323,6 +443,323 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // State for expanded parent rows on table
+  const [expandedNavIds, setExpandedNavIds] = useState({});
+
+  const toggleExpandNav = (id) => {
+    setExpandedNavIds(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Sub-Menu / Dropdown Link Handlers for Header Menu Items
+  const handleAddSubNav = (parentId) => {
+    const newSub = {
+      id: `sub-${Date.now()}`,
+      label: 'NEW SUB LINK',
+      url: '/shop',
+      enabled: true
+    };
+    setHeaderMenuLinks(prev => prev.map(item => {
+      if (item.id === parentId) {
+        return {
+          ...item,
+          sub_items: [...(item.sub_items || []), newSub]
+        };
+      }
+      return item;
+    }));
+    setExpandedNavIds(prev => ({ ...prev, [parentId]: true }));
+    toast.success('Added new sub-link!');
+  };
+
+  const handleSubNavChange = (parentId, subId, field, value) => {
+    setHeaderMenuLinks(prev => prev.map(item => {
+      if (item.id === parentId) {
+        return {
+          ...item,
+          sub_items: (item.sub_items || []).map(s => s.id === subId ? { ...s, [field]: value } : s)
+        };
+      }
+      return item;
+    }));
+  };
+
+  const handleDeleteSubNav = (parentId, subId) => {
+    setHeaderMenuLinks(prev => prev.map(item => {
+      if (item.id === parentId) {
+        return {
+          ...item,
+          sub_items: (item.sub_items || []).filter(s => s.id !== subId)
+        };
+      }
+      return item;
+    }));
+  };
+
+  const handleToggleSubNav = (parentId, subId) => {
+    setHeaderMenuLinks(prev => prev.map(item => {
+      if (item.id === parentId) {
+        return {
+          ...item,
+          sub_items: (item.sub_items || []).map(s => s.id === subId ? { ...s, enabled: !s.enabled } : s)
+        };
+      }
+      return item;
+    }));
+  };
+
+  // Header Navbar Menu Link Handlers
+  const openAddHeaderNavModal = () => {
+    setEditingHeaderNav(null);
+    setHeaderNavForm({ label: '', url: '/shop', enabled: true, is_external: false, sub_items: [] });
+    setIsHeaderNavModalOpen(true);
+  };
+
+  const openEditHeaderNavModal = (navItem) => {
+    setEditingHeaderNav(navItem);
+    setHeaderNavForm({
+      ...navItem,
+      sub_items: Array.isArray(navItem.sub_items) ? [...navItem.sub_items] : []
+    });
+    setIsHeaderNavModalOpen(true);
+  };
+
+  const handleSaveHeaderNav = (e) => {
+    e.preventDefault();
+    if (!headerNavForm.label.trim() || !headerNavForm.url.trim()) {
+      toast.error('Menu item label and URL are required');
+      return;
+    }
+
+    if (editingHeaderNav) {
+      setHeaderMenuLinks(prev => prev.map(item => item.id === editingHeaderNav.id ? { 
+        ...headerNavForm, 
+        label: headerNavForm.label.toUpperCase().trim(),
+        sub_items: headerNavForm.sub_items || []
+      } : item));
+      toast.success(`Updated "${headerNavForm.label}" menu item!`);
+    } else {
+      const newItem = {
+        id: `nav-${Date.now()}`,
+        label: headerNavForm.label.toUpperCase().trim(),
+        url: headerNavForm.url.trim(),
+        enabled: headerNavForm.enabled !== false,
+        is_external: !!headerNavForm.is_external,
+        sub_items: headerNavForm.sub_items || []
+      };
+      setHeaderMenuLinks(prev => [...prev, newItem]);
+      toast.success(`Added "${newItem.label}" menu item!`);
+    }
+    setIsHeaderNavModalOpen(false);
+  };
+
+  const handleModalAddSubItem = () => {
+    const newSub = {
+      id: `sub-${Date.now()}`,
+      label: 'NEW SUB LINK',
+      url: '/shop',
+      enabled: true
+    };
+    setHeaderNavForm(prev => ({
+      ...prev,
+      sub_items: [...(prev.sub_items || []), newSub]
+    }));
+  };
+
+  const handleModalSubItemChange = (subId, field, val) => {
+    setHeaderNavForm(prev => ({
+      ...prev,
+      sub_items: (prev.sub_items || []).map(s => s.id === subId ? { ...s, [field]: val } : s)
+    }));
+  };
+
+  const handleModalDeleteSubItem = (subId) => {
+    setHeaderNavForm(prev => ({
+      ...prev,
+      sub_items: (prev.sub_items || []).filter(s => s.id !== subId)
+    }));
+  };
+
+  const handleDeleteHeaderNav = (id, label) => {
+    if (window.confirm(`Delete menu link "${label}"?`)) {
+      setHeaderMenuLinks(prev => prev.filter(item => item.id !== id));
+      toast.success(`Removed menu link "${label}"`);
+    }
+  };
+
+  const handleToggleHeaderNav = (id) => {
+    setHeaderMenuLinks(prev => prev.map(item => item.id === id ? { ...item, enabled: !item.enabled } : item));
+  };
+
+  const moveHeaderNav = (index, direction) => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= headerMenuLinks.length) return;
+
+    const updated = [...headerMenuLinks];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setHeaderMenuLinks(updated);
+  };
+
+  // Column Management Handlers
+  const handleAddColumn = () => {
+    if (!colTitleInput.trim()) {
+      toast.error('Please enter a column title');
+      return;
+    }
+    const newCol = {
+      id: `col-${Date.now()}`,
+      title: colTitleInput.trim().toUpperCase(),
+      links: []
+    };
+    setFooterSettings(prev => ({
+      ...prev,
+      columns: [...(prev.columns || []), newCol]
+    }));
+    setColTitleInput('');
+    setIsColModalOpen(false);
+    toast.success(`Added column "${newCol.title}"`);
+  };
+
+  const handleDeleteColumn = (colId, colTitle) => {
+    if (window.confirm(`Delete column "${colTitle}" and all its links?`)) {
+      setFooterSettings(prev => ({
+        ...prev,
+        columns: (prev.columns || []).filter(c => c.id !== colId)
+      }));
+      toast.success(`Removed column "${colTitle}"`);
+    }
+  };
+
+  const handleColumnTitleChange = (colId, newTitle) => {
+    setFooterSettings(prev => ({
+      ...prev,
+      columns: (prev.columns || []).map(c => c.id === colId ? { ...c, title: newTitle } : c)
+    }));
+  };
+
+  const handleAddLink = (colId) => {
+    const newLink = {
+      id: `link-${Date.now()}`,
+      label: 'New Link',
+      url: '/shop'
+    };
+    setFooterSettings(prev => ({
+      ...prev,
+      columns: (prev.columns || []).map(c => {
+        if (c.id === colId) {
+          return { ...c, links: [...(c.links || []), newLink] };
+        }
+        return c;
+      })
+    }));
+  };
+
+  const handleLinkChange = (colId, linkId, field, value) => {
+    setFooterSettings(prev => ({
+      ...prev,
+      columns: (prev.columns || []).map(c => {
+        if (c.id === colId) {
+          return {
+            ...c,
+            links: (c.links || []).map(l => l.id === linkId ? { ...l, [field]: value } : l)
+          };
+        }
+        return c;
+      })
+    }));
+  };
+
+  const handleDeleteLink = (colId, linkId) => {
+    setFooterSettings(prev => ({
+      ...prev,
+      columns: (prev.columns || []).map(c => {
+        if (c.id === colId) {
+          return {
+            ...c,
+            links: (c.links || []).filter(l => l.id !== linkId)
+          };
+        }
+        return c;
+      })
+    }));
+  };
+
+  // Social Media Management Handlers
+  const openAddSocialModal = () => {
+    setEditingSocial(null);
+    setSocialForm({ platform: 'instagram', name: 'Instagram', url: 'https://instagram.com', enabled: true });
+    setIsSocialModalOpen(true);
+  };
+
+  const openEditSocialModal = (soc) => {
+    setEditingSocial(soc);
+    setSocialForm({ ...soc });
+    setIsSocialModalOpen(true);
+  };
+
+  const handleSaveSocial = (e) => {
+    e.preventDefault();
+    if (!socialForm.url) {
+      toast.error('Social profile URL is required');
+      return;
+    }
+    const platObj = SOCIAL_PLATFORMS.find(p => p.key === socialForm.platform) || { name: socialForm.platform };
+
+    if (editingSocial) {
+      setFooterSettings(prev => ({
+        ...prev,
+        social_links: (prev.social_links || []).map(s => s.id === editingSocial.id ? { ...socialForm, name: platObj.name } : s)
+      }));
+      toast.success(`Updated ${platObj.name} link!`);
+    } else {
+      const newSoc = {
+        id: `soc-${Date.now()}`,
+        platform: socialForm.platform,
+        name: platObj.name,
+        url: socialForm.url,
+        enabled: socialForm.enabled !== false
+      };
+      setFooterSettings(prev => ({
+        ...prev,
+        social_links: [...(prev.social_links || []), newSoc]
+      }));
+      toast.success(`Added ${platObj.name}!`);
+    }
+    setIsSocialModalOpen(false);
+  };
+
+  const handleDeleteSocial = (socId, socName) => {
+    if (window.confirm(`Delete social link "${socName}"?`)) {
+      setFooterSettings(prev => ({
+        ...prev,
+        social_links: (prev.social_links || []).filter(s => s.id !== socId)
+      }));
+      toast.success(`Removed ${socName}`);
+    }
+  };
+
+  const handleToggleSocial = (socId) => {
+    setFooterSettings(prev => ({
+      ...prev,
+      social_links: (prev.social_links || []).map(s => s.id === socId ? { ...s, enabled: !s.enabled } : s)
+    }));
+  };
+
+  const getPlatformIcon = (platformKey) => {
+    switch (platformKey) {
+      case 'facebook': return <FiFacebook />;
+      case 'instagram': return <FiInstagram />;
+      case 'twitter': return <FiTwitter />;
+      case 'youtube': return <FiYoutube />;
+      case 'whatsapp': return <FaWhatsapp />;
+      case 'linkedin': return <FiLinkedin />;
+      case 'pinterest': return <FaPinterest />;
+      case 'tiktok': return <FaTiktok />;
+      default: return <FiShare2 />;
+    }
+  };
 
   // Toggle individual product on/off for Best Sellers or New Arrivals
   const handleToggleSectionProduct = async (productId, sectionType) => {
@@ -420,6 +857,8 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         lookbook_config: lookbookConfig,
         newsletter_config: newsletterConfig,
         footer_config: footerConfig,
+        footer_settings: footerSettings,
+        header_menu_links: headerMenuLinks,
         global_homepage_settings: globalSettings
       };
       await api.put('/settings', settingsPayload);
@@ -654,6 +1093,9 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         </button>
         <button className={`admin-tab-btn ${activeTab === 'footer' ? 'active' : ''}`} onClick={() => handleTabChange('footer')}>
           <FiShare2 /> Footer Links
+        </button>
+        <button className={`admin-tab-btn ${activeTab === 'header_menu' ? 'active' : ''}`} onClick={() => handleTabChange('header_menu')}>
+          <FiLayers /> Header Menu Links ({headerMenuLinks.length})
         </button>
         <button className={`admin-tab-btn ${activeTab === 'global' ? 'active' : ''}`} onClick={() => handleTabChange('global')}>
           <FiSettings /> Global & SEO
@@ -1821,39 +2263,194 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         </div>
       )}
 
-      {/* TAB 10: FOOTER LINKS */}
+      {/* TAB 10: FOOTER LINKS & SOCIAL MEDIA */}
       {activeTab === 'footer' && (
-        <div className="admin-card-white p-4">
-          <div className="mb-3 border-bottom pb-3">
-            <h4 className="fw-bold text-dark mb-1">Footer Content & Social Links</h4>
-            <p className="text-muted small mb-0">Manage footer brand bio, copyright text, and social profiles.</p>
+        <div className="row g-4">
+          {/* Section 1: Brand Bio & Copyright */}
+          <div className="col-12 col-lg-6">
+            <div className="admin-card-white h-100 p-4">
+              <h4 className="fw-bold text-dark border-bottom pb-3 mb-3 d-flex align-items-center gap-2">
+                <FiGlobe className="text-danger" /> Footer Brand Bio & Copyright
+              </h4>
+
+              <div className="mb-3">
+                <label className="admin-form-label">Footer Brand Bio / Description</label>
+                <textarea 
+                  rows="3" 
+                  className="admin-textarea"
+                  value={footerSettings.bio}
+                  onChange={(e) => setFooterSettings(prev => ({ ...prev, bio: e.target.value }))}
+                  placeholder="Orderly is your destination for premium men's wear..."
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="admin-form-label">Copyright Notice</label>
+                <input 
+                  type="text" 
+                  className="admin-input"
+                  value={footerSettings.copyright}
+                  onChange={(e) => setFooterSettings(prev => ({ ...prev, copyright: e.target.value }))}
+                  placeholder="© 2026 Orderly. All Rights Reserved."
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="row g-3">
-            <div className="col-12">
-              <label className="admin-form-label">Footer Brand Bio</label>
-              <textarea 
-                className="admin-input"
-                rows={3}
-                value={footerConfig.bio}
-                onChange={(e) => setFooterConfig(prev => ({ ...prev, bio: e.target.value }))}
-              />
-            </div>
+          {/* Section 2: Social Media Links Manager */}
+          <div className="col-12 col-lg-6">
+            <div className="admin-card-white h-100 p-4">
+              <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
+                <h4 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                  <FiShare2 className="text-danger" /> Social Media Links ({(footerSettings.social_links || []).length})
+                </h4>
+                <button type="button" className="btn-admin-outline py-1 px-2" onClick={openAddSocialModal}>
+                  <FiPlus /> Add Social Link
+                </button>
+              </div>
 
-            <div className="col-md-6">
-              <label className="admin-form-label">Copyright Notice Text</label>
-              <input 
-                type="text" 
-                className="admin-input"
-                value={footerConfig.copyright}
-                onChange={(e) => setFooterConfig(prev => ({ ...prev, copyright: e.target.value }))}
-              />
+              <div className="d-flex flex-column gap-2" style={{ maxHeight: '320px', overflowY: 'auto' }}>
+                {(footerSettings.social_links || []).map((soc) => (
+                  <div key={soc.id} className="social-link-item-box">
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="social-platform-icon-wrap">
+                        {getPlatformIcon(soc.platform)}
+                      </div>
+                      <div>
+                        <strong className="text-dark d-block small">{soc.name || soc.platform}</strong>
+                        <a href={soc.url} target="_blank" rel="noreferrer" className="text-muted extra-small text-truncate d-block" style={{ maxWidth: '200px' }}>
+                          {soc.url} <FiExternalLink className="ms-1" />
+                        </a>
+                      </div>
+                    </div>
+
+                    <div className="d-flex align-items-center gap-2">
+                      <button 
+                        type="button" 
+                        className={`site-toggle-btn ${soc.enabled ? 'on' : 'off'}`}
+                        onClick={() => handleToggleSocial(soc.id)}
+                        title={soc.enabled ? 'Enabled' : 'Disabled'}
+                      >
+                        {soc.enabled ? 'Active' : 'Hidden'}
+                      </button>
+                      <button 
+                        type="button" 
+                        className="site-icon-btn"
+                        onClick={() => openEditSocialModal(soc)}
+                        title="Edit URL"
+                      >
+                        <FiEdit />
+                      </button>
+                      <button 
+                        type="button" 
+                        className="site-icon-btn danger"
+                        onClick={() => handleDeleteSocial(soc.id, soc.name || soc.platform)}
+                        title="Delete"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-top">
+          {/* Section 3: Footer Navigation Columns & Links (Full CRUD) */}
+          <div className="col-12">
+            <div className="admin-card-white p-4">
+              <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 border-bottom pb-3 mb-4">
+                <div>
+                  <h4 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                    <FiLayers className="text-danger" /> Footer Navigation Columns & Links ({(footerSettings.columns || []).length} Columns)
+                  </h4>
+                  <p className="text-muted small mb-0">Create, edit, and remove footer navigation columns (SHOP, CUSTOMER CARE, COMPANY, etc.) and custom redirection links.</p>
+                </div>
+                <button type="button" className="btn-admin-red" onClick={() => setIsColModalOpen(true)}>
+                  <FiPlus /> Add New Column
+                </button>
+              </div>
+
+              {/* Grid of Columns */}
+              <div className="row g-4">
+                {(footerSettings.columns || []).map((col) => (
+                  <div key={col.id} className="col-12 col-md-6 col-lg-4">
+                    <div className="footer-cms-column-card h-100 d-flex flex-column justify-content-between">
+                      <div>
+                        {/* Column Header */}
+                        <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                          <input 
+                            type="text" 
+                            className="form-control form-control-sm fw-bold text-uppercase"
+                            value={col.title}
+                            onChange={(e) => handleColumnTitleChange(col.id, e.target.value)}
+                            style={{ maxWidth: '180px' }}
+                          />
+                          <button 
+                            type="button" 
+                            className="site-icon-btn danger"
+                            onClick={() => handleDeleteColumn(col.id, col.title)}
+                            title="Delete Column"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+
+                        {/* List of Links under Column */}
+                        <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                          {(col.links || []).map((link) => (
+                            <div key={link.id} className="footer-cms-link-row">
+                              <input 
+                                type="text"
+                                className="form-control form-control-sm"
+                                placeholder="Link Label"
+                                value={link.label}
+                                onChange={(e) => handleLinkChange(col.id, link.id, 'label', e.target.value)}
+                              />
+                              <input 
+                                type="text"
+                                className="form-control form-control-sm"
+                                placeholder="/path or https://"
+                                value={link.url}
+                                onChange={(e) => handleLinkChange(col.id, link.id, 'url', e.target.value)}
+                              />
+                              <button 
+                                type="button" 
+                                className="site-icon-btn danger flex-shrink-0"
+                                onClick={() => handleDeleteLink(col.id, link.id)}
+                                title="Remove Link"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          ))}
+
+                          {(col.links || []).length === 0 && (
+                            <div className="text-center py-3 text-muted extra-small">
+                              No links in this column yet.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Add Link Button */}
+                      <button 
+                        type="button" 
+                        className="site-add-link-btn w-100"
+                        onClick={() => handleAddLink(col.id)}
+                      >
+                        <FiPlus /> Add Link to {col.title}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="col-12 mt-3">
             <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
-              <FiCheck /> Save & Publish Footer
+              <FiCheck /> Save & Publish Footer CMS
             </button>
           </div>
         </div>
@@ -1970,6 +2567,394 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
             <button type="submit" className="btn-admin-red">Save Slide</button>
           </div>
         </form>
+      </Modal>
+
+      {/* TAB 12: HEADER NAVBAR MENU (TOP MENU BAR LINKS & DROPDOWNS) */}
+      {activeTab === 'header_menu' && (
+        <div className="admin-card-white p-4">
+          <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 border-bottom pb-3 mb-4">
+            <div>
+              <h4 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                <FiMenu className="text-danger" /> Header Menu Bar Links & Dropdowns ({(headerMenuLinks || []).length} Main Items)
+              </h4>
+              <p className="text-muted small mb-0">Manage top navigation menu links, custom redirection URLs, and multi-level dropdown sub-menus for both Desktop and Mobile views.</p>
+            </div>
+            <button type="button" className="btn-admin-red" onClick={openAddHeaderNavModal}>
+              <FiPlus /> Add Main Header Link
+            </button>
+          </div>
+
+          <div className="table-responsive">
+            <table className="admin-matrix-table align-middle">
+              <thead>
+                <tr>
+                  <th style={{ width: '60px' }}>ORDER</th>
+                  <th>MENU LABEL</th>
+                  <th>TARGET URL</th>
+                  <th>DROPDOWN SUB-LINKS</th>
+                  <th>STATUS</th>
+                  <th className="text-end pe-4">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(headerMenuLinks || []).map((item, idx) => (
+                  <React.Fragment key={item.id || idx}>
+                    <tr>
+                      <td><strong className="text-muted">#{idx + 1}</strong></td>
+                      <td>
+                        <strong className="text-dark fw-bold">{item.label}</strong>
+                        {item.is_external && <span className="badge bg-info text-dark ms-2 extra-small">New Tab</span>}
+                      </td>
+                      <td>
+                        <code className="cat-slug-badge">{item.url}</code>
+                      </td>
+                      <td>
+                        <button 
+                          type="button" 
+                          className={`btn btn-sm d-inline-flex align-items-center gap-1 ${(item.sub_items || []).length > 0 ? 'btn-outline-danger' : 'btn-outline-secondary'}`}
+                          style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+                          onClick={() => toggleExpandNav(item.id)}
+                        >
+                          <FiCornerDownRight /> {(item.sub_items || []).length} Dropdown Links {expandedNavIds[item.id] ? <FiChevronUp /> : <FiChevronDown />}
+                        </button>
+                      </td>
+                      <td>
+                        <button 
+                          type="button" 
+                          className={`site-toggle-btn ${item.enabled !== false ? 'on' : 'off'}`}
+                          onClick={() => handleToggleHeaderNav(item.id)}
+                          title={item.enabled !== false ? 'Click to Hide' : 'Click to Show'}
+                        >
+                          {item.enabled !== false ? 'Active' : 'Hidden'}
+                        </button>
+                      </td>
+                      <td className="text-end pe-4">
+                        <div className="d-inline-flex align-items-center gap-1">
+                          <button 
+                            type="button" 
+                            className="site-icon-btn"
+                            onClick={() => handleAddSubNav(item.id)}
+                            title="Add Dropdown Sub-Link"
+                          >
+                            <FiPlus />
+                          </button>
+                          <button 
+                            type="button"
+                            className="btn-admin-outline" 
+                            style={{ padding: '4px 8px', fontSize: '0.78rem' }}
+                            onClick={() => moveHeaderNav(idx, 'up')}
+                            disabled={idx === 0}
+                            title="Move Up"
+                          >
+                            <FiArrowUp />
+                          </button>
+                          <button 
+                            type="button"
+                            className="btn-admin-outline" 
+                            style={{ padding: '4px 8px', fontSize: '0.78rem' }}
+                            onClick={() => moveHeaderNav(idx, 'down')}
+                            disabled={idx === (headerMenuLinks || []).length - 1}
+                            title="Move Down"
+                          >
+                            <FiArrowDown />
+                          </button>
+                          <button 
+                            type="button" 
+                            className="site-icon-btn"
+                            onClick={() => openEditHeaderNavModal(item)}
+                            title="Edit"
+                          >
+                            <FiEdit />
+                          </button>
+                          <button 
+                            type="button" 
+                            className="site-icon-btn danger"
+                            onClick={() => handleDeleteHeaderNav(item.id, item.label)}
+                            title="Delete"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* EXPANDABLE SUB-ITEMS DRAWER */}
+                    {expandedNavIds[item.id] && (
+                      <tr>
+                        <td colSpan="6" className="p-0 bg-light">
+                          <div className="p-3 border-start border-3 border-danger ms-4 my-2 rounded bg-white shadow-sm">
+                            <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                              <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2 small">
+                                <FiCornerDownRight className="text-danger" /> Dropdown Sub-Links for "{item.label}" ({(item.sub_items || []).length})
+                              </h6>
+                              <button 
+                                type="button" 
+                                className="btn-admin-outline py-1 px-2 extra-small"
+                                onClick={() => handleAddSubNav(item.id)}
+                              >
+                                <FiPlus /> Add Sub-Link
+                              </button>
+                            </div>
+
+                            <div className="d-flex flex-column gap-2">
+                              {(item.sub_items || []).map((sub) => (
+                                <div key={sub.id} className="footer-cms-link-row align-items-center">
+                                  <span className="text-muted extra-small me-1">↳</span>
+                                  <input 
+                                    type="text" 
+                                    className="form-control form-control-sm text-uppercase fw-bold" 
+                                    style={{ maxWidth: '200px' }}
+                                    placeholder="Sub Link Label"
+                                    value={sub.label}
+                                    onChange={(e) => handleSubNavChange(item.id, sub.id, 'label', e.target.value)}
+                                  />
+                                  <input 
+                                    type="text" 
+                                    className="form-control form-control-sm" 
+                                    placeholder="Target URL (/shop?category=...)"
+                                    value={sub.url}
+                                    onChange={(e) => handleSubNavChange(item.id, sub.id, 'url', e.target.value)}
+                                  />
+                                  <button 
+                                    type="button" 
+                                    className={`site-toggle-btn ${sub.enabled !== false ? 'on' : 'off'}`}
+                                    onClick={() => handleToggleSubNav(item.id, sub.id)}
+                                  >
+                                    {sub.enabled !== false ? 'Active' : 'Hidden'}
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    className="site-icon-btn danger flex-shrink-0"
+                                    onClick={() => handleDeleteSubNav(item.id, sub.id)}
+                                    title="Remove Sub-Link"
+                                  >
+                                    <FiTrash2 />
+                                  </button>
+                                </div>
+                              ))}
+
+                              {(item.sub_items || []).length === 0 && (
+                                <div className="text-muted extra-small py-2 text-center">
+                                  No dropdown sub-links added for "{item.label}" yet. Click "+ Add Sub-Link" to create one.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+
+            {(headerMenuLinks || []).length === 0 && (
+              <div className="text-center py-4 text-muted small">
+                No header navigation menu items configured yet. Click "Add Main Header Link" to create one.
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 pt-3 border-top">
+            <button className="btn-admin-red" onClick={handlePublishHomepage} disabled={savingAll}>
+              <FiCheck /> Save & Publish Header Menu
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Add/Edit Header Navigation Link */}
+      <Modal
+        isOpen={isHeaderNavModalOpen}
+        onClose={() => setIsHeaderNavModalOpen(false)}
+        title={editingHeaderNav ? 'Edit Header Menu Link & Dropdowns' : 'Add Header Menu Link'}
+        width="680px"
+      >
+        <form onSubmit={handleSaveHeaderNav}>
+          <div className="row g-3 mb-3">
+            <div className="col-md-6">
+              <label className="admin-form-label">Menu Item Label (e.g. SHOP, COMBOS, OVERSIZED TEES)</label>
+              <input
+                type="text"
+                className="admin-input text-uppercase fw-bold"
+                placeholder="e.g. SHOP"
+                value={headerNavForm.label}
+                onChange={(e) => setHeaderNavForm(prev => ({ ...prev, label: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="admin-form-label">Target Redirection URL</label>
+              <input
+                type="text"
+                className="admin-input"
+                placeholder="e.g. /shop, /combos, /shop?category=Shirts"
+                value={headerNavForm.url}
+                onChange={(e) => setHeaderNavForm(prev => ({ ...prev, url: e.target.value }))}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="d-flex gap-4 mb-4">
+            <div className="form-check form-switch">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="headerNavExternal"
+                checked={!!headerNavForm.is_external}
+                onChange={(e) => setHeaderNavForm(prev => ({ ...prev, is_external: e.target.checked }))}
+              />
+              <label className="form-check-label small text-muted" htmlFor="headerNavExternal">
+                Open in new tab (`_blank`)
+              </label>
+            </div>
+
+            <div className="form-check form-switch">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="headerNavEnabled"
+                checked={headerNavForm.enabled !== false}
+                onChange={(e) => setHeaderNavForm(prev => ({ ...prev, enabled: e.target.checked }))}
+              />
+              <label className="form-check-label small fw-bold" htmlFor="headerNavEnabled">
+                Display on Navigation
+              </label>
+            </div>
+          </div>
+
+          {/* DROPDOWN SUB-ITEMS SECTION IN MODAL */}
+          <div className="p-3 bg-light border rounded mb-3">
+            <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+              <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2 small">
+                <FiCornerDownRight className="text-danger" /> Dropdown Sub-Items ({(headerNavForm.sub_items || []).length})
+              </h6>
+              <button 
+                type="button" 
+                className="btn-admin-outline py-1 px-2 extra-small"
+                onClick={handleModalAddSubItem}
+              >
+                <FiPlus /> Add Sub-Item
+              </button>
+            </div>
+
+            <div className="d-flex flex-column gap-2" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+              {(headerNavForm.sub_items || []).map((sub) => (
+                <div key={sub.id} className="d-flex align-items-center gap-2 bg-white p-2 border rounded">
+                  <input 
+                    type="text" 
+                    className="form-control form-control-sm text-uppercase fw-bold" 
+                    style={{ maxWidth: '180px' }}
+                    placeholder="Sub Label"
+                    value={sub.label}
+                    onChange={(e) => handleModalSubItemChange(sub.id, 'label', e.target.value)}
+                  />
+                  <input 
+                    type="text" 
+                    className="form-control form-control-sm" 
+                    placeholder="Sub Target URL (/shop?category=...)"
+                    value={sub.url}
+                    onChange={(e) => handleModalSubItemChange(sub.id, 'url', e.target.value)}
+                  />
+                  <button 
+                    type="button" 
+                    className="site-icon-btn danger flex-shrink-0"
+                    onClick={() => handleModalDeleteSubItem(sub.id)}
+                    title="Remove Sub-Item"
+                  >
+                    <FiTrash2 />
+                  </button>
+                </div>
+              ))}
+
+              {(headerNavForm.sub_items || []).length === 0 && (
+                <div className="text-center py-2 text-muted extra-small">
+                  No dropdown sub-items configured for this link. Click "+ Add Sub-Item" if you want a dropdown menu.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="d-flex justify-content-end gap-2 pt-3 border-top">
+            <button type="button" className="btn-admin-outline" onClick={() => setIsHeaderNavModalOpen(false)}>Cancel</button>
+            <button type="submit" className="btn-admin-red">Save Header Link</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: Add/Edit Social Link */}
+      <Modal
+        isOpen={isSocialModalOpen}
+        onClose={() => setIsSocialModalOpen(false)}
+        title={editingSocial ? 'Edit Social Media Link' : 'Add Social Media Link'}
+      >
+        <form onSubmit={handleSaveSocial}>
+          <div className="mb-3">
+            <label className="admin-form-label">Platform</label>
+            <select
+              className="admin-input"
+              value={socialForm.platform}
+              onChange={(e) => setSocialForm(prev => ({ ...prev, platform: e.target.value }))}
+            >
+              {SOCIAL_PLATFORMS.map(p => (
+                <option key={p.key} value={p.key}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-3">
+            <label className="admin-form-label">Profile / Page URL</label>
+            <input
+              type="url"
+              className="admin-input"
+              placeholder="https://..."
+              value={socialForm.url}
+              onChange={(e) => setSocialForm(prev => ({ ...prev, url: e.target.value }))}
+              required
+            />
+          </div>
+          <div className="form-check form-switch mb-3">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="socFormEnabled"
+              checked={socialForm.enabled !== false}
+              onChange={(e) => setSocialForm(prev => ({ ...prev, enabled: e.target.checked }))}
+            />
+            <label className="form-check-label small" htmlFor="socFormEnabled">
+              Display on Website Footer & Topbar
+            </label>
+          </div>
+          <div className="d-flex justify-content-end gap-2 pt-3 border-top">
+            <button type="button" className="btn-admin-outline" onClick={() => setIsSocialModalOpen(false)}>Cancel</button>
+            <button type="submit" className="btn-admin-red">Save Social Link</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: Add New Column */}
+      <Modal
+        isOpen={isColModalOpen}
+        onClose={() => setIsColModalOpen(false)}
+        title="Add Footer Navigation Column"
+      >
+        <div>
+          <div className="mb-3">
+            <label className="admin-form-label">Column Title (e.g. SHOP, POLICIES, QUICK LINKS)</label>
+            <input
+              type="text"
+              className="admin-input"
+              placeholder="Enter column title..."
+              value={colTitleInput}
+              onChange={(e) => setColTitleInput(e.target.value)}
+            />
+          </div>
+          <div className="d-flex justify-content-end gap-2 pt-3 border-top">
+            <button type="button" className="btn-admin-outline" onClick={() => setIsColModalOpen(false)}>Cancel</button>
+            <button type="button" className="btn-admin-red" onClick={handleAddColumn}>Add Column</button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

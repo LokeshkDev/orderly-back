@@ -43,6 +43,12 @@ const AboutUs = () => {
     if (!html) return '';
     let cleaned = html.trim();
 
+    // Strip inline text color styles inserted by rich text editors (e.g. Quill/Word paste)
+    cleaned = cleaned.replace(/style\s*=\s*"[^"]*"/gi, (match) => {
+      const stripped = match.replace(/color\s*:\s*[^;"]+;?/gi, '');
+      return stripped === 'style=""' ? '' : stripped;
+    });
+
     // If it already has rich HTML markup (h1-h6, p, ul, ol, table, etc.), preserve user's formatting directly
     const hasRichMarkup = /<\s*(?:h[1-6]|p|ul|ol|table|blockquote)\b[^>]*>/i.test(cleaned);
     if (hasRichMarkup) {
@@ -164,11 +170,6 @@ const AboutUs = () => {
                 ) : (
                   <div className="orderly-img-fallback" style={{ height: '100%', minHeight: '380px' }}>ORDERLY ATELIER</div>
                 )}
-                <div className="about-img-overlay-card glass-panel">
-                  <FiAward className="text-warning fs-1 mb-2" />
-                  <h5 className="text-white fw-bold mb-1">100% Handcrafted</h5>
-                  <span className="text-muted extra-small">Pure Italian Fabrics & Bespoke Tailoring</span>
-                </div>
               </div>
             </div>
 

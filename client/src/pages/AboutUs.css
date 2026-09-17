@@ -56,16 +56,35 @@
 
 /* CMS Rich HTML Content within About Us */
 .cms-rich-html-content {
-  color: #94a3b8;
-  font-size: 1rem;
+  color: #d1d5db !important;
+  font-size: 1.05rem;
   line-height: 1.8;
+}
+
+.cms-rich-html-content p,
+.cms-rich-html-content span,
+.cms-rich-html-content div,
+.cms-rich-html-content li {
+  color: #cbd5e1 !important;
+}
+
+.cms-rich-html-content h1,
+.cms-rich-html-content h2 {
+  font-family: var(--font-heading, inherit);
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 800;
+  color: #ffffff !important;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin-top: 0.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .cms-rich-html-content h3 {
   font-family: var(--font-heading, inherit);
   font-size: 1.35rem;
   font-weight: 700;
-  color: #f59e0b;
+  color: #f59e0b !important;
   margin-top: 2rem;
   margin-bottom: 0.85rem;
   letter-spacing: 0.02em;
@@ -75,31 +94,26 @@
 .cms-rich-html-content h5,
 .cms-rich-html-content h6 {
   font-weight: 700;
-  color: #ffffff;
+  color: #ffffff !important;
   margin-top: 1.5rem;
   margin-bottom: 0.75rem;
-}
-
-.cms-rich-html-content p {
-  color: #94a3b8;
-  font-size: 1rem;
-  line-height: 1.8;
-  margin-bottom: 1.25rem;
 }
 
 .cms-rich-html-content p:first-of-type {
   font-size: 1.125rem;
   line-height: 1.85;
-  color: #cbd5e1;
+  color: #e2e8f0 !important;
   font-weight: 400;
 }
 
-.cms-rich-html-content strong {
-  color: #ffffff;
+.cms-rich-html-content strong,
+.cms-rich-html-content b {
+  color: #ffffff !important;
   font-weight: 700;
 }
 
-.cms-rich-html-content ul {
+.cms-rich-html-content ul,
+.cms-rich-html-content ol {
   list-style: none;
   padding-left: 0;
   margin-top: 1.25rem;
@@ -110,7 +124,7 @@
   position: relative;
   padding-left: 1.75rem;
   margin-bottom: 0.85rem;
-  color: #94a3b8;
+  color: #cbd5e1 !important;
   line-height: 1.7;
 }
 
@@ -118,20 +132,20 @@
   content: '✦';
   position: absolute;
   left: 0;
-  color: #f59e0b;
+  color: #f59e0b !important;
   font-size: 0.85rem;
   top: 1px;
 }
 
 .cms-rich-html-content a {
-  color: #f59e0b;
+  color: #f59e0b !important;
   text-decoration: underline;
   text-underline-offset: 3px;
   transition: color 0.2s ease;
 }
 
 .cms-rich-html-content a:hover {
-  color: #fbbf24;
+  color: #fbbf24 !important;
 }
 
 .max-w-700 {

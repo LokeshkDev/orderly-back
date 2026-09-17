@@ -404,8 +404,8 @@ const MobileCombos = () => {
                           <ComboCover
                             items={combo.items}
                             images={combo.images}
+                            coverImage={combo.cover_image}
                             comboName={combo.name}
-                            showPlusBadge={true}
                           />
                         </Link>
 

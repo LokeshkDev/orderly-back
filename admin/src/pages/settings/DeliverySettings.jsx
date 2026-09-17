@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FiTruck, FiDollarSign, FiMapPin, FiPackage, FiSave, FiPlus, 
-  FiTrash2, FiEdit2, FiCheck, FiX, FiMail, FiSend, FiInfo, FiSliders, FiList, FiAlertTriangle
+  FiTrash2, FiEdit2, FiCheck, FiX, FiMail, FiSend, FiInfo, FiSliders, FiList, FiAlertTriangle, FiCreditCard
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
@@ -30,7 +30,7 @@ const DEFAULT_EMAIL_SETTINGS = {
 };
 
 const DeliverySettings = () => {
-  const [activeTab, setActiveTab] = useState('delivery'); // 'delivery' | 'couriers' | 'emails'
+  const [activeTab, setActiveTab] = useState('delivery'); // 'delivery' | 'couriers' | 'emails' | 'cod'
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -42,6 +42,10 @@ const DeliverySettings = () => {
 
   // Email notifications configuration state
   const [emailSettings, setEmailSettings] = useState(DEFAULT_EMAIL_SETTINGS);
+
+  // COD & Online configuration state
+  const [codEnabled, setCodEnabled] = useState(true);
+  const [codAdvancePercentage, setCodAdvancePercentage] = useState('10');
 
   // Modal / Form state for adding/editing price ranges
   const [showRangeModal, setShowRangeModal] = useState(false);
@@ -94,6 +98,12 @@ const DeliverySettings = () => {
               setEmailSettings({ ...DEFAULT_EMAIL_SETTINGS, ...em });
             } catch (e) {}
           }
+          if (fetched.cod_enabled !== undefined) {
+            setCodEnabled(String(fetched.cod_enabled) !== 'false');
+          }
+          if (fetched.cod_advance_percentage !== undefined) {
+            setCodAdvancePercentage(String(fetched.cod_advance_percentage));
+          }
         }
       })
       .catch(err => console.error('Error fetching settings:', err))
@@ -119,6 +129,16 @@ const DeliverySettings = () => {
           key: 'email_settings',
           value: JSON.stringify(emailSettings),
           type: 'json'
+        },
+        {
+          key: 'cod_enabled',
+          value: codEnabled ? 'true' : 'false',
+          type: 'boolean'
+        },
+        {
+          key: 'cod_advance_percentage',
+          value: String(codAdvancePercentage),
+          type: 'number'
         }
       ];
 
@@ -328,6 +348,12 @@ const DeliverySettings = () => {
           onClick={() => setActiveTab('emails')}
         >
           <FiMail /> 3. Order Email Notifications
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'cod' ? 'active' : ''}`}
+          onClick={() => setActiveTab('cod')}
+        >
+          <FiCreditCard /> 4. Online / COD Settings
         </button>
       </div>
 
@@ -888,6 +914,88 @@ const DeliverySettings = () => {
                 ].map(tag => (
                   <code key={tag} className="badge bg-white text-dark border px-2 py-1">{tag}</code>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: ONLINE / COD SETTINGS */}
+      {activeTab === 'cod' && (
+        <div className="row g-4">
+          <div className="col-12 col-lg-8">
+            <div className="admin-card-white p-4">
+              <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-4">
+                <div>
+                  <h5 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                    <FiDollarSign className="text-danger" /> Cash On Delivery (COD) Configuration
+                  </h5>
+                  <p className="text-muted small mb-0">
+                    Enable or disable COD payments and configure advance payment terms.
+                  </p>
+                </div>
+                <span className={`badge ${codEnabled ? 'bg-success' : 'bg-danger'} px-3 py-2 fs-6`}>
+                  {codEnabled ? 'COD ENABLED' : 'COD DISABLED'}
+                </span>
+              </div>
+
+              {/* TOGGLE OPTION */}
+              <div className="p-3 mb-4 rounded border bg-light d-flex align-items-center justify-content-between">
+                <div>
+                  <strong className="d-block text-dark fs-6">Cash On Delivery (COD) Status</strong>
+                  <span className="text-muted small">
+                    When disabled, the Cash on Delivery option will be completely hidden from the website checkout.
+                  </span>
+                </div>
+                <div className="form-check form-switch fs-4">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    id="codToggleSwitch"
+                    checked={codEnabled}
+                    onChange={(e) => setCodEnabled(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+
+              {/* ADVANCE PAYMENT SETTINGS */}
+              <div className="row g-3 mb-4">
+                <div className="col-md-6">
+                  <label className="admin-form-label">COD Advance Percentage (%)</label>
+                  <div className="input-group">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      className="admin-input"
+                      value={codAdvancePercentage}
+                      onChange={(e) => setCodAdvancePercentage(e.target.value)}
+                      placeholder="10"
+                      disabled={!codEnabled}
+                    />
+                    <span className="input-group-text">%</span>
+                  </div>
+                  <span className="text-muted extra-small">
+                    Percentage of subtotal + delivery fee collected in advance for COD orders.
+                  </span>
+                </div>
+              </div>
+
+              {/* IMPACT & PREVIEW NOTE */}
+              <div className="p-3 rounded bg-light border">
+                <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                  <FiInfo className="text-info" /> Storefront Checkout Impact
+                </h6>
+                <ul className="text-muted small mb-0 ps-3">
+                  <li className="mb-1">
+                    <strong>COD Enabled:</strong> Customers can select COD at checkout, pay the {codAdvancePercentage}% advance online, and pay the remaining balance upon delivery.
+                  </li>
+                  <li>
+                    <strong>COD Disabled:</strong> The Cash on Delivery option will be completely hidden on the website checkout, leaving Online Payment (Razorpay / Cards / UPI) as the sole payment method.
+                  </li>
+                </ul>
               </div>
             </div>
           </div>

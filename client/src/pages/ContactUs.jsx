@@ -39,7 +39,7 @@ const ContactUs = () => {
   const cmsContact = settings?.cms_pages?.contact || {};
   const bannerImage = cmsContact.banner_image;
   const title = cmsContact.title || 'Get In Touch & Visit Our Stores';
-  const subtitle = cmsContact.subtitle || '24/7 VIP CONCIERGE & BOUTIQUE LOCATIONS';
+  const subtitle = cmsContact.subtitle || '24/7 BOUTIQUE LOCATIONS';
   const contentHtml = cmsContact.content_html;
   const featuredImage = cmsContact.featured_image;
 
@@ -47,7 +47,7 @@ const ContactUs = () => {
     <>
       <SEO 
         title={`${title} | ORDERLY Menswear`} 
-        description="Contact our 24/7 VIP concierge desk or visit ORDERLY menswear store locations across India."
+        description="Contact our 24/7 desk or visit ORDERLY menswear store locations across India."
         canonicalPath="/contact"
       />
       <div className="orderly-contact-page py-5">
@@ -112,7 +112,7 @@ const ContactUs = () => {
               <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 border-bottom border-secondary pb-3">
                 <div>
                   <span className="badge bg-danger text-uppercase px-3 py-1 mb-2">Priority Support</span>
-                  <h3 className="text-warning fw-bold mb-1">ORDERLY VIP Concierge Desk</h3>
+                  <h3 className="text-warning fw-bold mb-1">ORDERLY Desk</h3>
                   <p className="text-muted small mb-0">Dedicated assistance for bespoke styling, sizing guidance, order tracking, and private boutique appointments.</p>
                 </div>
               </div>
@@ -146,7 +146,7 @@ const ContactUs = () => {
                 <div className="col-md-6 col-lg-3">
                   <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
                     <FiMail className="fs-3 text-danger mb-2" />
-                    <h6 className="text-white mb-1">VIP Support Email</h6>
+                    <h6 className="text-white mb-1">Support Email</h6>
                     <a href={`mailto:${settings?.contact_email || 'info@orderlymenswear.com'}`} className="text-muted text-decoration-none small d-block">
                       {settings?.contact_email || 'info@orderlymenswear.com'}
                     </a>
@@ -156,7 +156,7 @@ const ContactUs = () => {
                 <div className="col-md-6 col-lg-3">
                   <div className="p-3 rounded-2 h-100 bg-dark bg-opacity-50 border border-secondary">
                     <FiClock className="fs-3 text-warning mb-2" />
-                    <h6 className="text-white mb-1">Concierge Operating Hours</h6>
+                    <h6 className="text-white mb-1">Operating Hours</h6>
                     <p className="text-muted small mb-0">
                       {settings?.support_hours || 'Monday – Saturday: 10:00 AM – 7:00 PM IST'}
                     </p>
@@ -167,7 +167,7 @@ const ContactUs = () => {
                   <div className="p-3 rounded-2 bg-dark bg-opacity-50 border border-secondary d-flex align-items-start gap-3">
                     <FiMapPin className="fs-3 text-danger mt-1 flex-shrink-0" />
                     <div>
-                      <h6 className="text-white mb-1">Corporate Headquarters</h6>
+                      <h6 className="text-white mb-1">Our Branches</h6>
                       <p className="text-muted small mb-0">
                         {settings?.contact_address || 'ORDERLY 2.0, Valasaravakkam, Kundrathur, Chennai, Tamil Nadu, India'}
                       </p>

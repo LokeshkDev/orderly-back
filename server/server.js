@@ -27,6 +27,7 @@ import uploadRoutes from './routes/upload.routes.js';
 import customersRoutes from './routes/customers.routes.js';
 import productsRoutes from './routes/products.routes.js';
 import combosRoutes from './routes/combos.routes.js';
+import { ensureComboColumnsExist } from './controllers/combo.controller.js';
 import sitemapRoutes from './routes/sitemap.routes.js';
 import Combo from './models/Combo.js';
 import { sanitizeDuplicateProductSlugs } from './controllers/product.controller.js';
@@ -214,6 +215,7 @@ const startServer = async () => {
   try {
     if (dbConnected) {
       await sequelize.sync();
+      await ensureComboColumnsExist();
       console.log('✅ Database Schema Synced');
     } else {
       console.warn('⚠️ Skipping DB sync - no connection');

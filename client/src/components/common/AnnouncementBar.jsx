@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import { FaFacebookF, FaInstagram, FaYoutube } from 'react-icons/fa';
+import { FiChevronLeft, FiChevronRight, FiFacebook, FiInstagram, FiYoutube, FiTwitter, FiLinkedin, FiShare2 } from 'react-icons/fi';
+import { FaWhatsapp, FaPinterest, FaTiktok } from 'react-icons/fa';
 import { getSettings } from '../../services/api';
 import './AnnouncementBar.css';
+
+const getSocialIcon = (platformKey) => {
+  switch (platformKey) {
+    case 'facebook': return <FiFacebook />;
+    case 'instagram': return <FiInstagram />;
+    case 'twitter': return <FiTwitter />;
+    case 'youtube': return <FiYoutube />;
+    case 'whatsapp': return <FaWhatsapp />;
+    case 'linkedin': return <FiLinkedin />;
+    case 'pinterest': return <FaPinterest />;
+    case 'tiktok': return <FaTiktok />;
+    default: return <FiShare2 />;
+  }
+};
 
 const AnnouncementBar = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [announcements, setAnnouncements] = useState([]);
   const [config, setConfig] = useState({ enabled: true, backgroundColor: '#000000', textColor: '#ffffff', accentColor: '#dc2626' });
-  const [socialLinks, setSocialLinks] = useState({});
+  const [socialLinks, setSocialLinks] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -24,18 +38,16 @@ const AnnouncementBar = () => {
             accentColor: cfg.accentColor || '#dc2626'
           });
 
-          // Support new announcements array format (preferred) and legacy single message format
+          // Announcements
           let items = [];
           if (Array.isArray(cfg.announcements) && cfg.announcements.length > 0) {
             items = cfg.announcements
               .filter(a => a && (typeof a === 'string' ? a.trim() : (a.message && a.message.trim())))
               .map(a => typeof a === 'string' ? { message: a, highlightedText: '', link: '' } : a);
           }
-          // Fallback to legacy single message
           if (items.length === 0 && cfg.message) {
             items.push({ message: cfg.message, highlightedText: cfg.highlightedText || '', link: cfg.link || '' });
           }
-          // Fallback to old announcements field
           if (items.length === 0) {
             if (typeof res.data.announcements === 'string') {
               const split = res.data.announcements.split('|').filter(Boolean);
@@ -47,11 +59,13 @@ const AnnouncementBar = () => {
 
           setAnnouncements(items);
 
-          setSocialLinks({
-            facebook_url: res.data.facebook_url || '',
-            instagram_url: res.data.instagram_url || '',
-            youtube_url: res.data.youtube_url || ''
-          });
+          // Dynamic Social Links from site settings
+          const footerObj = typeof res.data.footer_settings === 'string'
+            ? JSON.parse(res.data.footer_settings)
+            : res.data.footer_settings;
+          const socialsArr = Array.isArray(footerObj?.social_links) ? footerObj.social_links : [];
+          setSocialLinks(socialsArr.filter(s => s.enabled !== false));
+
           setCurrentIndex(0);
         } else {
           setAnnouncements([]);
@@ -83,13 +97,11 @@ const AnnouncementBar = () => {
   
   const currentItem = announcements[currentIndex] || announcements[0];
   
-  // Helper to highlight multiple custom words/phrases + fallback currency in RED
   const renderHighlightedAnnouncement = (item) => {
     if (!item) return null;
     const message = typeof item === 'string' ? item : (item.message || '');
     const customHighlights = typeof item === 'object' && item.highlightedText ? item.highlightedText : '';
     
-    // Parse custom tokens (comma, pipe, or semicolon separated)
     const customTokens = customHighlights
       ? customHighlights.split(/[,|;]+/).map(s => s.trim()).filter(Boolean)
       : [];
@@ -100,7 +112,6 @@ const AnnouncementBar = () => {
     customTokens.forEach(tok => {
       regexParts.push(escapeRegex(tok));
     });
-    // Add standard currency amounts / % / DAYS patterns
     regexParts.push('₹\\d+[\\d,]*');
     regexParts.push('\\b\\d+\\s*%');
     regexParts.push('\\b\\d+\\s*DAYS\\b');
@@ -166,44 +177,21 @@ const AnnouncementBar = () => {
           )}
         </div>
 
-        {/* Right Side Social Media Icons */}
+        {/* Right Side Dynamic Social Media Icons */}
         <div className="announcement-social-links">
-          {socialLinks.facebook_url && (
+          {socialLinks.map((soc) => (
             <a
-              href={socialLinks.facebook_url}
+              key={soc.id || soc.platform}
+              href={soc.url || '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="social-icon-link social-facebook"
-              aria-label="Facebook"
-              title="Facebook"
+              className={`social-icon-link social-${soc.platform}`}
+              aria-label={soc.name || soc.platform}
+              title={soc.name || soc.platform}
             >
-              <FaFacebookF />
+              {getSocialIcon(soc.platform)}
             </a>
-          )}
-          {socialLinks.instagram_url && (
-            <a
-              href={socialLinks.instagram_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="social-icon-link social-instagram"
-              aria-label="Instagram"
-              title="Instagram"
-            >
-              <FaInstagram />
-            </a>
-          )}
-          {socialLinks.youtube_url && (
-            <a
-              href={socialLinks.youtube_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="social-icon-link social-youtube"
-              aria-label="YouTube"
-              title="YouTube"
-            >
-              <FaYoutube />
-            </a>
-          )}
+          ))}
         </div>
       </div>
     </div>

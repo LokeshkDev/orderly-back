@@ -10,7 +10,7 @@
 /* 1. SHOP HERO / PAGE BANNER MATCHING REFERENCE SCREENSHOT */
 .shop-hero-banner {
   position: relative;
-  height: 230px;
+  height: 125px;
   background-color: #080808;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;

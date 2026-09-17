@@ -30,6 +30,44 @@ const renderStars = (rating = 5) => {
   );
 };
 
+export const extractAllComboImages = (comboObj) => {
+  if (!comboObj) return [];
+  const list = [];
+  const addedSet = new Set();
+
+  const addImage = (src) => {
+    if (!src) return;
+    const url = typeof src === 'string' ? src.trim() : (src.url || src.image_url || '').trim();
+    if (url && !addedSet.has(url)) {
+      addedSet.add(url);
+      list.push(url);
+    }
+  };
+
+  // 1. Combo Cover Image (if present)
+  if (comboObj.cover_image) {
+    addImage(comboObj.cover_image);
+  }
+
+  // 2. Primary image of each product included in the combo set
+  if (Array.isArray(comboObj.items)) {
+    comboObj.items.forEach(item => {
+      if (!item) return;
+      const primary = item.primaryImage || item.primary_image || (Array.isArray(item.images) && item.images[0]) || item.image;
+      addImage(primary);
+    });
+  }
+
+  // 3. Top-level combo images array (if any unique combo cover/deal photos were uploaded)
+  if (Array.isArray(comboObj.images)) {
+    comboObj.images.forEach(img => {
+      addImage(img);
+    });
+  }
+
+  return list;
+};
+
 const ComboDetail = () => {
   const { id } = useParams();
   const { addToCart, setIsCartOpen } = useCart();
@@ -297,7 +335,7 @@ const ComboDetail = () => {
     );
   }
 
-  const comboImages = combo.images?.length > 0 ? combo.images : [];
+  const comboImages = extractAllComboImages(combo);
   const currentMainImg = comboImages[activeImgIndex] || comboImages[0] || '';
   const isWishlisted = wishlist.some(item => item && String(item.id) === String(combo.id));
   const relatedCombos = allCombos

@@ -1,21 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { FiShoppingBag, FiMenu, FiSearch, FiHeart, FiX } from 'react-icons/fi';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { FiShoppingBag, FiMenu, FiSearch, FiX, FiChevronDown } from 'react-icons/fi';
 import MobileMenu from './MobileMenu';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { getSettings } from '../../services/api';
 import logoImg from '../../assets/logo/logo.png';
 import './Navbar.css';
 
+const DEFAULT_HEADER_LINKS = [
+  { id: 'nav-1', label: 'SHOP', url: '/shop' },
+  { id: 'nav-2', label: 'COMBOS', url: '/combos' }
+];
+
 const Navbar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [headerLinks, setHeaderLinks] = useState(DEFAULT_HEADER_LINKS);
 
   const { totalItems = 0, setIsCartOpen = () => {} } = useCart() || {};
   const { wishlistCount = 0 } = useWishlist() || {};
+
+  const currentPath = location.pathname;
+  const currentSearch = location.search;
+  const currentFullPath = currentPath + currentSearch;
+
+  const isLinkActive = (link, activeSubItems = []) => {
+    if (activeSubItems.length > 0) {
+      return activeSubItems.some(sub => {
+        if (!sub.url) return false;
+        return sub.url === currentFullPath || (currentSearch && sub.url === currentPath + currentSearch);
+      });
+    }
+
+    if (!link.url) return false;
+    if (link.url === currentFullPath) return true;
+    if (currentSearch && !link.url.includes('?')) return false;
+    if (!currentSearch && link.url === currentPath) return true;
+    return false;
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -26,6 +53,30 @@ const Navbar = () => {
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadSettings = async () => {
+      try {
+        const res = await getSettings();
+        if (active && res?.success && res?.data) {
+          const links = res.data.header_menu_links;
+          if (Array.isArray(links) && links.length > 0) {
+            setHeaderLinks(links.filter(l => l.enabled !== false));
+          }
+        }
+      } catch (e) {}
+    };
+    loadSettings();
+    const onSync = () => loadSettings();
+    window.addEventListener('orderly_settings_updated', onSync);
+    window.addEventListener('storage', onSync);
+    return () => {
+      active = false;
+      window.removeEventListener('orderly_settings_updated', onSync);
+      window.removeEventListener('storage', onSync);
     };
   }, []);
 
@@ -63,27 +114,72 @@ const Navbar = () => {
             />
           </Link>
 
-          {/* Desktop Nav Links */}
+          {/* Dynamic Desktop Nav Links with Sub-Menu Dropdowns */}
           <nav className="desktop-nav d-none d-lg-flex">
-            <NavLink to="/" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              HOME
-            </NavLink>
+            {headerLinks.map((link, idx) => {
+              const activeSubItems = (link.sub_items || []).filter(s => s.enabled !== false);
+              const hasDropdown = activeSubItems.length > 0;
+              const isActive = isLinkActive(link, activeSubItems);
 
-            <NavLink to="/shop" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              SHOP
-            </NavLink>
+              if (hasDropdown) {
+                return (
+                  <div key={link.id || idx} className="nav-dropdown-wrapper">
+                    <Link 
+                      to={link.url || '/shop'} 
+                      className={isActive ? 'nav-link active d-inline-flex align-items-center' : 'nav-link d-inline-flex align-items-center'}
+                    >
+                      <span>{link.label}</span>
+                      <FiChevronDown className="ms-1 dropdown-arrow" />
+                    </Link>
 
-            <NavLink to="/combos" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              COMBOS
-            </NavLink>
+                    <div className="nav-dropdown-menu">
+                      {activeSubItems.map((sub, sIdx) => {
+                        const isSubActive = sub.url === currentFullPath || (!currentSearch && sub.url === currentPath);
+                        return sub.url?.startsWith('http') ? (
+                          <a 
+                            key={sub.id || sIdx}
+                            href={sub.url}
+                            target={sub.is_external ? "_blank" : "_self"}
+                            rel="noopener noreferrer"
+                            className={isSubActive ? "nav-dropdown-item active" : "nav-dropdown-item"}
+                          >
+                            {sub.label}
+                          </a>
+                        ) : (
+                          <Link 
+                            key={sub.id || sIdx}
+                            to={sub.url || '/shop'}
+                            className={isSubActive ? "nav-dropdown-item active" : "nav-dropdown-item"}
+                          >
+                            {sub.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
 
-            <NavLink to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              ABOUT US
-            </NavLink>
-
-            <NavLink to="/contact" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              CONTACT
-            </NavLink>
+              return link.url?.startsWith('http') ? (
+                <a 
+                  key={link.id || idx} 
+                  href={link.url} 
+                  target={link.is_external ? "_blank" : "_self"} 
+                  rel="noopener noreferrer" 
+                  className={isActive ? "nav-link active" : "nav-link"}
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link 
+                  key={link.id || idx} 
+                  to={link.url || '/shop'} 
+                  className={isActive ? 'nav-link active' : 'nav-link'}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Desktop Action Icons */}
@@ -97,17 +193,6 @@ const Navbar = () => {
             >
               <FiSearch />
             </button>
-
-            {/* Wishlist Link Icon */}
-            <Link
-              to="/wishlist"
-              className="nav-action-btn position-relative"
-              aria-label="Wishlist"
-              title="My Wishlist"
-            >
-              <FiHeart />
-              {wishlistCount > 0 && <span className="action-badge badge-red">{wishlistCount}</span>}
-            </Link>
 
             {/* Cart Trigger */}
             <button 
@@ -130,14 +215,6 @@ const Navbar = () => {
             >
               <FiSearch />
             </button>
-            <Link 
-              to="/wishlist" 
-              className="nav-action-btn position-relative"
-              aria-label="Wishlist"
-            >
-              <FiHeart />
-              {wishlistCount > 0 && <span className="action-badge badge-red">{wishlistCount}</span>}
-            </Link>
             <button 
               className="nav-action-btn cart-btn-trigger position-relative"
               onClick={() => setIsCartOpen(true)}

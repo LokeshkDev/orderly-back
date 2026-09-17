@@ -148,8 +148,8 @@ const CatchyCombosSection = ({ title, subtitle }) => {
                     <ComboCover 
                       items={combo.items} 
                       images={combo.images} 
+                      coverImage={combo.cover_image}
                       comboName={combo.name}
-                      showPlusBadge={false}
                     />
                     <div className="catchy-combo-overlay" />
 

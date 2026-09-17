@@ -50,6 +50,10 @@ const Combo = sequelize.define('Combo', {
   images: {
     type: DataTypes.JSON
   },
+  cover_image: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   is_existing_products_combo: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

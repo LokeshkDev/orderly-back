@@ -9,6 +9,7 @@ import {
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
 import { formatPrice, calculateDiscount } from '../../utils/formatters';
 import { getVariantStock } from '../../pages/ProductDetail';
+import { extractAllComboImages } from '../../pages/ComboDetail';
 import MobileHeader from '../common/MobileHeader';
 import MobileMenu from '../common/MobileMenu';
 import MobileFooterAccordion from '../common/MobileFooterAccordion';
@@ -76,7 +77,7 @@ const MobileComboDetail = ({
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
-  const comboImages = combo.images?.length > 0 ? combo.images : [];
+  const comboImages = extractAllComboImages(combo);
   const currentMainImg = comboImages[activeImgIndex] || comboImages[0] || '';
   const currentOfferPrice = activeOfferPrice ?? combo.offer_price;
   const currentOriginalPrice = activeOriginalPrice ?? combo.original_price;

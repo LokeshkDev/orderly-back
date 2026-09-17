@@ -124,6 +124,175 @@
   margin-top: 2px;
 }
 
+/* ======================================================
+   SUPPORT POPOVER STYLES (WHATSAPP & PHONE)
+   ====================================================== */
+.support-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1040;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 74px;
+  animation: fadeInBackdrop 0.2s ease-out forwards;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.support-popover-card {
+  width: 92%;
+  max-width: 420px;
+  background: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9);
+  animation: slideUpPopover 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUpPopover {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.support-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.support-icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(197, 34, 31, 0.15);
+  color: #e50914;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.support-popover-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.support-popover-sub {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #888888;
+}
+
+.support-popover-close {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #aaaaaa;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.support-popover-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.support-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.support-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.support-option-btn.whatsapp-btn {
+  background: rgba(37, 211, 102, 0.08);
+  border-color: rgba(37, 211, 102, 0.2);
+}
+
+.support-option-btn.whatsapp-btn:hover,
+.support-option-btn.whatsapp-btn:active {
+  background: rgba(37, 211, 102, 0.18);
+  transform: translateY(-1px);
+}
+
+.support-option-btn.phone-btn {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.support-option-btn.phone-btn:hover,
+.support-option-btn.phone-btn:active {
+  background: rgba(59, 130, 246, 0.18);
+  transform: translateY(-1px);
+}
+
+.support-btn-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.support-btn-icon-wrap.whatsapp {
+  background: #25D366;
+  color: #ffffff;
+}
+
+.support-btn-icon-wrap.phone {
+  background: #3B82F6;
+  color: #ffffff;
+}
+
+.support-btn-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.support-btn-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.support-btn-val {
+  font-size: 0.74rem;
+  color: #aaaaaa;
+}
+
 /* Page bottom padding fix so fixed bottom nav doesn't overlap footer content */
 @media (max-width: 991px) {
   body {

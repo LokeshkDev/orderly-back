@@ -152,18 +152,51 @@ export const matchesCategoryAlias = (category, target) => {
   const c = category.toLowerCase().trim();
   const t = target.toLowerCase().trim();
   if (c === t) return true;
-  
+
   // Slug-normalized comparison
   const cSlug = c.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const tSlug = t.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   if (cSlug === tSlug) return true;
 
-  // Partial slug/keyword match for common aliases
-  if (c.includes(t) || t.includes(c)) return true;
-  if ((c.includes('t-shirt') || c.includes('tee') || c.includes('polo')) && (t.includes('t-shirt') || t.includes('tee') || t.includes('polo'))) return true;
+  // Guard against bottomwear (pants/trousers/shorts/jeans) matching topwear (shirts/t-shirts/polos/blazers)
+  const bottomwearKeywords = ['pant', 'pants', 'trouser', 'trousers', 'chino', 'chinos', 'shorts', 'jeans', 'denim', 'baggy'];
+  const topwearKeywords = ['t-shirt', 'tshirt', 'tee', 'tees', 'shirt', 'shirts', 'blazer', 'suit', 'jacket'];
+
+  const isCBottom = bottomwearKeywords.some(k => c.includes(k));
+  const isTBottom = bottomwearKeywords.some(k => t.includes(k));
+  const isCTop = topwearKeywords.some(k => c.includes(k));
+  const isTTop = topwearKeywords.some(k => t.includes(k));
+
+  if ((isCBottom && isTTop && !isCTop) || (isTBottom && isCTop && !isTBottom)) return false;
+
+  // Guard against Plain Woven Shirt vs T-Shirt/Polo conflict
+  const isTShirtType = (str) => str.includes('t-shirt') || str.includes('tshirt') || str.includes('tee') || str.includes('polo');
+  const isPlainShirtType = (str) => (str.includes('shirt') || str.includes('shirts')) && !isTShirtType(str);
+
+  if ((isTShirtType(c) && isPlainShirtType(t)) || (isTShirtType(t) && isPlainShirtType(c))) return false;
+
+  // Boundary-aware Polo Category matching
+  const isPoloCategory = (str) => {
+    const s = str.toLowerCase();
+    if (s.includes('pant') || s.includes('trouser')) return false;
+    return s.includes('polo tshirt') || s.includes('polo t-shirt') || s.includes('polo shirt') || s.includes('polo tee') || s.includes('polo tees') || /\bpolo\b/.test(s);
+  };
+
+  if (isPoloCategory(c) && isPoloCategory(t)) return true;
+
+  // Specific keyword alias groups
+  if (isTShirtType(c) && isTShirtType(t)) {
+    if (!isCBottom && !isTBottom) return true;
+  }
   if ((c.includes('denim') || c.includes('jean')) && (t.includes('denim') || t.includes('jean'))) return true;
   if ((c.includes('trouser') || c.includes('pant') || c.includes('chino')) && (t.includes('trouser') || t.includes('pant') || t.includes('chino'))) return true;
   if ((c.includes('blazer') || c.includes('suit')) && (t.includes('blazer') || t.includes('suit'))) return true;
+
+  const cWords = c.split(/[^a-z0-9]+/);
+  const tWords = t.split(/[^a-z0-9]+/);
+  if (!isCBottom && !isTBottom) {
+    if (cWords.includes(t) || tWords.includes(c)) return true;
+  }
 
   return false;
 };

@@ -21,16 +21,25 @@
 }
 
 .cms-rich-html-content {
-  color: #e2e8f0;
+  color: #e2e8f0 !important;
   font-size: 1.05rem;
   line-height: 1.8;
+}
+
+.cms-rich-html-content p,
+.cms-rich-html-content span,
+.cms-rich-html-content div,
+.cms-rich-html-content li {
+  color: #cbd5e1 !important;
 }
 
 .cms-rich-html-content h1,
 .cms-rich-html-content h2,
 .cms-rich-html-content h3,
-.cms-rich-html-content h4 {
-  color: #ffffff;
+.cms-rich-html-content h4,
+.cms-rich-html-content h5,
+.cms-rich-html-content h6 {
+  color: #ffffff !important;
   font-weight: 700;
   margin-top: 2rem;
   margin-bottom: 1rem;
@@ -44,21 +53,22 @@
   font-size: 1.7rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   padding-bottom: 0.5rem;
-  color: #f1f5f9;
+  color: #f1f5f9 !important;
 }
 
 .cms-rich-html-content h3 {
   font-size: 1.35rem;
-  color: #e2e8f0;
+  color: #e2e8f0 !important;
 }
 
 .cms-rich-html-content p {
   margin-bottom: 1.25rem;
-  color: #cbd5e1;
+  color: #cbd5e1 !important;
 }
 
-.cms-rich-html-content strong {
-  color: #ffffff;
+.cms-rich-html-content strong,
+.cms-rich-html-content b {
+  color: #ffffff !important;
 }
 
 .cms-rich-html-content ul,

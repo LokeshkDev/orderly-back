@@ -1,7 +1,11 @@
 import React from 'react';
 import './ComboCover.css';
 
-export const getComboPrimaryImages = (items = [], images = []) => {
+export const getComboPrimaryImages = (items = [], images = [], coverImage = '') => {
+  if (coverImage && typeof coverImage === 'string' && coverImage.trim()) {
+    return [coverImage.trim()];
+  }
+
   const extracted = [];
 
   if (Array.isArray(items) && items.length > 0) {
@@ -24,7 +28,7 @@ export const getComboPrimaryImages = (items = [], images = []) => {
         primary = item.image;
       }
 
-      if (primary && typeof primary === 'string') {
+      if (primary && typeof primary === 'string' && primary.trim().length > 0) {
         extracted.push(primary);
       }
     });
@@ -45,11 +49,12 @@ export const getComboPrimaryImages = (items = [], images = []) => {
 const ComboCover = ({
   items = [],
   images = [],
+  coverImage = '',
   comboName = 'Combo Bundle',
   className = '',
   showPlusBadge = true
 }) => {
-  const primaryImages = getComboPrimaryImages(items, images);
+  const primaryImages = getComboPrimaryImages(items, images, coverImage);
   const count = primaryImages.length;
 
   const handleImageError = (e) => {

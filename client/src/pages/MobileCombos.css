@@ -353,11 +353,10 @@
     cursor: pointer;
   }
 
-  /* 3. SINGLE-COLUMN MOBILE COMBOS GRID MATCHING REFERENCE SCREENSHOT */
   .mobile-combos-single-col-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .mobile-creative-combo-card {
@@ -425,7 +424,8 @@
     display: block;
     position: relative;
     width: 100%;
-    height: 220px;
+    height: 100%;
+    aspect-ratio: 3 / 4;
     background-color: #050505;
     overflow: hidden;
     text-decoration: none;

@@ -185,7 +185,7 @@ const CombosList = () => {
         badge: comboToEdit.badge || '',
         status: comboToEdit.status || 'Active',
         description: comboToEdit.description || '',
-        cover_image: comboToEdit.cover_image || comboToEdit.images?.[0] || '',
+        cover_image: comboToEdit.cover_image || '',
         images: derivedImages.length > 0 ? derivedImages : (comboToEdit.images || []),
         is_existing_products_combo: comboToEdit.is_existing_products_combo ?? (mode === 'existing'),
         items: enrichedItems
@@ -274,7 +274,7 @@ const CombosList = () => {
 
     const finalCombo = {
       ...formData,
-      cover_image: formData.cover_image || (finalImages.length > 0 ? finalImages[0] : ''),
+      cover_image: (formData.cover_image && typeof formData.cover_image === 'string') ? formData.cover_image.trim() : '',
       images: finalImages,
       pieces_count: piecesCount,
       slug: formData.slug || formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -399,9 +399,32 @@ const CombosList = () => {
       (modeFilter === 'existing' && c.is_existing_products_combo) ||
       (modeFilter === 'custom' && !c.is_existing_products_combo);
 
-    const matchesCat = categoryFilter === 'All' || 
-      c.category === categoryFilter || 
-      c.category_slug === categoryFilter;
+    const matchesCat = (() => {
+      if (categoryFilter === 'All') return true;
+      const catQuery = categoryFilter.toLowerCase().trim();
+      
+      const catObj = comboCategories.find(cat => 
+        (cat.name && cat.name.toLowerCase().trim() === catQuery) ||
+        (cat.slug && cat.slug.toLowerCase().trim() === catQuery)
+      );
+
+      const querySlug = (catObj?.slug || catQuery).toLowerCase().trim();
+      const queryName = (catObj?.name || catQuery).toLowerCase().trim();
+
+      const comboCat = (c.category || '').toLowerCase().trim();
+      const comboSlug = (c.category_slug || '').toLowerCase().trim();
+      const comboName = (c.name || '').toLowerCase().trim();
+
+      const baseSlug = querySlug.replace(/-combos?$/g, '').replace(/combos?$/g, '').trim();
+
+      return comboCat === queryName ||
+             comboSlug === querySlug ||
+             comboCat === querySlug ||
+             comboSlug === queryName ||
+             comboCat.includes(querySlug) ||
+             comboSlug.includes(querySlug) ||
+             (baseSlug && baseSlug.length > 2 && (comboCat.includes(baseSlug) || comboSlug.includes(baseSlug) || comboName.includes(baseSlug)));
+    })();
 
     return matchesSearch && matchesPiece && matchesMode && matchesCat;
   });
@@ -765,12 +788,12 @@ const CombosList = () => {
                   {/* Combo Cover Image Upload Input */}
                   <div className="col-12 border-top pt-3 mt-3">
                     <FileUploadInput
-                      label="COMBO COVER IMAGE (SHOWS AS PRIMARY PRODUCT COVER IMAGE)"
+                      label="COMBO COVER IMAGE (OPTIONAL - LEAVE BLANK TO SHOW PRODUCT PRIMARY IMAGE)"
                       folder="combos"
                       value={formData.cover_image || ''}
                       onChange={(url) => setFormData(prev => ({ ...prev, cover_image: url }))}
-                      recommendedSize="Recommended: 1200 x 800 px (3:2 Aspect Ratio, Max 10MB)"
-                      placeholder="Upload or paste Combo Cover Image URL..."
+                      recommendedSize="Optional cover image. If empty or removed, the primary image of the first product in the combo will be shown automatically."
+                      placeholder="Upload or paste Combo Cover Image URL (Optional)..."
                     />
                   </div>
 

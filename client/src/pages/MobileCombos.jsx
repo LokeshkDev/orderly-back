@@ -24,6 +24,7 @@ import { MobileComboCategorySkeleton, MobileComboCardSkeleton } from '../compone
 import ComboCover from '../components/common/ComboCover';
 import { formatPrice } from '../utils/formatters';
 import '../styles/MobileHomepage.css';
+import '../components/home/ShopByCategory.css';
 import './MobileCombos.css';
 
 const DEFAULT_COMBO_CATEGORIES = [
@@ -299,36 +300,34 @@ const MobileCombos = () => {
                     return (
                       <div
                         key={cat.id || idx}
-                        className="m-combo-single-cat-card"
+                        className="fashion-category-card"
                         onClick={() => handleCategorySelect(cat.slug || cat.name)}
                         role="button"
                         tabIndex={0}
                       >
-                        <div className="m-combo-cat-card-img-wrap">
-                          {cat.image ? (
-                            <img
-                              src={cat.image}
-                              alt={cat.name}
-                              className="m-combo-cat-card-img"
-                            />
-                          ) : (
-                            <div className="m-combo-cat-card-img orderly-img-fallback">ORDERLY</div>
-                          )}
-                          <div className="m-combo-cat-card-gradient" />
-                          <span className="m-combo-cat-count-tag">
-                            {count > 0 ? `${count} Combos` : 'Curated Set'}
-                          </span>
-                        </div>
+                        {cat.image ? (
+                          <img
+                            src={cat.image}
+                            alt={cat.name}
+                            className="fashion-cat-img"
+                          />
+                        ) : (
+                          <div className="fashion-cat-img orderly-img-fallback">ORDERLY</div>
+                        )}
+                        <div className="fashion-cat-overlay" />
+                        <div className="fashion-cat-red-accent" />
+                        <span className="m-combo-cat-count-tag">
+                          {count > 0 ? `${count} Combos` : 'Curated Set'}
+                        </span>
 
-                        <div className="m-combo-cat-card-body">
-                          <h4 className="m-combo-cat-card-title">{cat.name}</h4>
-                          {cat.description && (
-                            <p className="m-combo-cat-card-desc">{cat.description}</p>
+                        <div className="fashion-cat-content">
+                          <h3 className="fashion-cat-title">{cat.name}</h3>
+                          {(cat.description || cat.sub) && (
+                            <p className="fashion-cat-sub">{cat.description || cat.sub}</p>
                           )}
-                          <div className="m-combo-cat-card-cta">
-                            <span>Explore Combos</span>
-                            <FiArrowRight />
-                          </div>
+                          <span className="fashion-cat-link">
+                            VIEW SETS <span className="cat-arrow">&rarr;</span>
+                          </span>
                         </div>
                       </div>
                     );

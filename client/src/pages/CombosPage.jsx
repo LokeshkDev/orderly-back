@@ -12,13 +12,14 @@ import ComboCover from '../components/common/ComboCover';
 import MobileCombos from './MobileCombos';
 import useIsMobile from '../utils/useIsMobile';
 import { formatPrice } from '../utils/formatters';
+import '../components/home/ShopByCategory.css';
 import './CombosPage.css';
 
 const DEFAULT_COMBO_CATEGORIES = [
-  { id: 101, name: 'Executive & Formal Combos', slug: 'formal-combos', image: '', description: 'Tailored 2-piece and 3-piece formal suiting & linen sets' },
-  { id: 102, name: 'Casual Weekend Sets', slug: 'casual-combos', image: '', description: 'Everyday relaxed tees, casual shirts, and comfort trousers' },
-  { id: 103, name: 'Partywear & Evening Sets', slug: 'partywear-combos', image: '', description: 'Bold jackets, satin sheen shirts, and slim chino styling' },
-  { id: 104, name: 'Summer Vacation Outfits', slug: 'summer-combos', image: '', description: 'Lightweight linens, breathable polo shirts, and stretch shorts' }
+  { id: 101, name: 'Executive & Formal Combos', slug: 'formal-combos', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop', description: 'Tailored 2-piece and 3-piece formal suiting & linen sets' },
+  { id: 102, name: 'Casual Weekend Sets', slug: 'casual-combos', image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop', description: 'Everyday relaxed tees, casual shirts, and comfort trousers' },
+  { id: 103, name: 'Partywear & Evening Sets', slug: 'partywear-combos', image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=800&auto=format&fit=crop', description: 'Bold jackets, satin sheen shirts, and slim chino styling' },
+  { id: 104, name: 'Summer Vacation Outfits', slug: 'summer-combos', image: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?q=80&w=800&auto=format&fit=crop', description: 'Lightweight linens, breathable polo shirts, and stretch shorts' }
 ];
 
 const CombosPage = () => {
@@ -292,33 +293,36 @@ const CombosPage = () => {
                       return (
                         <div
                           key={cat.id || idx}
-                          className="combo-category-card"
+                          className="fashion-category-card"
                           onClick={() => handleCategorySelect(cat.slug || cat.name)}
                           role="button"
                           tabIndex={0}
                         >
-                          <div className="combo-cat-img-wrapper">
+                          {cat.image ? (
                             <img 
-                              src={cat.image || '/logo.png'} 
+                              src={cat.image} 
                               alt={cat.name} 
-                              className="combo-cat-img" 
-                              onError={(e) => { e.target.src = '/logo.png'; }}
+                              className="fashion-cat-img" 
+                              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop'; }}
                             />
-                            <div className="combo-cat-overlay" />
-                            <span className="combo-cat-count-badge">
-                              {count > 0 ? `${count} Combos` : 'Curated Set'}
-                            </span>
-                          </div>
+                          ) : (
+                            <div className="fashion-cat-img orderly-img-fallback">ORDERLY</div>
+                          )}
+                          <div className="fashion-cat-overlay" />
+                          <div className="fashion-cat-red-accent" />
 
-                          <div className="combo-cat-content">
-                            <h3 className="combo-cat-name">{cat.name}</h3>
-                            {cat.description && (
-                              <p className="combo-cat-desc">{cat.description}</p>
+                          <span className="m-combo-cat-count-tag">
+                            {count > 0 ? `${count} Combos` : 'Curated Set'}
+                          </span>
+
+                          <div className="fashion-cat-content">
+                            <h3 className="fashion-cat-title">{cat.name}</h3>
+                            {(cat.description || cat.sub) && (
+                              <p className="fashion-cat-sub">{cat.description || cat.sub}</p>
                             )}
-                            <div className="combo-cat-cta">
-                              <span>Explore Combos</span>
-                              <FiArrowRight />
-                            </div>
+                            <span className="fashion-cat-link">
+                              VIEW SETS <span className="cat-arrow">&rarr;</span>
+                            </span>
                           </div>
                         </div>
                       );

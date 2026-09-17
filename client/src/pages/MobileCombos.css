@@ -143,93 +143,44 @@
   }
 
   .mobile-combo-categories-single-cards-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
-  .m-combo-single-cat-card {
-    background: #0e1017;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  .mobile-combo-categories-single-cards-list .fashion-category-card {
+    height: 300px;
     border-radius: 8px;
+  }
+
+  .mobile-combo-categories-single-cards-list .fashion-cat-content {
+    padding: 14px 12px;
+  }
+
+  .mobile-combo-categories-single-cards-list .fashion-cat-title {
+    font-size: 1.05rem;
+    margin-bottom: 3px;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.2s ease, border-color 0.2s ease;
   }
 
-  .m-combo-single-cat-card:active {
-    transform: scale(0.98);
-    border-color: #e50914;
+  .mobile-combo-categories-single-cards-list .fashion-cat-sub {
+    font-size: 0.72rem;
+    color: #a0a0a0;
+    margin-bottom: 8px;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
-  .m-combo-cat-card-img-wrap {
-    position: relative;
-    width: 100%;
-    height: 200px;
-    background-color: #1a1e27;
-  }
-
-  .m-combo-cat-card-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .m-combo-cat-card-gradient {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, transparent 40%, rgba(14, 16, 23, 0.95) 100%);
-  }
-
-  .m-combo-cat-count-tag {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #ffffff;
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-  }
-
-  .m-combo-cat-card-body {
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .m-combo-cat-card-title {
-    font-family: 'Oswald', sans-serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #ffffff;
-    letter-spacing: 0.03em;
-    margin-bottom: 4px;
-  }
-
-  .m-combo-cat-card-desc {
-    font-size: 0.78rem;
-    color: #94a3b8;
-    margin-bottom: 12px;
-    line-height: 1.35;
-  }
-
-  .m-combo-cat-card-cta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.78rem;
+  .mobile-combo-categories-single-cards-list .fashion-cat-link {
+    font-size: 0.72rem;
     font-weight: 800;
-    color: #e50914;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
   }
 
   /* ── Dedicated Mobile Category Header ─────────────────────────── */

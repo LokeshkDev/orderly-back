@@ -792,7 +792,7 @@ const CombosList = () => {
                       folder="combos"
                       value={formData.cover_image || ''}
                       onChange={(url) => setFormData(prev => ({ ...prev, cover_image: url }))}
-                      recommendedSize="Optional cover image. If empty or removed, the primary image of the first product in the combo will be shown automatically."
+                      recommendedSize="Recommended: 800 x 1000 px (3:4 Vertical Aspect Ratio, Max 10MB). Leave blank to show first product's primary image."
                       placeholder="Upload or paste Combo Cover Image URL (Optional)..."
                     />
                   </div>

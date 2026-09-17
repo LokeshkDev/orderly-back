@@ -17,7 +17,7 @@ const getDimensionHint = (type, folder, customHint) => {
     case 'hero':
       return 'Recommended: 1920 x 800 px (16:9 Landscape Banner, Max 10MB)';
     case 'combos':
-      return 'Recommended: 1200 x 800 px (3:2 Aspect Ratio, Max 10MB)';
+      return 'Recommended: 800 x 1000 px (3:4 Vertical Aspect Ratio, Max 10MB)';
     case 'brands':
       return 'Recommended: 400 x 400 px (1:1 Square Logo, Max 10MB)';
     case 'occasions':

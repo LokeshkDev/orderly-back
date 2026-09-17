@@ -321,28 +321,71 @@ const Checkout = () => {
           color: '#c1121f'
         },
         modal: {
-          ondismiss: () => finishFailure('Payment was cancelled. You can retry the checkout or continue shopping.')
+          ondismiss: () => {
+            if (!paymentHandled) {
+              finishFailure('Payment was cancelled. You can retry the checkout or continue shopping.');
+            }
+          }
         },
         handler: async (response) => {
-          const verifyRes = await verifyRazorpayPayment({
-            orderId: createdOrder.id,
-            orderNumber: createdOrder.order_number,
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature
-          });
+          paymentHandled = true;
+          try {
+            const verifyRes = await verifyRazorpayPayment({
+              orderId: createdOrder.id,
+              orderNumber: createdOrder.order_number,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
 
-          if (verifyRes?.success) {
-            finishSuccess();
-          } else {
-            finishFailure(verifyRes?.message || 'Payment verification failed. Please contact support.');
+            if (verifyRes?.success) {
+              clearCart();
+              navigate('/order-success', {
+                state: {
+                  orderId: createdOrder.order_number,
+                  total: Number(createdOrder.total) || total,
+                  customerName: formData.fullName,
+                  email: formData.email,
+                  paymentMethod: paymentLabel,
+                  amountPaid: paymentMethod === 'cod' ? codAdvanceAmount : total,
+                  balanceDue: paymentMethod === 'cod' ? codBalanceDue : 0,
+                  pricingBreakdown
+                }
+              });
+            } else {
+              try {
+                reportRazorpayFailure({
+                  orderId: createdOrder.id,
+                  orderNumber: createdOrder.order_number,
+                  failureMessage: verifyRes?.message || 'Payment verification failed.'
+                });
+              } catch (e) {}
+
+              navigate('/order-failure', {
+                state: {
+                  orderId: createdOrder.order_number,
+                  message: verifyRes?.message || 'Payment verification failed. Please contact support.'
+                }
+              });
+              setSubmitting(false);
+            }
+          } catch (err) {
+            navigate('/order-failure', {
+              state: {
+                orderId: createdOrder.order_number,
+                message: err?.message || 'Payment verification error.'
+              }
+            });
+            setSubmitting(false);
           }
         }
       });
 
       razorpay.on('payment.failed', (failure) => {
-        const failureMessage = failure?.error?.description || 'Payment failed or was cancelled. Your order remains pending.';
-        finishFailure(failureMessage);
+        if (!paymentHandled) {
+          const failureMessage = failure?.error?.description || 'Payment failed or was cancelled. Your order remains pending.';
+          finishFailure(failureMessage);
+        }
       });
 
       razorpay.open();

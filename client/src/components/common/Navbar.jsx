@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { FiShoppingBag, FiMenu, FiSearch, FiX, FiChevronDown } from 'react-icons/fi';
 import MobileMenu from './MobileMenu';
+import SearchAutoSuggestDropdown from './SearchAutoSuggestDropdown';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { getSettings } from '../../services/api';
@@ -226,24 +227,36 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Expandable Search Overlay */}
+        {/* Expandable Search Overlay with Live Auto-Suggest */}
         {isSearchOpen && (
           <div className="navbar-search-overlay">
-            <div className="container">
+            <div className="container position-relative">
               <form onSubmit={handleSearchSubmit} className="search-overlay-form">
                 <FiSearch className="search-input-icon" />
                 <input
                   type="text"
-                  placeholder="Search shirts, denim, jackets, oversized tees..."
+                  placeholder="Search products, combos, shirts,Selvedge denim..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus
                   className="search-overlay-input"
                 />
-                <button type="button" className="search-close-btn" onClick={() => setIsSearchOpen(false)}>
+                <button 
+                  type="button" 
+                  className="search-close-btn" 
+                  onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}
+                >
                   <FiX />
                 </button>
               </form>
+
+              {/* Auto-Suggest Dropdown for Products & Combos */}
+              <SearchAutoSuggestDropdown
+                searchQuery={searchQuery}
+                isOpen={isSearchOpen}
+                onSelect={() => { setIsSearchOpen(false); setSearchQuery(''); }}
+                onClose={() => setIsSearchOpen(false)}
+              />
             </div>
           </div>
         )}

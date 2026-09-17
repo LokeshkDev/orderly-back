@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiMenu, FiSearch, FiX } from 'react-icons/fi';
 import logoImg from '../../assets/logo/logo.png';
+import SearchAutoSuggestDropdown from './SearchAutoSuggestDropdown';
 
 const MobileHeader = ({ onOpenMenu }) => {
   const navigate = useNavigate();
@@ -52,33 +53,43 @@ const MobileHeader = ({ onOpenMenu }) => {
         </div>
       </header>
 
-      {/* Expandable Search Input Bar */}
+      {/* Expandable Search Input Bar with Auto-Suggest */}
       {isSearchOpen && (
         <div className="p-2 bg-dark border-bottom border-secondary mobile-only position-relative z-3">
-          <form onSubmit={handleSearchSubmit} className="d-flex align-items-center gap-2 px-2">
-            <input 
-              type="text" 
-              className="form-control form-control-sm bg-black text-white border-secondary"
-              placeholder="Search shirts, tees, denim, suits..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoFocus
+          <div className="position-relative">
+            <form onSubmit={handleSearchSubmit} className="d-flex align-items-center gap-2 px-2">
+              <input 
+                type="text" 
+                className="form-control form-control-sm bg-black text-white border-secondary"
+                placeholder="Search products, combos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+              <button 
+                type="submit" 
+                className="btn btn-sm btn-danger px-3"
+                aria-label="Submit Search"
+              >
+                <FiSearch />
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-sm btn-outline-light" 
+                onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}
+              >
+                <FiX />
+              </button>
+            </form>
+
+            {/* Auto-Suggest Dropdown for Mobile */}
+            <SearchAutoSuggestDropdown
+              searchQuery={searchQuery}
+              isOpen={isSearchOpen}
+              onSelect={() => { setIsSearchOpen(false); setSearchQuery(''); }}
+              onClose={() => setIsSearchOpen(false)}
             />
-            <button 
-              type="submit" 
-              className="btn btn-sm btn-danger px-3"
-              aria-label="Submit Search"
-            >
-              <FiSearch />
-            </button>
-            <button 
-              type="button" 
-              className="btn btn-sm btn-outline-light" 
-              onClick={() => setIsSearchOpen(false)}
-            >
-              <FiX />
-            </button>
-          </form>
+          </div>
         </div>
       )}
     </>

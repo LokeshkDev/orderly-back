@@ -167,10 +167,10 @@ const CatchyCombosSection = ({ title, subtitle }) => {
                           />
                         </Link>
 
-                        {/* Top-Left Red Discount Badge */}
+                        {/* Top-Left Red Badge on Image */}
                         <div className="card-badges-stack">
                           <span className="card-top-badge badge-red-tag">
-                            {discountPct > 0 ? `${discountPct}% OFF` : (combo.badge || 'COMBO')}
+                            {combo.badge ? combo.badge : discountPct > 0 ? `SAVE ${discountPct}%` : 'COMBO'}
                           </span>
                         </div>
                       </div>

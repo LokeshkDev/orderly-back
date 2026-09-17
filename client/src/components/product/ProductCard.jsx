@@ -200,7 +200,7 @@ const ProductCard = ({ product }) => {
             </span>
           ) : discountPercent > 0 ? (
             <span className="card-top-badge badge-red-tag">
-              {discountPercent}% OFF
+              SAVE {discountPercent}%
             </span>
           ) : null}
 

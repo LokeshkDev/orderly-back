@@ -7,7 +7,10 @@ import {
   FiChevronDown, 
   FiArrowLeft,
   FiArrowRight,
-  FiLayers
+  FiLayers,
+  FiShoppingBag,
+  FiCheck,
+  FiGrid
 } from 'react-icons/fi';
 import SEO from '../components/common/SEO';
 import MobileHeader from '../components/common/MobileHeader';
@@ -16,8 +19,10 @@ import MobileFooterAccordion from '../components/common/MobileFooterAccordion';
 import BottomNavbar from '../components/common/BottomNavbar';
 import { getCombos, getComboCategories } from '../services/api';
 import { useWishlist } from '../context/WishlistContext';
+import { useCart } from '../context/CartContext';
 import { MobileComboCategorySkeleton, MobileComboCardSkeleton } from '../components/common/Skeleton';
 import ComboCover from '../components/common/ComboCover';
+import { formatPrice } from '../utils/formatters';
 import '../styles/MobileHomepage.css';
 import './MobileCombos.css';
 
@@ -33,10 +38,34 @@ const MobileCombos = () => {
   const [combos, setCombos] = useState([]);
   const [comboCategories, setComboCategories] = useState(DEFAULT_COMBO_CATEGORIES);
   const [loading, setLoading] = useState(true);
+  const [addingComboId, setAddingComboId] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isSortDrawerOpen, setIsSortDrawerOpen] = useState(false);
   const { wishlist, toggleWishlist } = useWishlist();
+  const { addToCart } = useCart();
+
+  const handleClaimCombo = (combo, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setAddingComboId(combo.id);
+    addToCart({
+      id: combo.id,
+      name: combo.name,
+      price: combo.offer_price || combo.price,
+      originalPrice: combo.original_price,
+      image: combo.cover_image || combo.image || combo.images?.[0],
+      quantity: 1,
+      selectedColor: 'Standard Bundle',
+      selectedSize: 'L',
+      isCombo: true
+    });
+    setTimeout(() => {
+      setAddingComboId(null);
+    }, 1500);
+  };
 
   // Category filter from URL or state
   const categoryParam = searchParams.get('category') || 'All';
@@ -120,13 +149,26 @@ const MobileCombos = () => {
       if (!isAllCombos) {
         // Category filter
         const catQuery = selectedCategory.toLowerCase().trim();
+        const activeCatObj = comboCategories.find(cat => 
+          (cat.name && cat.name.toLowerCase().trim() === catQuery) ||
+          (cat.slug && cat.slug.toLowerCase().trim() === catQuery)
+        );
+
+        const qSlug = (activeCatObj?.slug || catQuery).toLowerCase().trim();
+        const qName = (activeCatObj?.name || catQuery).toLowerCase().trim();
+        const baseSlug = qSlug.replace(/-combos?$/g, '').replace(/combos?$/g, '').trim();
+
         const comboCat = (combo.category || '').toLowerCase().trim();
         const comboSlug = (combo.category_slug || '').toLowerCase().trim();
+        const comboName = (combo.name || '').toLowerCase().trim();
 
-        const matched = comboCat === catQuery || 
-                        comboSlug === catQuery ||
+        const matched = comboCat === qName || 
+                        comboSlug === qSlug ||
+                        comboCat === qSlug ||
+                        comboSlug === qName ||
                         comboCat.includes(catQuery) ||
-                        combo.name?.toLowerCase().includes(catQuery) ||
+                        comboSlug.includes(catQuery) ||
+                        (baseSlug && baseSlug.length > 2 && (comboCat.includes(baseSlug) || comboSlug.includes(baseSlug) || comboName.includes(baseSlug))) ||
                         combo.items?.some(item => {
                           const name = (item.name || item.pieceLabel || '').toLowerCase();
                           return name.includes(catQuery) || (item.category && item.category.toLowerCase().includes(catQuery));
@@ -368,26 +410,35 @@ const MobileCombos = () => {
               ) : displayedCombos.length > 0 ? (
                 <div className="mobile-combos-single-col-grid">
                   {displayedCombos.map((combo) => {
-                    const discountPct = (combo.original_price && combo.offer_price) 
-                      ? Math.round(((combo.original_price - combo.offer_price) / combo.original_price) * 100)
-                      : 30;
-
-                    const itemSummary = combo.items_summary || (
-                      combo.items && combo.items.length > 0
-                        ? `▣ ${combo.items.length} Items Set`
-                        : `▣ ${combo.pieces_count || 2} Pieces Set`
-                    );
-
+                    const savings = Math.max(0, (combo.original_price || 0) - (combo.offer_price || combo.price || 0));
+                    const discountPct = combo.original_price > 0 ? Math.round((savings / combo.original_price) * 100) : 0;
                     const isWished = isInWishlist(combo.id);
+                    const pcsCount = combo.pieces_count || combo.items?.length || 2;
 
                     return (
-                      <div key={combo.id} className="mobile-creative-combo-card">
-                        {/* Top Discount Badge & Wishlist Button */}
-                        <div className="mobile-combo-card-top">
-                          <span className="mobile-discount-badge">-{discountPct}%</span>
+                      <div key={combo.id} className="product-card mobile-creative-combo-card">
+                        {/* Media Container with 3:4 Aspect Ratio */}
+                        <div className="product-card-media">
+                          <Link to={`/combo/${combo.slug || combo.id}`} className="product-image-link">
+                            <ComboCover
+                              items={combo.items}
+                              images={combo.images}
+                              coverImage={combo.cover_image}
+                              comboName={combo.name}
+                            />
+                          </Link>
+
+                          {/* Top-Left Red Badge on Image */}
+                          <div className="card-badges-stack">
+                            <span className="card-top-badge badge-red-tag">
+                              {combo.badge ? combo.badge : discountPct > 0 ? `SAVE ${discountPct}%` : 'COMBO'}
+                            </span>
+                          </div>
+
+                          {/* Wishlist Button Top Right */}
                           <button 
                             type="button"
-                            className={`mobile-wishlist-circle-btn ${isWished ? 'active' : ''}`}
+                            className={`card-wishlist-top-btn ${isWished ? 'active' : ''}`}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -395,48 +446,47 @@ const MobileCombos = () => {
                             }}
                             aria-label="Add to Wishlist"
                           >
-                            <FiHeart />
+                            <FiHeart fill={isWished ? "#E50914" : "none"} color={isWished ? "#E50914" : "#FFF"} />
                           </button>
                         </div>
 
-                        {/* Dynamic Multi-Product Combo Cover */}
-                        <Link to={`/combo/${combo.slug || combo.id}`} className="mobile-cover-card-link">
-                          <ComboCover
-                            items={combo.items}
-                            images={combo.images}
-                            coverImage={combo.cover_image}
-                            comboName={combo.name}
-                          />
-                        </Link>
-
-                        {/* Info Body */}
-                        <div className="mobile-combo-info-body">
-                          <Link to={`/combo/${combo.slug || combo.id}`} className="mobile-combo-title-link">
-                            <h3 className="mobile-combo-title">{combo.name}</h3>
-                          </Link>
-
-                          <div className="mobile-combo-items-summary">
-                            {itemSummary}
+                        {/* Combo Info Body matching reference screenshot */}
+                        <div className="combo-card-info-body">
+                          {/* 1. Category Eyebrow Tag in RED */}
+                          <div className="combo-card-category-eyebrow">
+                            {(combo.category || selectedCategory || 'COLLEGE COMBO').toUpperCase()}
                           </div>
 
-                          <div className="mobile-combo-price-row">
-                            <span className="mobile-offer-price">
-                              ₹{(Number(combo.offer_price || combo.price) || 0).toLocaleString()}
-                            </span>
+                          {/* 2. Combo Title */}
+                          <h5 className="combo-card-title-wrap">
+                            <Link to={`/combo/${combo.slug || combo.id}`} className="combo-card-title-link">
+                              <span className="combo-card-title-text">{combo.name}</span>
+                            </Link>
+                          </h5>
+
+                          {/* 3. Items Set Tag */}
+                          <div className="combo-card-items-tag">
+                            <FiGrid className="combo-card-items-icon" />
+                            <span>{pcsCount} Items Set</span>
+                          </div>
+
+                          {/* 4. Price Row with Red Offer Price & Grey Old Price */}
+                          <div className="combo-card-price-row">
+                            <span className="combo-offer-price-red">{formatPrice(combo.offer_price || combo.price || 0)}</span>
                             {combo.original_price && combo.original_price > (combo.offer_price || combo.price) && (
-                              <span className="mobile-original-price">
-                                ₹{Number(combo.original_price).toLocaleString()}
-                              </span>
+                              <span className="combo-original-price-grey">{formatPrice(combo.original_price)}</span>
                             )}
-                            <span className="mobile-save-tag">SAVE {discountPct}%</span>
                           </div>
 
-                          <Link
-                            to={`/combo/${combo.slug || combo.id}`}
-                            className="btn-mobile-view-combo-cta"
-                          >
-                            VIEW COMBO →
-                          </Link>
+                          {/* 5. Action Row - VIEW COMBO CTA Button */}
+                          <div className="combo-card-action-row mt-auto" onClick={(e) => e.stopPropagation()}>
+                            <Link 
+                              to={`/combo/${combo.slug || combo.id}`} 
+                              className="btn-view-combo-cta"
+                            >
+                              VIEW COMBO
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     );

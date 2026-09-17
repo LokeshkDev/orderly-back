@@ -76,9 +76,7 @@ const updateOrderPayment = async (order, updates) => {
 
   if (typeof order.update === 'function') {
     await order.update(updates);
-    const plain = getPlainOrder(order);
-    addRuntimeOrder(plain);
-    return plain;
+    return getPlainOrder(order);
   }
 
   const updatedRuntimeOrder = { ...order, ...updates };
@@ -389,16 +387,6 @@ export const reportRazorpayFailure = async (req, res) => {
     const order = await findOrder(orderRef);
 
     if (order) {
-      const plain = getPlainOrder(order);
-      const currentStatus = String(plain.status || '').toLowerCase();
-      const currentPaymentStatus = String(plain.payment_status || '').toLowerCase();
-
-      // Guard: Never overwrite status to failed if payment was already verified or confirmed!
-      if (['confirmed', 'shipped', 'delivered'].includes(currentStatus) ||
-          ['paid', 'partially_paid'].includes(currentPaymentStatus)) {
-        return res.status(200).json({ success: true, message: 'Order is already paid/confirmed.' });
-      }
-
       await updateOrderPayment(order, {
         payment_status: 'failed',
         notes: failureMessage || 'Payment failed or cancelled by user.'

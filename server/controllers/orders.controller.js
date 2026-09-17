@@ -500,29 +500,18 @@ export const getOrders = getAllOrders;
 export const getOrderById = async (req, res) => {
   try {
     const id = req.params.id;
+    const runtimeFound = RUNTIME_ORDERS.find(o => String(o.id) === String(id) || o.order_number === id);
+    if (runtimeFound) return res.status(200).json({ success: true, data: normalizeOrder(runtimeFound) });
 
-    let dbOrder = null;
+    let order;
     try {
-      const orConditions = [{ order_number: String(id) }];
-      if (!isNaN(Number(id))) {
-        orConditions.push({ id: Number(id) });
-      }
-      dbOrder = await Order.findOne({
-        where: { [Op.or]: orConditions },
+      order = await Order.findOne({
+        where: { [Op.or]: [{ id }, { order_number: id }] },
         include: [{ model: OrderItem, as: 'items', required: false }]
       });
     } catch (err) {}
 
-    if (dbOrder) {
-      const normalizedDb = normalizeOrder(dbOrder);
-      addRuntimeOrder(normalizedDb);
-      return res.status(200).json({ success: true, data: normalizedDb });
-    }
-
-    const runtimeFound = RUNTIME_ORDERS.find(o => String(o.id) === String(id) || o.order_number === id);
-    if (runtimeFound) return res.status(200).json({ success: true, data: normalizeOrder(runtimeFound) });
-
-    res.status(200).json({ success: true, data: null });
+    res.status(200).json({ success: true, data: order ? normalizeOrder(order) : null });
   } catch (error) {
     res.status(200).json({ success: true, data: null });
   }

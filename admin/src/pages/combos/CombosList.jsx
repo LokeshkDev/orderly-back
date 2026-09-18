@@ -203,7 +203,7 @@ const CombosList = () => {
       setFormData({
         id: `combo-${Date.now()}`,
         name: '',
-        slug: `combo-${Date.now()}`,
+        slug: '',
         category: comboCategories[0]?.name || '',
         category_slug: comboCategories[0]?.slug || '',
         pieces_count: count,
@@ -272,12 +272,25 @@ const CombosList = () => {
       ? [formData.cover_image, ...derivedImages.filter(img => img !== formData.cover_image)]
       : (derivedImages.length > 0 ? derivedImages : formData.images);
 
+    // Generate clean SEO slug from name
+    const cleanSlug = (formData.name || 'combo')
+      .toLowerCase()
+      .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+      .replace(/(?:-copy(?:-\d+)?)+/gi, '')
+      .replace(/-\d{10,}.*/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'combo';
+
+    const finalSlug = (!formData.slug || formData.slug.startsWith('combo-') || formData.slug.includes('copy') || (editingCombo && editingCombo.name !== formData.name))
+      ? cleanSlug
+      : formData.slug;
+
     const finalCombo = {
       ...formData,
       cover_image: (formData.cover_image && typeof formData.cover_image === 'string') ? formData.cover_image.trim() : '',
       images: finalImages,
       pieces_count: piecesCount,
-      slug: formData.slug || formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      slug: finalSlug
     };
 
     try {
@@ -344,17 +357,20 @@ const CombosList = () => {
       }
       const duplicateName = nextCopyNum === 1 ? `${baseName} (Copy)` : `${baseName} (Copy ${nextCopyNum})`;
 
-      // 2. Clean base slug from baseName, with zero timestamps
+      // 2. Clean base slug from baseName without copy or timestamps
       const baseSlug = baseName
         .toLowerCase()
+        .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+        .replace(/(?:-copy(?:-\d+)?)+/gi, '')
+        .replace(/-\d{10,}.*/g, '')
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') || 'combo';
 
-      let candidateSlug = nextCopyNum === 1 ? `${baseSlug}-copy` : `${baseSlug}-copy-${nextCopyNum}`;
-      let slugCounter = nextCopyNum;
+      let candidateSlug = baseSlug;
+      let slugCounter = 1;
       while (combos.some(c => (c.slug || '').toLowerCase() === candidateSlug.toLowerCase())) {
         slugCounter++;
-        candidateSlug = `${baseSlug}-copy-${slugCounter}`;
+        candidateSlug = `${baseSlug}-${slugCounter}`;
       }
 
       const duplicateData = {

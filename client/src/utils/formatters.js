@@ -74,3 +74,38 @@ export function colorImages(product, colorName) {
   if (match && match.images && match.images.length > 0) return match.images;
   return p.images || [];
 }
+
+export const createSlug = (text) => {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+    .replace(/(?:-copy(?:-\d+)?)+/gi, '')
+    .replace(/-\d{10,}.*/g, '')
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
+export const getProductSlug = (product) => {
+  if (!product) return '';
+  if (product.slug && !product.slug.includes('-copy') && !/\d{10,}/.test(product.slug) && !product.slug.startsWith('prod-')) {
+    return product.slug;
+  }
+  if (product.name) {
+    return createSlug(product.name);
+  }
+  return product.slug || product.id || '';
+};
+
+export const getComboSlug = (combo) => {
+  if (!combo) return '';
+  if (combo.slug && !combo.slug.includes('-copy') && !/\d{10,}/.test(combo.slug) && !combo.slug.startsWith('combo-')) {
+    return combo.slug;
+  }
+  if (combo.name) {
+    return createSlug(combo.name);
+  }
+  return combo.slug || combo.id || '';
+};

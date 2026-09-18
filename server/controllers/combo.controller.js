@@ -149,12 +149,29 @@ export const getComboById = async (req, res) => {
   try {
     await ensureComboColumnsExist();
     const { id } = req.params;
-    const combo = await Combo.findOne({
+    let combo = await Combo.findOne({
       where: {
         [Op.or]: [{ id }, { slug: id }],
         deleted: false
       }
     });
+
+    // Fallback: If not found, try matching cleaned slug prefix or name
+    if (!combo && typeof id === 'string') {
+      const cleanReq = id
+        .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+        .replace(/(?:-copy(?:-\d+)?)+.*/gi, '')
+        .replace(/-\d{10,}.*/g, '')
+        .trim();
+      if (cleanReq) {
+        combo = await Combo.findOne({
+          where: {
+            slug: { [Op.like]: `${cleanReq}%` },
+            deleted: false
+          }
+        });
+      }
+    }
 
     if (!combo) {
       return res.status(404).json({ success: false, message: 'Combo not found', data: null });
@@ -170,13 +187,26 @@ export const getComboById = async (req, res) => {
 export const createCombo = async (req, res) => {
   try {
     await ensureComboColumnsExist();
-    const comboData = req.body;
+    const comboData = { ...req.body };
     if (!comboData.id) {
       comboData.id = 'combo-' + Date.now();
     }
-    if (!comboData.slug) {
-      comboData.slug = comboData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    // Always generate a clean, readable SEO slug from combo name (never include copy/timestamps)
+    const cleanBase = (comboData.name || 'combo')
+      .toLowerCase()
+      .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+      .replace(/(?:-copy(?:-\d+)?)+/gi, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'combo';
+
+    let candidateSlug = cleanBase;
+    let counter = 1;
+    while (await Combo.findOne({ where: { slug: candidateSlug } })) {
+      counter++;
+      candidateSlug = `${cleanBase}-${counter}`;
     }
+    comboData.slug = candidateSlug;
 
     // Auto-derive combo images from child products if items provided
     if (Array.isArray(comboData.items) && comboData.items.length > 0) {
@@ -206,6 +236,24 @@ export const updateCombo = async (req, res) => {
     if (!combo) return res.status(404).json({ success: false, message: 'Combo not found' });
 
     const updatePayload = { ...req.body };
+
+    // If combo name is changed OR existing slug is dirty, generate a clean SEO slug from name
+    if (updatePayload.name && (updatePayload.name !== combo.name || !combo.slug || combo.slug.includes('copy') || combo.slug.startsWith('combo-'))) {
+      const cleanBase = updatePayload.name
+        .toLowerCase()
+        .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+        .replace(/(?:-copy(?:-\d+)?)+/gi, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'combo';
+
+      let candidateSlug = cleanBase;
+      let counter = 1;
+      while (await Combo.findOne({ where: { slug: candidateSlug, id: { [Op.ne]: combo.id } } })) {
+        counter++;
+        candidateSlug = `${cleanBase}-${counter}`;
+      }
+      updatePayload.slug = candidateSlug;
+    }
 
     // Auto-derive combo images from child products if items provided
     if (Array.isArray(updatePayload.items) && updatePayload.items.length > 0) {

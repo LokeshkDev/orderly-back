@@ -7,7 +7,7 @@ import { useCart } from '../../context/CartContext';
 import { getCombos } from '../../services/api';
 import { CatchyCombosSkeleton } from '../common/Skeleton';
 import ComboCover from '../common/ComboCover';
-import { formatPrice } from '../../utils/formatters';
+import { formatPrice, getComboSlug } from '../../utils/formatters';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -154,11 +154,11 @@ const CatchyCombosSection = ({ title, subtitle }) => {
                   <SwiperSlide key={combo.id} className="trending-swiper-slide">
                     <div 
                       className="product-card catchy-combo-card"
-                      onClick={() => navigate(`/combo/${combo.slug || combo.id}`)}
+                      onClick={() => navigate(`/combo/${getComboSlug(combo)}`)}
                     >
                       {/* Media Header Container with 3:4 Aspect Ratio */}
                       <div className="product-card-media">
-                        <Link to={`/combo/${combo.slug || combo.id}`} className="product-image-link">
+                        <Link to={`/combo/${getComboSlug(combo)}`} className="product-image-link">
                           <ComboCover 
                             items={combo.items} 
                             images={combo.images} 
@@ -184,7 +184,7 @@ const CatchyCombosSection = ({ title, subtitle }) => {
 
                         {/* 2. Combo Title */}
                         <h5 className="combo-card-title-wrap">
-                          <Link to={`/combo/${combo.slug || combo.id}`} className="combo-card-title-link">
+                          <Link to={`/combo/${getComboSlug(combo)}`} className="combo-card-title-link">
                             <span className="combo-card-title-text">{combo.name}</span>
                           </Link>
                         </h5>
@@ -206,7 +206,7 @@ const CatchyCombosSection = ({ title, subtitle }) => {
                         {/* 5. Action Row - VIEW COMBO CTA Button */}
                         <div className="combo-card-action-row mt-auto" onClick={(e) => e.stopPropagation()}>
                           <Link 
-                            to={`/combo/${combo.slug || combo.id}`} 
+                            to={`/combo/${getComboSlug(combo)}`} 
                             className="btn-view-combo-cta"
                           >
                             VIEW COMBO

@@ -11,7 +11,7 @@ import { ComboCategoryCardSkeleton, ComboCardSkeleton } from '../components/comm
 import ComboCover from '../components/common/ComboCover';
 import MobileCombos from './MobileCombos';
 import useIsMobile from '../utils/useIsMobile';
-import { formatPrice } from '../utils/formatters';
+import { formatPrice, getComboSlug } from '../utils/formatters';
 import '../components/home/ShopByCategory.css';
 import './CombosPage.css';
 
@@ -424,7 +424,7 @@ const CombosPage = () => {
                       <div key={combo.id} className="product-card creative-combo-card">
                         {/* Media Container with 3:4 Aspect Ratio */}
                         <div className="product-card-media">
-                          <Link to={`/combo/${combo.slug || combo.id}`} className="product-image-link">
+                          <Link to={`/combo/${getComboSlug(combo)}`} className="product-image-link">
                             <ComboCover
                               items={combo.items}
                               images={combo.images}
@@ -464,7 +464,7 @@ const CombosPage = () => {
 
                           {/* 2. Combo Title */}
                           <h5 className="combo-card-title-wrap">
-                            <Link to={`/combo/${combo.slug || combo.id}`} className="combo-card-title-link">
+                            <Link to={`/combo/${getComboSlug(combo)}`} className="combo-card-title-link">
                               <span className="combo-card-title-text">{combo.name}</span>
                             </Link>
                           </h5>
@@ -486,7 +486,7 @@ const CombosPage = () => {
                           {/* 5. Action Row - VIEW COMBO CTA Button */}
                           <div className="combo-card-action-row mt-auto" onClick={(e) => e.stopPropagation()}>
                             <Link 
-                              to={`/combo/${combo.slug || combo.id}`} 
+                              to={`/combo/${getComboSlug(combo)}`} 
                               className="btn-view-combo-cta"
                             >
                               VIEW COMBO

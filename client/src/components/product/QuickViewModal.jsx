@@ -4,7 +4,7 @@ import { FiX, FiShoppingBag, FiHeart, FiStar, FiCheck, FiArrowRight } from 'reac
 import { useQuickView } from '../../context/QuickViewContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
-import { formatPrice, calculateDiscount, normalizeProduct, colorImages } from '../../utils/formatters';
+import { formatPrice, calculateDiscount, normalizeProduct, colorImages, getProductSlug } from '../../utils/formatters';
 import './QuickViewModal.css';
 
 const QuickViewModal = () => {
@@ -279,7 +279,7 @@ const QuickViewModal = () => {
             )}
 
             <div className="qv-footer-link">
-              <Link to={`/product/${product.slug || product.id}`} onClick={closeQuickView}>
+              <Link to={`/product/${getProductSlug(product)}`} onClick={closeQuickView}>
                 View Full Specifications & Wash Care <FiArrowRight />
               </Link>
             </div>

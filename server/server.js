@@ -28,9 +28,11 @@ import customersRoutes from './routes/customers.routes.js';
 import productsRoutes from './routes/products.routes.js';
 import combosRoutes from './routes/combos.routes.js';
 import { ensureComboColumnsExist } from './controllers/combo.controller.js';
+import { ensureOrderItemColumnsExist } from './controllers/orders.controller.js';
 import sitemapRoutes from './routes/sitemap.routes.js';
 import Combo from './models/Combo.js';
 import { sanitizeDuplicateProductSlugs } from './controllers/product.controller.js';
+import { sanitizeAllSlugs } from './scripts/sanitizeSlugs.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -216,6 +218,7 @@ const startServer = async () => {
     if (dbConnected) {
       await sequelize.sync();
       await ensureComboColumnsExist();
+      await ensureOrderItemColumnsExist();
       console.log('✅ Database Schema Synced');
     } else {
       console.warn('⚠️ Skipping DB sync - no connection');
@@ -270,6 +273,7 @@ const startServer = async () => {
     }
     console.log(`✅ Seeded ${seededCombosCount} missing master combos (combos in sync)`);
     await sanitizeDuplicateProductSlugs();
+    await sanitizeAllSlugs();
   } catch (error) {
     console.warn('⚠️ MySQL connection note:', error.message);
   }

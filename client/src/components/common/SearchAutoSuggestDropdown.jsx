@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiShoppingBag, FiArrowRight, FiGrid, FiLayers } from 'react-icons/fi';
 import { getProducts, getCombos } from '../../services/api';
 import ComboCover from './ComboCover';
-import { formatPrice } from '../../utils/formatters';
+import { formatPrice, getComboSlug, getProductSlug } from '../../utils/formatters';
 import './SearchAutoSuggestDropdown.css';
 
 const getProductPrimaryImg = (prod) => {
@@ -93,12 +93,12 @@ const SearchAutoSuggestDropdown = ({
 
   const handleProductClick = (product) => {
     onSelect();
-    navigate(`/product/${product.slug || product.id}`);
+    navigate(`/product/${getProductSlug(product)}`);
   };
 
   const handleComboClick = (combo) => {
     onSelect();
-    navigate(`/combo/${combo.slug || combo.id}`);
+    navigate(`/combo/${getComboSlug(combo)}`);
   };
 
   const handleViewAllClick = () => {

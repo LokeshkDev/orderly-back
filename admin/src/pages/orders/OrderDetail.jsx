@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  FiArrowLeft, FiShoppingCart, FiUser, FiMapPin, FiTruck, 
-  FiDollarSign, FiCheck, FiPrinter, FiSave, FiCreditCard, FiPackage, FiExternalLink 
-} from 'react-icons/fi';
+import { FiArrowLeft, FiShoppingCart, FiUser, FiMapPin, FiTruck, FiDollarSign, FiCheck, FiPrinter, FiSave, FiCreditCard, FiPackage, FiExternalLink, FiZoomIn, FiX } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
 import { 
@@ -23,14 +20,19 @@ const OrderDetail = () => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [couriersList, setCouriersList] = useState(DEFAULT_COURIER_SETTINGS);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [zoomImage, setZoomImage] = useState(null);
+  const [productsCatalog, setProductsCatalog] = useState([]);
+  const [combosCatalog, setCombosCatalog] = useState([]);
 
   useEffect(() => {
     const fetchOrder = async () => {
       setLoading(true);
       try {
-        const [res, settingsRes] = await Promise.all([
+        const [res, settingsRes, prodRes, comboRes] = await Promise.all([
           api.get(`/orders/${id}`),
-          api.get('/settings').catch(() => null)
+          api.get('/settings').catch(() => null),
+          api.get('/products').catch(() => ({ data: { products: [] } })),
+          api.get('/combos').catch(() => ({ data: { combos: [] } }))
         ]);
 
         if (res.data && res.data.success && res.data.data) {
@@ -40,6 +42,12 @@ const OrderDetail = () => {
           setCourierName(o.courier_name || 'DTDC');
           setTrackingNumber(o.tracking_number || '');
         }
+
+        const prods = prodRes?.data?.products || (Array.isArray(prodRes?.data) ? prodRes.data : []);
+        setProductsCatalog(prods);
+
+        const cmbs = comboRes?.data?.combos || (Array.isArray(comboRes?.data?.data) ? comboRes.data.data : (Array.isArray(comboRes?.data) ? comboRes.data : []));
+        setCombosCatalog(cmbs);
 
         if (settingsRes?.data?.data?.courier_settings) {
           try {
@@ -59,6 +67,116 @@ const OrderDetail = () => {
     };
     fetchOrder();
   }, [id]);
+
+  const resolveItemImage = (item) => {
+    if (!item) return 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop';
+    
+    // Direct item image properties (skip unsplash fallback)
+    const directImg = item.image || item.coverImage || item.cover_image || item.primaryImage || item.product_image || item.imageUrl || item.Product?.primaryImage || item.Product?.image || item.Product?.images?.[0] || item.Combo?.cover_image || item.Combo?.images?.[0];
+    if (directImg && typeof directImg === 'string' && directImg.trim() && !directImg.includes('photo-1596755094514-f87e34085b2c')) {
+      return directImg;
+    }
+
+    // Strip "(X-Piece Set)" suffix for matching
+    const rawName = (item.name || item.product_name || item.productName || '');
+    const itemNameLower = rawName.replace(/\s*\(\d+-Piece Set\)\s*$/i, '').toLowerCase().trim();
+    const pId = String(item.productId || item.product_id || item.id || '');
+    const cId = String(item.comboId || item.combo_id || '');
+
+    // Check combos catalog if combo
+    if (item.isCombo || cId || pId.startsWith('combo-') || rawName.toLowerCase().includes('combo')) {
+      const matchCombo = combosCatalog.find(c => {
+        if (cId && (String(c.id) === cId || String(c._id) === cId)) return true;
+        if (pId && (String(c.id) === pId || pId.startsWith(String(c.id)))) return true;
+        const cName = (c.name || '').toLowerCase().trim();
+        if (cName && cName === itemNameLower) return true;
+        if (cName && itemNameLower && (cName.includes(itemNameLower) || itemNameLower.includes(cName))) return true;
+        return false;
+      });
+      if (matchCombo) {
+        const comboCover = matchCombo.cover_image || (Array.isArray(matchCombo.images) && matchCombo.images[0]) || matchCombo.items?.[0]?.primaryImage || matchCombo.items?.[0]?.image;
+        if (comboCover) return comboCover;
+      }
+    }
+
+    // Check products catalog
+    const matchProd = productsCatalog.find(p => 
+      String(p.id) === pId || 
+      (p.name && p.name.toLowerCase().trim() === itemNameLower) ||
+      (p.name && itemNameLower && (p.name.toLowerCase().trim().includes(itemNameLower) || itemNameLower.includes(p.name.toLowerCase().trim())))
+    );
+    if (matchProd) {
+      const prodImg = matchProd.primaryImage || matchProd.images?.[0] || (Array.isArray(matchProd.colors) && matchProd.colors[0]?.images?.[0]);
+      if (prodImg) return prodImg;
+    }
+
+    return directImg || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop';
+  };
+
+  const resolveItemIdentifier = (item) => {
+    if (!item) return null;
+
+    const rawName = (item.name || item.product_name || item.productName || '');
+    const itemNameLower = rawName.replace(/\s*\(\d+-Piece Set\)\s*$/i, '').toLowerCase().trim();
+    const pId = String(item.productId || item.product_id || item.id || '');
+    const cId = String(item.comboId || item.combo_id || '');
+
+    const isCombo = Boolean(
+      item.isCombo || 
+      item.is_combo || 
+      cId || 
+      pId.startsWith('combo-') || 
+      rawName.toLowerCase().includes('combo')
+    );
+
+    if (isCombo) {
+      const matchCombo = combosCatalog.find(c => {
+        if (cId && (String(c.id) === cId || String(c._id) === cId)) return true;
+        if (pId && (String(c.id) === pId || pId.startsWith(String(c.id)))) return true;
+        const cName = (c.name || '').toLowerCase().trim();
+        if (cName && cName === itemNameLower) return true;
+        if (cName && itemNameLower && (cName.includes(itemNameLower) || itemNameLower.includes(cName))) return true;
+        return false;
+      });
+      const comboId = matchCombo?.id || cId || pId.replace(/-\d{10,}$/, '') || pId;
+      return {
+        type: 'combo',
+        label: 'COMBO ID',
+        value: comboId
+      };
+    }
+
+    // Single order -> Show product's SKU
+    let productSku = null;
+    if (item.sku && String(item.sku).trim() && !String(item.sku).startsWith('ORD-SKU-') && !String(item.sku).includes('combo-')) {
+      productSku = String(item.sku).trim();
+    } else if (item.product_sku && String(item.product_sku).trim() && !String(item.product_sku).startsWith('ORD-SKU-') && !String(item.product_sku).includes('combo-')) {
+      productSku = String(item.product_sku).trim();
+    } else if (item.Product?.sku) {
+      productSku = String(item.Product.sku).trim();
+    }
+
+    if (!productSku) {
+      const matchProd = productsCatalog.find(p => 
+        String(p.id) === pId || 
+        (p.name && p.name.toLowerCase().trim() === itemNameLower) ||
+        (p.name && itemNameLower && (p.name.toLowerCase().trim().includes(itemNameLower) || itemNameLower.includes(p.name.toLowerCase().trim())))
+      );
+      if (matchProd && matchProd.sku) productSku = String(matchProd.sku).trim();
+    }
+
+    if (productSku) {
+      return {
+        type: 'product',
+        label: 'SKU',
+        value: productSku
+      };
+    }
+
+    return null;
+  };
+
+  const resolveItemSku = (item) => resolveItemIdentifier(item)?.value || '';
 
   const handleStatusUpdate = async (e) => {
     e.preventDefault();
@@ -292,32 +410,56 @@ const OrderDetail = () => {
               </tr>
             </thead>
             <tbody>
-              {orderItems.map((item, idx) => (
-                <tr key={idx}>
-                  <td>
-                    <img 
-                      src={item.image || item.Product?.images?.[0] || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop'} 
-                      alt={item.name} 
-                      className="order-item-thumb"
-                    />
-                  </td>
-                  <td>
-                    <strong className="text-dark d-block">{item.name || item.Product?.name || 'Curated Apparel Item'}</strong>
-                    {item.isCombo && <span className="badge bg-warning text-dark me-2">COMBO BUNDLE</span>}
-                    <code className="cat-slug-badge">{item.id || 'prod-item'}</code>
-                  </td>
-                  <td>
-                    <span className="small text-muted">
-                      Color: <strong className="text-dark">{item.selectedColor || item.color || 'Standard'}</strong> | Size: <strong className="text-dark">{item.selectedSize || item.size || 'M'}</strong>
-                    </span>
-                  </td>
-                  <td>₹{item.price || order.total}</td>
-                  <td><strong className="text-dark">{item.quantity || 1}</strong></td>
-                  <td className="text-end fw-bold text-dark">
-                    ₹{(Number(item.price || order.total) * Number(item.quantity || 1)).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
+              {orderItems.map((item, idx) => {
+                const itemImg = resolveItemImage(item);
+                const itemIdentifier = resolveItemIdentifier(item);
+                const itemName = item.name || item.product_name || item.Product?.name || 'Curated Apparel Item';
+                return (
+                  <tr key={idx}>
+                    <td>
+                      <div 
+                        className="order-item-thumb-box"
+                        onClick={() => setZoomImage({ src: itemImg, title: itemName })}
+                        title="Click to zoom primary image"
+                      >
+                        <img 
+                          src={itemImg} 
+                          alt={itemName} 
+                          className="order-item-thumb-img"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop';
+                          }}
+                        />
+                        <div className="thumb-zoom-icon-overlay">
+                          <FiZoomIn />
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <strong className="text-dark d-block mb-1">{itemName}</strong>
+                      <div className="d-flex align-items-center gap-2 flex-wrap">
+                        {item.isCombo && <span className="badge bg-warning text-dark">COMBO BUNDLE</span>}
+                        {itemIdentifier && (
+                          <span className={`sku-badge-pill ${itemIdentifier.type === 'combo' ? 'combo-id-pill' : ''}`}>
+                            {itemIdentifier.label}: {itemIdentifier.value}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="small text-muted">
+                        Color: <strong className="text-dark">{item.selectedColor || item.color || 'Standard'}</strong> | Size: <strong className="text-dark">{item.selectedSize || item.size || 'M'}</strong>
+                      </span>
+                    </td>
+                    <td>₹{item.price || order.total}</td>
+                    <td><strong className="text-dark">{item.quantity || 1}</strong></td>
+                    <td className="text-end fw-bold text-dark">
+                      ₹{(Number(item.price || order.total) * Number(item.quantity || 1)).toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -351,6 +493,28 @@ const OrderDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* ── IMAGE LIGHTBOX ZOOM MODAL ───────────────────────── */}
+      {zoomImage && (
+        <div className="admin-zoom-modal-backdrop" onClick={() => setZoomImage(null)}>
+          <div className="admin-zoom-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="d-flex align-items-center justify-content-between w-100 mb-3 pb-2 border-bottom">
+              <div>
+                <h6 className="fw-bold text-dark mb-0">{zoomImage.title}</h6>
+                <span className="text-muted extra-small">Primary Product Image Preview</span>
+              </div>
+              <button 
+                type="button" 
+                className="btn-close-modal-icon"
+                onClick={() => setZoomImage(null)}
+              >
+                <FiX />
+              </button>
+            </div>
+            <img src={zoomImage.src} alt={zoomImage.title} className="admin-zoom-modal-img" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

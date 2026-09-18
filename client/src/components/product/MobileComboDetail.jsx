@@ -7,7 +7,7 @@ import {
   FiHelpCircle, FiFileText, FiEdit3, FiStar, FiTrash2
 } from 'react-icons/fi';
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
-import { formatPrice, calculateDiscount } from '../../utils/formatters';
+import { formatPrice, calculateDiscount, getComboSlug } from '../../utils/formatters';
 import { getVariantStock } from '../../pages/ProductDetail';
 import { extractAllComboImages } from '../../pages/ComboDetail';
 import MobileHeader from '../common/MobileHeader';
@@ -156,11 +156,6 @@ const MobileComboDetail = ({
           {/* Badge */}
           {combo.badge && (
             <span className="m-c-badge-pill">{combo.badge}</span>
-          )}
-
-          {/* Discount Badge */}
-          {discountPercent > 0 && (
-            <span className="m-c-discount-tag-hero">-{discountPercent}%</span>
           )}
 
           {/* Hero Image */}
@@ -466,31 +461,8 @@ const MobileComboDetail = ({
           {openAccordions.shipping && (
             <div className="m-c-accordion-body">
               <ul className="m-c-desc-list">
-                <li>Free standard shipping on orders above ₹1,499</li>
                 <li>Standard delivery within 5–7 business days</li>
-                <li>Easy 7 days return & exchange policy</li>
               </ul>
-            </div>
-          )}
-        </div>
-
-        {/* Reviews */}
-        <div className="m-c-accordion-item">
-          <button
-            type="button"
-            className="m-c-accordion-header"
-            onClick={() => toggleAccordion('reviews')}
-          >
-            <span>RATINGS & REVIEWS ({combo.reviewsCount || 236})</span>
-            <FiChevronDown className={`m-c-acc-arrow ${openAccordions.reviews ? 'open' : ''}`} />
-          </button>
-          {openAccordions.reviews && (
-            <div className="m-c-accordion-body text-center py-2">
-              <div className="m-c-big-score">{combo.rating || 4.9} / 5</div>
-              <div className="m-c-stars-lg justify-content-center d-flex gap-1 mb-2">
-                {renderStars(combo.rating || 4.9)}
-              </div>
-              <p className="small text-muted mb-0">Based on verified customer reviews</p>
             </div>
           )}
         </div>
@@ -508,7 +480,7 @@ const MobileComboDetail = ({
               {relatedCombos.map(rel => {
                 const relDiscount = calculateDiscount(rel.original_price, rel.offer_price);
                 return (
-                  <Link key={rel.id} to={`/combo/${rel.id}`} className="m-c-combo-card">
+                  <Link key={rel.id} to={`/combo/${getComboSlug(rel)}`} className="m-c-combo-card">
                     <div className="m-c-card-img-wrap">
                       {rel.images?.[0] ? <img src={rel.images[0]} alt={rel.name} /> : <div className="m-c-item-thumb-placeholder" />}
                       {relDiscount > 0 && <span className="m-c-card-badge">-{relDiscount}%</span>}

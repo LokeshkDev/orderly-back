@@ -1,5 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import { getProductSlug, getComboSlug } from '../../utils/formatters';
 
 const BASE_URL = 'https://orderlymenswear.in';
 const DEFAULT_LOGO = 'https://orderlymenswear.in/assets/media/logo-07E_iIRS.png';
@@ -109,7 +110,7 @@ const SEOHead = ({
       "@type": "ListItem",
       "position": index + 1,
       "name": item.name,
-      "url": `${BASE_URL}/product/${item.slug || item.id}`
+      "url": (item.pieces_count || item.items) ? `${BASE_URL}/combo/${getComboSlug(item)}` : `${BASE_URL}/product/${getProductSlug(item)}`
     }))
   } : null;
 

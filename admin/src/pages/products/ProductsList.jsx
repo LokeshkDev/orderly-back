@@ -482,6 +482,20 @@ const ProductsList = () => {
     });
 
     const cleanPairOffers = cleanupPairOffers(formData.suggested_products, formData.pair_offers);
+
+    // Clean SEO slug from name
+    const cleanSlug = (formData.name || 'product')
+      .toLowerCase()
+      .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+      .replace(/(?:-copy(?:-\d+)?)+/gi, '')
+      .replace(/-\d{10,}.*/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'product';
+
+    const finalSlug = (!formData.slug || formData.slug.startsWith('prod-') || formData.slug.includes('copy') || (editingProduct && editingProduct.name !== formData.name))
+      ? cleanSlug
+      : formData.slug;
+
     const finalFormData = { 
       ...formData, 
       inventory: fullInventory, 
@@ -489,7 +503,7 @@ const ProductsList = () => {
       sizePrices: cleanSizePrices,
       sizeOriginalPrices: cleanSizeOriginalPrices,
       pair_offers: cleanPairOffers,
-      slug: formData.slug || formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      slug: finalSlug
     };
 
     // Save to Backend MySQL DB API — server response is the source of truth.
@@ -577,17 +591,20 @@ const ProductsList = () => {
       }
       const duplicateName = nextCopyNum === 1 ? `${baseName} (Copy)` : `${baseName} (Copy ${nextCopyNum})`;
 
-      // 2. Clean base slug from baseName, with zero timestamps
+      // 2. Clean base slug from baseName, without copy tags or timestamps
       const baseSlug = baseName
         .toLowerCase()
+        .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+        .replace(/(?:-copy(?:-\d+)?)+/gi, '')
+        .replace(/-\d{10,}.*/g, '')
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') || 'product';
 
-      let candidateSlug = nextCopyNum === 1 ? `${baseSlug}-copy` : `${baseSlug}-copy-${nextCopyNum}`;
-      let slugCounter = nextCopyNum;
+      let candidateSlug = baseSlug;
+      let slugCounter = 1;
       while (products.some(p => (p.slug || '').toLowerCase() === candidateSlug.toLowerCase())) {
         slugCounter++;
-        candidateSlug = `${baseSlug}-copy-${slugCounter}`;
+        candidateSlug = `${baseSlug}-${slugCounter}`;
       }
 
       const duplicateData = {

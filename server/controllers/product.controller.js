@@ -56,13 +56,17 @@ export const getProductById = async (req, res) => {
       where
     });
 
-    // Fallback: If not found and id looks like a copy-chained slug, try matching prefix or cleaned slug
-    if (!product && typeof id === 'string' && (id.includes('-copy-') || id.includes('copy'))) {
-      const cleanPrefix = id.replace(/(?:-copy(?:-\d+)?)+.*/gi, '').replace(/-\d{10,}.*/g, '').trim();
-      if (cleanPrefix) {
+    // Fallback: If not found, try matching cleaned slug prefix or name
+    if (!product && typeof id === 'string') {
+      const cleanReq = id
+        .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+        .replace(/(?:-copy(?:-\d+)?)+.*/gi, '')
+        .replace(/-\d{10,}.*/g, '')
+        .trim();
+      if (cleanReq) {
         product = await Product.findOne({
           where: {
-            slug: { [Op.like]: `${cleanPrefix}%` },
+            slug: { [Op.like]: `${cleanReq}%` },
             deleted: false,
             ...(all !== 'true' && includeDrafts !== 'true' ? { status: 'Active' } : {})
           }
@@ -90,29 +94,19 @@ export const createProduct = async (req, res) => {
       productData.id = 'prod-' + Date.now();
     }
 
-    // Clean and normalize slug (strip raw copy timestamps and duplicates)
-    let rawSlug = productData.slug;
-    if (!rawSlug) {
-      rawSlug = (productData.name || 'product')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-    } else {
-      rawSlug = rawSlug
-        .replace(/(?:-copy(?:-\d+)?)+-\d{10,}/gi, '-copy')
-        .replace(/(?:-copy)+/gi, '-copy')
-        .replace(/-\d{10,}/g, '')
-        .replace(/[^a-z0-9-]+/g, '')
-        .replace(/-+/g, '-')
-        .replace(/(^-|-$)/g, '');
-    }
+    // Always generate a clean, readable SEO slug from product name (never include copy/timestamps)
+    const cleanBase = (productData.name || 'product')
+      .toLowerCase()
+      .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+      .replace(/(?:-copy(?:-\d+)?)+/gi, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'product';
 
-    // Ensure uniqueness in database
-    let candidateSlug = rawSlug || 'product';
+    let candidateSlug = cleanBase;
     let counter = 1;
     while (await Product.findOne({ where: { slug: candidateSlug } })) {
       counter++;
-      candidateSlug = `${rawSlug}-${counter}`;
+      candidateSlug = `${cleanBase}-${counter}`;
     }
     productData.slug = candidateSlug;
 
@@ -138,6 +132,24 @@ export const updateProduct = async (req, res) => {
     const updateData = { ...req.body };
     const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : (updateData.last_updated_by || 'Admin');
     updateData.last_updated_by = authorName;
+
+    // If product name is changed OR existing slug is dirty, generate a clean SEO slug from name
+    if (updateData.name && (updateData.name !== product.name || !product.slug || product.slug.includes('copy') || product.slug.startsWith('prod-'))) {
+      const cleanBase = updateData.name
+        .toLowerCase()
+        .replace(/\s*\(copy(?:\s*\d+)?\)\s*/gi, '')
+        .replace(/(?:-copy(?:-\d+)?)+/gi, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'product';
+
+      let candidateSlug = cleanBase;
+      let counter = 1;
+      while (await Product.findOne({ where: { slug: candidateSlug, id: { [Op.ne]: product.id } } })) {
+        counter++;
+        candidateSlug = `${cleanBase}-${counter}`;
+      }
+      updateData.slug = candidateSlug;
+    }
 
     if (updateData.is_bestseller !== undefined) {
       updateData.is_bestseller = updateData.is_bestseller === true || updateData.is_bestseller === 'true' || updateData.is_bestseller === 1;

@@ -15,7 +15,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useQuickView } from '../context/QuickViewContext';
 import { getProductById, getProducts, getActiveCoupons } from '../services/api';
-import { formatPrice, calculateDiscount } from '../utils/formatters';
+import { formatPrice, calculateDiscount, getProductSlug } from '../utils/formatters';
 import useIsMobile from '../utils/useIsMobile';
 import './ProductDetail.css';
 
@@ -195,6 +195,10 @@ const ProductDetail = () => {
       if (res && res.success && res.data) {
         const item = res.data;
         setProduct(item);
+        const cleanSlug = getProductSlug(item);
+        if (cleanSlug && cleanSlug !== id && typeof window !== 'undefined' && window.history) {
+          window.history.replaceState(null, '', `/product/${cleanSlug}`);
+        }
         setSelectedColor(item.colors?.[0]?.name || '');
         setSelectedSize(item.sizes?.[0] || '');
         setSelectedImgIndex(0);
@@ -433,7 +437,6 @@ const ProductDetail = () => {
     { key: 'details', label: 'DETAILS' },
     { key: 'sizeFit', label: 'SIZE & FIT' },
     { key: 'shipping', label: 'SHIPPING & RETURNS' },
-    { key: 'reviews', label: `REVIEWS (${activeProduct.reviewsCount || 0})` },
   ];
 
   /* ══════════════════════════════════════════════════════════════════
@@ -445,14 +448,14 @@ const ProductDetail = () => {
         title={activeProduct.metaTitle || `${activeProduct.name} | Premium Men's Apparel | ORDERLY`}
         description={activeProduct.metaDescription || activeProduct.description || "Shop premium luxury menswear at ORDERLY. Free shipping and cash on delivery in India."}
         keywords={activeProduct.metaKeywords || `${activeProduct.name}, men's apparel, luxury menswear, ORDERLY`}
-        canonicalPath={`/product/${activeProduct.slug || activeProduct.id}`}
+        canonicalPath={`/product/${getProductSlug(activeProduct)}`}
         image={activeProduct.images?.[0] || 'https://orderlymenswear.in/assets/media/logo-07E_iIRS.png'}
         type="product"
         product={activeProduct}
         breadcrumbs={[
           { name: 'Home', url: '/' },
           { name: activeProduct.category || 'Shop', url: `/shop?category=${activeProduct.category || ''}` },
-          { name: activeProduct.name, url: `/product/${activeProduct.slug || activeProduct.id}` }
+          { name: activeProduct.name, url: `/product/${getProductSlug(activeProduct)}` }
         ]}
       />
 
@@ -1096,36 +1099,15 @@ const ProductDetail = () => {
                 <div className="pdp-shipping-content">
                   <h4>Shipping</h4>
                   <ul className="pdp-desc-features">
-                    <li>Free standard shipping on orders with multi-pair offers</li>
                     <li>Standard delivery within 5–7 business days</li>
                     <li>Express delivery available at checkout</li>
-                    <li>Orders placed before 2 PM are shipped the same day</li>
-                  </ul>
+                    </ul>
                   <h4 style={{ marginTop: '20px' }}>Returns & Exchanges</h4>
                   <ul className="pdp-desc-features">
-                    <li>Easy returns within 7 days of delivery</li>
                     <li>Product must be unused with original tags attached</li>
                     <li>Refund processed within 5–7 business days</li>
                     <li>Exchange subject to product availability</li>
                   </ul>
-                </div>
-              )}
-
-              {/* Reviews */}
-              {activeTab === 'reviews' && (
-                <div className="pdp-reviews-content">
-                  <div className="pdp-reviews-summary">
-                    <div className="pdp-reviews-big-score">
-                      <span className="pdp-reviews-number">{activeProduct.rating || 4.8}</span>
-                      <span className="pdp-reviews-outof">/5</span>
-                    </div>
-                    <div className="pdp-reviews-stars-large">
-                      {renderStars(activeProduct.rating || 4.8)}
-                    </div>
-                    <p className="pdp-reviews-total">
-                      Based on {activeProduct.reviewsCount || 24} customer reviews
-                    </p>
-                  </div>
                 </div>
               )}
             </div>

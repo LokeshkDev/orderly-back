@@ -12,7 +12,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { getComboById, getCombos, getProducts } from '../services/api';
 import { ComboDetailSkeleton } from '../components/common/Skeleton';
 import { getVariantStock } from './ProductDetail';
-import { formatPrice, calculateDiscount } from '../utils/formatters';
+import { formatPrice, calculateDiscount, getComboSlug } from '../utils/formatters';
 import './ComboDetail.css';
 
 /* ── Star rating renderer ──────────────────────────────────────── */
@@ -113,8 +113,13 @@ const ComboDetail = () => {
         let targetCombo = null;
         if (comboRes && comboRes.success && comboRes.data) {
           targetCombo = comboRes.data;
-        } else if (combosListRes && combosListRes.success && Array.isArray(combosListRes.data)) {
-          targetCombo = combosListRes.data.find(c => c.id === id || c.slug === id);
+        }
+        if (!targetCombo && combosListRes && combosListRes.success && Array.isArray(combosListRes.data)) {
+          targetCombo = combosListRes.data.find(c => 
+            String(c.id) === String(id) || 
+            String(c.slug || '') === String(id) || 
+            (c.name && c.name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '') === String(id).toLowerCase().trim())
+          );
         }
 
         if (combosListRes && combosListRes.success && Array.isArray(combosListRes.data)) {
@@ -122,6 +127,11 @@ const ComboDetail = () => {
         }
 
         if (targetCombo) {
+          const cleanSlug = getComboSlug(targetCombo);
+          if (cleanSlug && cleanSlug !== id && typeof window !== 'undefined' && window.history) {
+            window.history.replaceState(null, '', `/combo/${cleanSlug}`);
+          }
+
           // Normalize items to guarantee valid, unique numerical pieceIndex (1-indexed)
           const normalizedItems = (targetCombo.items || []).map((item, idx) => ({
             ...item,
@@ -282,25 +292,32 @@ const ComboDetail = () => {
     const selectedPiecesSummary = includedItems.map(item => {
       const pIdx = Number(item.pieceIndex);
       const sel = pieceSelections[pIdx] || {};
+      const targetProd = productsCatalog.find(p => String(p.id) === String(item.productId) || (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase()));
       return {
         pieceIndex: pIdx,
         pieceLabel: item.pieceLabel || `Piece ${pIdx}`,
         productId: item.productId,
         name: item.name,
+        sku: targetProd?.sku || item.sku || '',
         color: sel.color || 'Standard',
         size: sel.size || item.sizes?.[0] || 'M'
       };
     });
 
+    const comboSkus = selectedPiecesSummary.map(p => p.sku).filter(Boolean);
+    const resolvedComboSku = comboSkus.length > 0 ? comboSkus.join(', ') : '';
+
     const comboCartItem = {
       id: `${combo.id}-${Date.now()}`,
       comboId: combo.id,
+      productId: combo.id,
+      sku: resolvedComboSku,
       name: removedPieceIndices.length > 0 
         ? `${combo.name} (${includedCount}-Piece Set)` 
         : combo.name,
       price: activeOfferPrice,
       originalPrice: activeOriginalPrice,
-      image: combo.images?.[0] || '',
+      image: combo.cover_image || combo.images?.[0] || (extractAllComboImages(combo)[0]) || '',
       badge: combo.badge || '',
       isCombo: true,
       isCustomizedCombo: removedPieceIndices.length > 0,
@@ -346,7 +363,6 @@ const ComboDetail = () => {
     { key: 'description', label: 'DESCRIPTION' },
     { key: 'details', label: 'DETAILS' },
     { key: 'shipping', label: 'SHIPPING & RETURNS' },
-    { key: 'reviews', label: `REVIEWS (${combo.reviewsCount || 236})` },
   ];
 
   return (
@@ -354,14 +370,14 @@ const ComboDetail = () => {
       <SEOHead
         title={`${combo.name} | Premium Menswear Combo | ORDERLY`}
         description={combo.description || "Curated luxury menswear combo set. Save up to 35% on complete styling sets."}
-        canonicalPath={`/combo/${combo.slug || combo.id}`}
+        canonicalPath={`/combo/${getComboSlug(combo)}`}
         image={combo.images?.[0] || 'https://orderlymenswear.in/assets/media/logo-07E_iIRS.png'}
         type="product"
         product={combo}
         breadcrumbs={[
           { name: 'Home', url: '/' },
           { name: 'Combos', url: '/combos' },
-          { name: combo.name, url: `/combo/${combo.slug || combo.id}` }
+          { name: combo.name, url: `/combo/${getComboSlug(combo)}` }
         ]}
       />
 
@@ -782,23 +798,9 @@ const ComboDetail = () => {
             {activeTab === 'shipping' && (
               <div className="c-pdp-shipping-content">
                 <ul className="c-pdp-desc-features">
-                  <li>Free standard shipping on orders above ₹1,499</li>
                   <li>Standard delivery within 5–7 business days</li>
                   <li>Express delivery available at checkout</li>
-                  <li>Easy 7 days return & exchange policy</li>
                 </ul>
-              </div>
-            )}
-
-            {activeTab === 'reviews' && (
-              <div className="c-pdp-reviews-content">
-                <div className="c-pdp-reviews-summary">
-                  <div className="c-pdp-reviews-score">{combo.rating || 4.9} / 5</div>
-                  <div className="c-pdp-stars justify-content-center d-flex gap-1 mb-2">
-                    {renderStars(combo.rating || 4.9)}
-                  </div>
-                  <p className="c-pdp-reviews-total">Based on {combo.reviewsCount || 236} customer reviews</p>
-                </div>
               </div>
             )}
           </div>
@@ -828,7 +830,7 @@ const ComboDetail = () => {
                 {relatedCombos.map(rel => {
                   const relDiscount = calculateDiscount(rel.original_price, rel.offer_price);
                   return (
-                    <Link key={rel.id} to={`/combo/${rel.id}`} className="c-pdp-combo-card">
+                    <Link key={rel.id} to={`/combo/${getComboSlug(rel)}`} className="c-pdp-combo-card">
                       <div className="c-pdp-card-img-wrap">
                         {rel.images?.[0] ? (
                           <img src={rel.images[0]} alt={rel.name} />

@@ -567,31 +567,8 @@ const MobileProductDetail = ({
           {openAccordions.shipping && (
             <div className="m-pdp-accordion-body">
               <ul className="m-pdp-desc-list">
-                <li>Free standard shipping on orders above ₹1,499</li>
                 <li>Standard delivery within 5–7 business days</li>
-                <li>Easy returns within 7 days of delivery</li>
               </ul>
-            </div>
-          )}
-        </div>
-
-        {/* Accordion 5: Ratings & Reviews */}
-        <div className="m-pdp-accordion-item">
-          <button
-            type="button"
-            className="m-pdp-accordion-header"
-            onClick={() => toggleAccordion('reviews')}
-          >
-            <span>RATINGS & REVIEWS ({activeProduct.reviewsCount || 128})</span>
-            <FiChevronDown className={`m-pdp-acc-arrow ${openAccordions.reviews ? 'open' : ''}`} />
-          </button>
-          {openAccordions.reviews && (
-            <div className="m-pdp-accordion-body text-center py-2">
-              <div className="m-pdp-big-score">{activeProduct.rating || 4.8} / 5</div>
-              <div className="m-pdp-stars-lg justify-content-center d-flex gap-1 mb-2">
-                {renderStars(activeProduct.rating || 4.8)}
-              </div>
-              <p className="small text-muted mb-0">Based on verified customer reviews</p>
             </div>
           )}
         </div>

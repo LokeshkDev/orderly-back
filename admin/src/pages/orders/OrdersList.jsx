@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FiShoppingCart, FiSearch, FiEye, FiClock, FiCheckCircle, 
-  FiTruck, FiDollarSign, FiUser, FiCalendar, FiCreditCard, FiX, 
-  FiPrinter, FiSave, FiPackage, FiMapPin, FiMail, FiPlus, FiTrash2, FiEdit, FiPhone
-} from 'react-icons/fi';
+import { FiShoppingCart, FiSearch, FiEye, FiClock, FiCheckCircle, FiTruck, FiDollarSign, FiUser, FiCalendar, FiCreditCard, FiX, FiPrinter, FiSave, FiPackage, FiMapPin, FiMail, FiPlus, FiTrash2, FiEdit, FiPhone, FiZoomIn } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { 
   DEFAULT_COURIER_SETTINGS, 
@@ -41,6 +37,119 @@ const OrdersList = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [availableCouriers, setAvailableCouriers] = useState(DEFAULT_COURIER_SETTINGS);
+  const [productsCatalog, setProductsCatalog] = useState([]);
+  const [combosCatalog, setCombosCatalog] = useState([]);
+  const [zoomImage, setZoomImage] = useState(null);
+
+  const resolveItemImage = (item) => {
+    if (!item) return 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop';
+    
+    // Direct item image properties (skip unsplash fallback)
+    const directImg = item.image || item.coverImage || item.cover_image || item.primaryImage || item.product_image || item.imageUrl || item.Product?.primaryImage || item.Product?.image || item.Product?.images?.[0] || item.Combo?.cover_image || item.Combo?.images?.[0];
+    if (directImg && typeof directImg === 'string' && directImg.trim() && !directImg.includes('photo-1596755094514-f87e34085b2c')) {
+      return directImg;
+    }
+
+    // Strip "(X-Piece Set)" suffix for matching
+    const rawName = (item.name || item.product_name || item.productName || '');
+    const itemNameLower = rawName.replace(/\s*\(\d+-Piece Set\)\s*$/i, '').toLowerCase().trim();
+    const pId = String(item.productId || item.product_id || item.id || '');
+    const cId = String(item.comboId || item.combo_id || '');
+
+    // Check combos catalog if combo
+    if (item.isCombo || cId || pId.startsWith('combo-') || rawName.toLowerCase().includes('combo')) {
+      const matchCombo = combosCatalog.find(c => {
+        if (cId && (String(c.id) === cId || String(c._id) === cId)) return true;
+        if (pId && (String(c.id) === pId || pId.startsWith(String(c.id)))) return true;
+        const cName = (c.name || '').toLowerCase().trim();
+        if (cName && cName === itemNameLower) return true;
+        if (cName && itemNameLower && (cName.includes(itemNameLower) || itemNameLower.includes(cName))) return true;
+        return false;
+      });
+      if (matchCombo) {
+        const comboCover = matchCombo.cover_image || (Array.isArray(matchCombo.images) && matchCombo.images[0]) || matchCombo.items?.[0]?.primaryImage || matchCombo.items?.[0]?.image;
+        if (comboCover) return comboCover;
+      }
+    }
+
+    // Check products catalog
+    const matchProd = productsCatalog.find(p => 
+      String(p.id) === pId || 
+      (p.name && p.name.toLowerCase().trim() === itemNameLower) ||
+      (p.name && itemNameLower && (p.name.toLowerCase().trim().includes(itemNameLower) || itemNameLower.includes(p.name.toLowerCase().trim())))
+    );
+    if (matchProd) {
+      const prodImg = matchProd.primaryImage || matchProd.images?.[0] || (Array.isArray(matchProd.colors) && matchProd.colors[0]?.images?.[0]);
+      if (prodImg) return prodImg;
+    }
+
+    return directImg || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop';
+  };
+
+  const resolveItemIdentifier = (item) => {
+    if (!item) return null;
+
+    const rawName = (item.name || item.product_name || item.productName || '');
+    const itemNameLower = rawName.replace(/\s*\(\d+-Piece Set\)\s*$/i, '').toLowerCase().trim();
+    const pId = String(item.productId || item.product_id || item.id || '');
+    const cId = String(item.comboId || item.combo_id || '');
+
+    const isCombo = Boolean(
+      item.isCombo || 
+      item.is_combo || 
+      cId || 
+      pId.startsWith('combo-') || 
+      rawName.toLowerCase().includes('combo')
+    );
+
+    if (isCombo) {
+      const matchCombo = combosCatalog.find(c => {
+        if (cId && (String(c.id) === cId || String(c._id) === cId)) return true;
+        if (pId && (String(c.id) === pId || pId.startsWith(String(c.id)))) return true;
+        const cName = (c.name || '').toLowerCase().trim();
+        if (cName && cName === itemNameLower) return true;
+        if (cName && itemNameLower && (cName.includes(itemNameLower) || itemNameLower.includes(cName))) return true;
+        return false;
+      });
+      const comboId = matchCombo?.id || cId || pId.replace(/-\d{10,}$/, '') || pId;
+      return {
+        type: 'combo',
+        label: 'COMBO ID',
+        value: comboId
+      };
+    }
+
+    // Single order -> Show product's SKU
+    let productSku = null;
+    if (item.sku && String(item.sku).trim() && !String(item.sku).startsWith('ORD-SKU-') && !String(item.sku).includes('combo-')) {
+      productSku = String(item.sku).trim();
+    } else if (item.product_sku && String(item.product_sku).trim() && !String(item.product_sku).startsWith('ORD-SKU-') && !String(item.product_sku).includes('combo-')) {
+      productSku = String(item.product_sku).trim();
+    } else if (item.Product?.sku) {
+      productSku = String(item.Product.sku).trim();
+    }
+
+    if (!productSku) {
+      const matchProd = productsCatalog.find(p => 
+        String(p.id) === pId || 
+        (p.name && p.name.toLowerCase().trim() === itemNameLower) ||
+        (p.name && itemNameLower && (p.name.toLowerCase().trim().includes(itemNameLower) || itemNameLower.includes(p.name.toLowerCase().trim())))
+      );
+      if (matchProd && matchProd.sku) productSku = String(matchProd.sku).trim();
+    }
+
+    if (productSku) {
+      return {
+        type: 'product',
+        label: 'SKU',
+        value: productSku
+      };
+    }
+
+    return null;
+  };
+
+  const resolveItemSku = (item) => resolveItemIdentifier(item)?.value || '';
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,13 +203,23 @@ const OrdersList = () => {
     try {
       let fetchedOrders = [];
       try {
-        const [ordersRes, settingsRes] = await Promise.all([
+        const [ordersRes, settingsRes, productsRes, combosRes] = await Promise.all([
           api.get('/orders'),
-          api.get('/settings').catch(() => null)
+          api.get('/settings').catch(() => null),
+          api.get('/products').catch(() => null),
+          api.get('/combos').catch(() => null)
         ]);
 
         if (ordersRes?.data?.success && Array.isArray(ordersRes.data.data)) {
           fetchedOrders = ordersRes.data.data;
+        }
+
+        if (productsRes?.data?.success && Array.isArray(productsRes.data.data)) {
+          setProductsCatalog(productsRes.data.data);
+        }
+
+        if (combosRes?.data?.success && Array.isArray(combosRes.data.data)) {
+          setCombosCatalog(combosRes.data.data);
         }
 
         if (settingsRes?.data?.data?.courier_settings) {
@@ -742,24 +861,53 @@ const OrdersList = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {(selectedOrder.items || [{ name: 'European Linen Resort Shirt', quantity: 1, selectedSize: 'L', price: selectedOrder.total }]).map((item, i) => (
-                        <tr key={i}>
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              {item.image && (
-                                <img src={item.image} alt={item.name} className="order-item-thumb" />
-                              )}
-                              <div>
-                                <strong className="text-dark small d-block mb-0.5">{item.name}</strong>
-                                <span className="text-muted extra-small">Size: {item.selectedSize || 'L'} {item.selectedColor ? `| ${item.selectedColor}` : ''}</span>
+                      {(selectedOrder.OrderItems || selectedOrder.items || [{ name: 'European Linen Resort Shirt', quantity: 1, selectedSize: 'L', price: selectedOrder.total }]).map((item, i) => {
+                        const itemImg = resolveItemImage(item);
+                        const itemIdentifier = resolveItemIdentifier(item);
+                        const itemName = item.name || item.Product?.name || item.Combo?.name || 'Apparel Item';
+                        return (
+                          <tr key={i}>
+                            <td>
+                              <div className="d-flex align-items-center gap-3">
+                                <div 
+                                  className="order-item-thumb-box"
+                                  onClick={() => setZoomImage({ src: itemImg, title: itemName })}
+                                  title="Click to zoom primary image"
+                                >
+                                  <img 
+                                    src={itemImg} 
+                                    alt={itemName} 
+                                    className="order-item-thumb-img" 
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop';
+                                    }}
+                                  />
+                                  <div className="thumb-zoom-icon-overlay">
+                                    <FiZoomIn />
+                                  </div>
+                                </div>
+                                <div className="min-w-0 flex-grow-1">
+                                  <strong className="text-dark small d-block mb-1">{itemName}</strong>
+                                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                                    {itemIdentifier && (
+                                      <span className={`sku-badge-pill ${itemIdentifier.type === 'combo' ? 'combo-id-pill' : ''}`}>
+                                        {itemIdentifier.label}: {itemIdentifier.value}
+                                      </span>
+                                    )}
+                                    <span className="text-muted extra-small">
+                                      Size: {item.selectedSize || item.size || 'L'} {item.selectedColor || item.color ? `| ${item.selectedColor || item.color}` : ''}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="text-center fw-bold small text-dark">{item.quantity || 1}</td>
-                          <td className="text-end small text-muted">₹{Number(item.price || selectedOrder.total || 0).toLocaleString()}</td>
-                          <td className="text-end fw-bold text-danger small">₹{Number((item.price || selectedOrder.total || 0) * (item.quantity || 1)).toLocaleString()}</td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="text-center fw-bold small text-dark">{item.quantity || 1}</td>
+                            <td className="text-end small text-muted">₹{Number(item.price || selectedOrder.total || 0).toLocaleString()}</td>
+                            <td className="text-end fw-bold text-danger small">₹{Number((item.price || selectedOrder.total || 0) * (item.quantity || 1)).toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1125,6 +1273,26 @@ const OrdersList = () => {
                 <button type="submit" className="btn-admin-red px-4 fw-bold">Update Order</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {zoomImage && (
+        <div className="admin-zoom-modal-backdrop" onClick={() => setZoomImage(null)}>
+          <div className="admin-zoom-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="d-flex align-items-center justify-content-between w-100 mb-3 pb-2 border-bottom">
+              <div>
+                <h6 className="fw-bold text-dark mb-0">{zoomImage.title}</h6>
+                <span className="text-muted extra-small">Primary Product Image Preview</span>
+              </div>
+              <button 
+                type="button" 
+                className="btn-close-modal-icon"
+                onClick={() => setZoomImage(null)}
+              >
+                <FiX />
+              </button>
+            </div>
+            <img src={zoomImage.src} alt={zoomImage.title} className="admin-zoom-modal-img" />
           </div>
         </div>
       )}

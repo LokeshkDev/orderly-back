@@ -15,8 +15,118 @@ import {
 import { DEFAULT_EMAIL_SETTINGS } from './settings.controller.js';
 import { addCustomerRecord } from './customers.controller.js';
 import Product from '../models/Product.js';
+import Combo from '../models/Combo.js';
 
 const { Order, OrderItem, Customer, SiteSetting } = db;
+
+let orderItemColumnsEnsured = false;
+export const ensureOrderItemColumnsExist = async () => {
+  if (orderItemColumnsEnsured) return;
+  const queries = [
+    "ALTER TABLE `OrderItems` ADD COLUMN `sku` VARCHAR(255) NULL;",
+    "ALTER TABLE `orderitems` ADD COLUMN `sku` VARCHAR(255) NULL;",
+    "ALTER TABLE `OrderItems` ADD COLUMN `image` VARCHAR(500) NULL;",
+    "ALTER TABLE `orderitems` ADD COLUMN `image` VARCHAR(500) NULL;"
+  ];
+  for (const q of queries) {
+    try {
+      await db.sequelize.query(q);
+    } catch (e) {}
+  }
+  orderItemColumnsEnsured = true;
+};
+
+export const enrichOrdersWithCatalog = async (orders) => {
+  if (!orders || !orders.length) return orders;
+  try {
+    const products = await Product.findAll({
+      attributes: ['id', 'name', 'sku', 'images', 'colors'],
+      raw: true
+    });
+    const combos = await Combo.findAll({
+      attributes: ['id', 'name', 'cover_image', 'images', 'items'],
+      raw: true
+    });
+
+    const normalizeText = (t) => (t || '').replace(/\s*\(\d+-Piece Set\)\s*$/i, '').toLowerCase().trim();
+
+    return orders.map(order => {
+      if (!order || !Array.isArray(order.items)) return order;
+      const enrichedItems = order.items.map(item => {
+        const directImg = item.image || item.coverImage || item.cover_image || item.primaryImage || item.product_image;
+        const rawName = item.name || item.product_name || '';
+        const normName = normalizeText(rawName);
+        const pId = String(item.productId || item.product_id || item.id || '');
+        const cId = String(item.comboId || item.combo_id || '');
+
+        let resolvedImage = directImg && !directImg.includes('photo-1596755094514-f87e34085b2c') ? directImg : null;
+        let resolvedSku = (item.sku && !String(item.sku).startsWith('ORD-SKU-')) ? String(item.sku).trim() : null;
+
+        let isComboItem = Boolean(item.isCombo || item.is_combo || cId || pId.startsWith('combo-') || normName.includes('combo'));
+        let resolvedComboId = cId || null;
+
+        // 1. Try combo match if combo or combo keyword present
+        if (isComboItem) {
+          const matchCombo = combos.find(c => {
+            if (cId && String(c.id) === cId) return true;
+            if (pId && (String(c.id) === pId || pId.startsWith(String(c.id)))) return true;
+            const cName = normalizeText(c.name);
+            return cName && (cName === normName || cName.includes(normName) || normName.includes(cName));
+          });
+
+          if (matchCombo) {
+            resolvedComboId = matchCombo.id;
+            isComboItem = true;
+            if (!resolvedImage) {
+              resolvedImage = matchCombo.cover_image || (Array.isArray(matchCombo.images) && matchCombo.images[0]) || null;
+            }
+          } else {
+            resolvedComboId = pId.replace(/-\d{10,}$/, '') || pId;
+          }
+        }
+
+        // 2. Try product match for single orders
+        if (!isComboItem && (!resolvedSku || !resolvedImage)) {
+          const matchProd = products.find(p => 
+            String(p.id) === pId || 
+            normalizeText(p.name) === normName || 
+            (p.name && normName && normalizeText(p.name).includes(normName)) ||
+            (normName && p.name && normName.includes(normalizeText(p.name)))
+          );
+          if (matchProd) {
+            if (!resolvedSku && matchProd.sku) resolvedSku = matchProd.sku;
+            if (!resolvedImage) {
+              let pImages = matchProd.images;
+              if (typeof pImages === 'string') {
+                try { pImages = JSON.parse(pImages); } catch (e) { pImages = []; }
+              }
+              resolvedImage = (Array.isArray(pImages) && pImages[0]) || null;
+            }
+          }
+        }
+
+        return {
+          ...item,
+          isCombo: isComboItem,
+          is_combo: isComboItem,
+          comboId: isComboItem ? resolvedComboId : null,
+          combo_id: isComboItem ? resolvedComboId : null,
+          image: resolvedImage || directImg || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop',
+          sku: isComboItem ? null : (resolvedSku || item.sku || null),
+          product_sku: isComboItem ? null : (resolvedSku || item.product_sku || item.sku || null)
+        };
+      });
+
+      return {
+        ...order,
+        items: enrichedItems
+      };
+    });
+  } catch (err) {
+    console.warn('⚠️ Order catalog enrichment note:', err.message);
+    return orders;
+  }
+};
 
 export let RUNTIME_ORDERS = [];
 
@@ -97,6 +207,9 @@ const normalizeOrder = (o) => {
       name: item.name || item.product_name || item.productName || 'Product',
       productId: item.productId || item.product_id || null,
       product_id: item.productId || item.product_id || null,
+      isCombo: Boolean(item.isCombo),
+      comboId: item.comboId || item.combo_id || null,
+      image: item.image || item.primaryImage || item.coverImage || item.cover_image || item.product_image || item.imageUrl || item.Product?.primaryImage || item.Product?.image || item.Product?.images?.[0] || (Array.isArray(item.images) ? item.images[0] : null) || null,
       selectedSize: item.selectedSize || item.size || null,
       size: item.selectedSize || item.size || null,
       selectedColor: item.selectedColor || item.color || null,
@@ -163,7 +276,11 @@ export const normalizeOrderPayload = async (payload = {}) => {
   const normalizedItems = pairCalc.normalizedItems.map((item, index) => ({
     product_id: item.productId ?? item.product_id ?? item.id ?? null,
     combo_id: item.comboId ?? item.combo_id ?? null,
+    is_combo: Boolean(item.isCombo || item.is_combo),
     product_name: item.name || item.product_name || item.productName || `Item ${index + 1}`,
+    image: item.image || item.primaryImage || item.coverImage || item.cover_image || item.product_image || item.imageUrl || (Array.isArray(item.images) ? item.images[0] : null) || null,
+    sku: item.sku || item.product_sku || null,
+    product_sku: item.product_sku || item.sku || null,
     size: item.selectedSize || item.size || null,
     color: item.selectedColor || item.color || null,
     quantity: Math.max(1, Number(item.quantity || 1)),
@@ -323,11 +440,14 @@ export const createOrder = async (req, res) => {
 
       order = await Order.create(dbOrderPayload);
       if (order?.id && orderItems.length) {
+        await ensureOrderItemColumnsExist();
         const dbItems = orderItems.map((item) => ({
           order_id: order.id,
           product_id: item.product_id ? String(item.product_id) : null,
           combo_id: item.combo_id ? String(item.combo_id) : null,
           product_name: String(item.product_name || item.name || 'Product'),
+          sku: item.sku ? String(item.sku) : null,
+          image: item.image ? String(item.image) : null,
           size: item.size ? String(item.size) : null,
           color: item.color ? String(item.color) : null,
           quantity: Math.max(1, Number(item.quantity) || 1),
@@ -445,15 +565,12 @@ export const getMyOrders = async (req, res) => {
       }
     } catch (err) {}
 
-    const map = new Map();
-    [...RUNTIME_ORDERS, ...orders].forEach(o => {
-      const key = o.order_number || o.id;
-      if (key) map.set(String(key), o);
-    });
-
-    res.status(200).json({ success: true, data: Array.from(map.values()) });
+    const rawList = Array.from(map.values());
+    const enrichedList = await enrichOrdersWithCatalog(rawList);
+    res.status(200).json({ success: true, data: enrichedList });
   } catch (error) {
-    res.status(200).json({ success: true, data: RUNTIME_ORDERS });
+    const enrichedRuntime = await enrichOrdersWithCatalog(RUNTIME_ORDERS);
+    res.status(200).json({ success: true, data: enrichedRuntime });
   }
 };
 
@@ -489,9 +606,12 @@ export const getAllOrders = async (req, res) => {
       if (key) map.set(String(key), o);
     });
 
-    res.status(200).json({ success: true, data: Array.from(map.values()) });
+    const rawList = Array.from(map.values());
+    const enrichedList = await enrichOrdersWithCatalog(rawList);
+    res.status(200).json({ success: true, data: enrichedList });
   } catch (error) {
-    res.status(200).json({ success: true, data: RUNTIME_ORDERS });
+    const enrichedRuntime = await enrichOrdersWithCatalog(RUNTIME_ORDERS);
+    res.status(200).json({ success: true, data: enrichedRuntime });
   }
 };
 
@@ -501,7 +621,10 @@ export const getOrderById = async (req, res) => {
   try {
     const id = req.params.id;
     const runtimeFound = RUNTIME_ORDERS.find(o => String(o.id) === String(id) || o.order_number === id);
-    if (runtimeFound) return res.status(200).json({ success: true, data: normalizeOrder(runtimeFound) });
+    if (runtimeFound) {
+      const [enriched] = await enrichOrdersWithCatalog([normalizeOrder(runtimeFound)]);
+      return res.status(200).json({ success: true, data: enriched });
+    }
 
     let order;
     try {
@@ -511,7 +634,12 @@ export const getOrderById = async (req, res) => {
       });
     } catch (err) {}
 
-    res.status(200).json({ success: true, data: order ? normalizeOrder(order) : null });
+    if (order) {
+      const [enriched] = await enrichOrdersWithCatalog([normalizeOrder(order)]);
+      return res.status(200).json({ success: true, data: enriched });
+    }
+
+    res.status(200).json({ success: true, data: null });
   } catch (error) {
     res.status(200).json({ success: true, data: null });
   }

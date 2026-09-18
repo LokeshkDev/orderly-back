@@ -23,7 +23,7 @@ import { ProductCardSkeleton } from '../components/common/Skeleton';
 import { getProducts, matchesCategoryAlias, getCategories, getBrands } from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
-import { formatPrice, calculateDiscount } from '../utils/formatters';
+import { formatPrice, calculateDiscount, getProductSlug } from '../utils/formatters';
 import '../styles/MobileHomepage.css';
 import './MobileShop.css';
 
@@ -556,7 +556,7 @@ const MobileShop = () => {
                       return (
                         <tr key={product.id}>
                           <td className="m-st-prod-cell">
-                            <Link to={`/product/${product.id}`} className="m-st-prod-link">
+                            <Link to={`/product/${getProductSlug(product)}`} className="m-st-prod-link">
                               <div className="m-st-thumb">
                                 {prodImg ? <img src={prodImg} alt={product.name} /> : <div className="m-st-thumb-placeholder" />}
                               </div>

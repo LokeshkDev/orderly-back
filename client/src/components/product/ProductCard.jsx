@@ -4,7 +4,7 @@ import { FiEye, FiHeart, FiCheck, FiShoppingBag, FiChevronDown } from 'react-ico
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useQuickView } from '../../context/QuickViewContext';
-import { formatPrice, calculateDiscount, normalizeProduct, colorImages } from '../../utils/formatters';
+import { formatPrice, calculateDiscount, normalizeProduct, colorImages, getProductSlug } from '../../utils/formatters';
 import './ProductCard.css';
 
 const getSizePrice = (prod, size) => {
@@ -157,7 +157,7 @@ const ProductCard = ({ product }) => {
     >
       {/* Media Container */}
       <div className="product-card-media">
-        <Link to={`/product/${p.slug || p.id}`} className="product-image-link">
+        <Link to={`/product/${getProductSlug(p)}`} className="product-image-link">
           <div className="product-image-wrapper">
             <img
               src={primaryImg || '/logo.png'}
@@ -230,7 +230,7 @@ const ProductCard = ({ product }) => {
       {/* Product Content Info */}
       <div className="product-card-info">
         <h5 className="product-name">
-          <Link to={`/product/${p.slug || p.id}`}>{p.name}</Link>
+          <Link to={`/product/${getProductSlug(p)}`}>{p.name}</Link>
         </h5>
 
 

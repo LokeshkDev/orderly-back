@@ -7,7 +7,7 @@ import { ProductCardSkeleton } from '../components/common/Skeleton';
 import { getProducts, matchesCategoryAlias, getCategories, getBrands } from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
-import { formatPrice, calculateDiscount } from '../utils/formatters';
+import { formatPrice, calculateDiscount, getProductSlug } from '../utils/formatters';
 import MobileShop from './MobileShop';
 import useIsMobile from '../utils/useIsMobile';
 import './Shop.css';
@@ -767,7 +767,7 @@ const Shop = () => {
                           return (
                             <tr key={product.id}>
                               <td className="st-prod-cell">
-                                <Link to={`/product/${product.id}`} className="st-prod-link">
+                                <Link to={`/product/${getProductSlug(product)}`} className="st-prod-link">
                                   <div className="st-thumb-box">
                                     {prodImg ? <img src={prodImg} alt={product.name} /> : <div className="st-thumb-placeholder" />}
                                   </div>

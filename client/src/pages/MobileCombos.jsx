@@ -22,7 +22,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
 import { MobileComboCategorySkeleton, MobileComboCardSkeleton } from '../components/common/Skeleton';
 import ComboCover from '../components/common/ComboCover';
-import { formatPrice } from '../utils/formatters';
+import { formatPrice, getComboSlug } from '../utils/formatters';
 import '../styles/MobileHomepage.css';
 import '../components/home/ShopByCategory.css';
 import './MobileCombos.css';
@@ -418,7 +418,7 @@ const MobileCombos = () => {
                       <div key={combo.id} className="product-card mobile-creative-combo-card">
                         {/* Media Container with 3:4 Aspect Ratio */}
                         <div className="product-card-media">
-                          <Link to={`/combo/${combo.slug || combo.id}`} className="product-image-link">
+                          <Link to={`/combo/${getComboSlug(combo)}`} className="product-image-link">
                             <ComboCover
                               items={combo.items}
                               images={combo.images}
@@ -458,7 +458,7 @@ const MobileCombos = () => {
 
                           {/* 2. Combo Title */}
                           <h5 className="combo-card-title-wrap">
-                            <Link to={`/combo/${combo.slug || combo.id}`} className="combo-card-title-link">
+                            <Link to={`/combo/${getComboSlug(combo)}`} className="combo-card-title-link">
                               <span className="combo-card-title-text">{combo.name}</span>
                             </Link>
                           </h5>
@@ -480,7 +480,7 @@ const MobileCombos = () => {
                           {/* 5. Action Row - VIEW COMBO CTA Button */}
                           <div className="combo-card-action-row mt-auto" onClick={(e) => e.stopPropagation()}>
                             <Link 
-                              to={`/combo/${combo.slug || combo.id}`} 
+                              to={`/combo/${getComboSlug(combo)}`} 
                               className="btn-view-combo-cta"
                             >
                               VIEW COMBO

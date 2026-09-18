@@ -45,7 +45,7 @@ const MobileComboCategories = ({ title, subtitle }) => {
       try {
         const res = await getComboCategories();
         if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const active = res.data.filter(c => c.is_active !== false);
+          const active = res.data.filter(c => c.is_active !== false && !c.parent_id);
           const mapped = active.map((cat, idx) => ({
             name: (cat.name || '').toUpperCase(),
             sub: cat.description || cat.sub || DEFAULT_MOBILE_COMBO_CATS[idx % DEFAULT_MOBILE_COMBO_CATS.length]?.sub || 'Curated Combo Set',

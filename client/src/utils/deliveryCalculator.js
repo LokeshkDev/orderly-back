@@ -51,6 +51,13 @@ export const DEFAULT_DELIVERY_SETTINGS = {
     first_item_charge: 50,
     additional_item_charge: 10
   },
+  combo_delivery: {
+    enabled: true,
+    charge: 99,
+    free_delivery_above: 1999,
+    per_combo_charge: 0,
+    label: 'Combo Express Delivery'
+  },
   priority: 'pincode_based'
 };
 
@@ -212,52 +219,122 @@ export const calculatePriceBasedDelivery = (subtotal, priceConfig = DEFAULT_DELI
   };
 };
 
-export const calculateItemBasedDelivery = (totalItems, itemConfig = DEFAULT_DELIVERY_SETTINGS.item_based) => {
+export const calculateItemBasedDelivery = (totalItems, itemConfig = DEFAULT_DELIVERY_SETTINGS.item_based, isAdditionalOnly = false) => {
   const count = Math.max(0, Number(totalItems) || 0);
   if (count === 0) return { charge: 0, totalItems: 0, description: '₹0 (0 items)' };
 
   const firstItemCharge = Number(itemConfig?.first_item_charge ?? 50);
   const additionalItemCharge = Number(itemConfig?.additional_item_charge ?? 10);
 
-  const charge = firstItemCharge + (Math.max(0, count - 1) * additionalItemCharge);
+  const charge = isAdditionalOnly
+    ? (count * additionalItemCharge)
+    : (firstItemCharge + (Math.max(0, count - 1) * additionalItemCharge));
 
   return {
     charge,
     totalItems: count,
     firstItemCharge,
     additionalItemCharge,
-    description: `Item-Based Delivery (${count} item${count > 1 ? 's' : ''}): ₹${charge}`
+    isAdditionalOnly,
+    description: isAdditionalOnly
+      ? `Additional Single Product Delivery (${count} item${count > 1 ? 's' : ''} @ ₹${additionalItemCharge}): ₹${charge}`
+      : `Item-Based Delivery (${count} item${count > 1 ? 's' : ''}): ₹${charge}`
   };
 };
 
-export const calculateDeliveryCharge = ({
-  cartItems = [],
-  subtotal = 0,
-  pincode = '',
-  deliverySettings = null,
-  legacySettings = null,
-  isMultiPairOfferActive = false
-}) => {
-  const settings = deliverySettings || DEFAULT_DELIVERY_SETTINGS;
-  const numSubtotal = Math.max(0, Number(subtotal) || 0);
+export const isComboItem = (it) => {
+  if (!it) return false;
+  return Boolean(
+    it.isCombo || 
+    it.is_combo || 
+    it.combo_id || 
+    it.comboId ||
+    it.type === 'combo' || 
+    it.itemType === 'combo' ||
+    it.pieces_count || 
+    String(it.id || '').startsWith('combo-') || 
+    String(it.productId || '').startsWith('combo-') ||
+    String(it.product_id || '').startsWith('combo-') ||
+    String(it.cartItemId || '').startsWith('combo-')
+  );
+};
 
-  // If Multi-Product Pair Well With offer is active, delivery is unconditionally FREE
-  if (isMultiPairOfferActive) {
+export const calculateComboDelivery = ({
+  comboItems = [],
+  comboSubtotal = 0,
+  cartSubtotal = 0,
+  comboSettings = DEFAULT_DELIVERY_SETTINGS.combo_delivery
+}) => {
+  const comboConfig = comboSettings || DEFAULT_DELIVERY_SETTINGS.combo_delivery;
+  const flatCharge = Number(comboConfig.charge ?? 99);
+  const freeThreshold = Number(comboConfig.free_delivery_above ?? 1999);
+  const perComboFee = Number(comboConfig.per_combo_charge ?? 0);
+  const label = comboConfig.label || 'Combo Express Delivery';
+
+  const comboCount = Array.isArray(comboItems)
+    ? comboItems.reduce((acc, it) => acc + (Math.max(1, Number(it.quantity) || 1)), 0)
+    : 0;
+
+  if (comboCount === 0) {
     return {
       shippingFee: 0,
-      method: 'pair_offer_free',
-      methodLabel: 'FREE Express Delivery',
-      locationLabel: null,
-      isBelowMinOrder: false,
-      minOrderAmount: 0,
-      breakdownText: 'FREE Delivery (Pair Offer)',
-      explanation: 'Unlocked with Pair Well With Offer'
+      comboCount: 0,
+      label,
+      isFree: false,
+      breakdownText: '₹0',
+      explanation: 'No combos in cart'
     };
   }
 
-  const totalItemQuantity = Array.isArray(cartItems)
-    ? cartItems.reduce((acc, item) => acc + (Math.max(1, Number(item.quantity) || 1)), 0)
-    : 0;
+  const isFree = freeThreshold > 0 && (comboSubtotal >= freeThreshold || cartSubtotal >= freeThreshold);
+  const charge = isFree ? 0 : (flatCharge + Math.max(0, comboCount - 1) * perComboFee);
+  const comboLabel = comboCount > 1 ? `${label} (${comboCount} combos)` : label;
+
+  return {
+    shippingFee: charge,
+    comboCount,
+    label: comboLabel,
+    baseCharge: flatCharge,
+    perComboFee,
+    isFree,
+    breakdownText: isFree ? 'FREE Combo Shipping' : `${comboLabel}: ₹${charge}`,
+    explanation: isFree 
+      ? `Free Delivery threshold of ₹${freeThreshold} reached` 
+      : (comboCount > 1 
+          ? `Combo delivery (1st combo: ₹${flatCharge} + ${comboCount - 1} extra @ ₹${perComboFee} = ₹${charge})`
+          : `Combo delivery (1 combo: ₹${flatCharge})`)
+  };
+};
+
+export const calculateStandardDelivery = ({
+  items = [],
+  subtotal = 0,
+  totalItemQuantity = 0,
+  pincode = '',
+  settings = DEFAULT_DELIVERY_SETTINGS,
+  legacySettings = null,
+  isAdditionalToCombo = false
+}) => {
+  const numSubtotal = Math.max(0, Number(subtotal) || 0);
+  const totalQty = totalItemQuantity > 0 
+    ? totalItemQuantity 
+    : (Array.isArray(items) ? items.reduce((acc, item) => acc + (Math.max(1, Number(item.quantity) || 1)), 0) : 0);
+
+  // When combos are already in the cart, single products are charged at the additional item rate
+  if (isAdditionalToCombo) {
+    const additionalPerItem = Number(settings?.item_based?.additional_item_charge ?? 10);
+    const itemResult = calculateItemBasedDelivery(totalQty, settings?.item_based || DEFAULT_DELIVERY_SETTINGS.item_based, true);
+    return {
+      shippingFee: itemResult.charge,
+      method: 'item_based_additional',
+      methodLabel: totalQty === 1 ? 'Additional Single Product' : `Additional Single Products (${totalQty})`,
+      locationLabel: null,
+      isBelowMinOrder: false,
+      minOrderAmount: 0,
+      breakdownText: itemResult.description,
+      explanation: `${totalQty} additional single product(s) @ ₹${additionalPerItem}`
+    };
+  }
 
   const isPriceEnabled = Boolean(settings?.price_based?.enabled);
   const isPincodeEnabled = Boolean(settings?.pincode_based?.enabled);
@@ -348,7 +425,7 @@ export const calculateDeliveryCharge = ({
     }
 
     if (method === 'item_based' && isItemEnabled) {
-      const itemResult = calculateItemBasedDelivery(totalItemQuantity, settings.item_based);
+      const itemResult = calculateItemBasedDelivery(totalQty, settings.item_based, false);
       return {
         shippingFee: itemResult.charge,
         method: 'item_based',
@@ -357,7 +434,7 @@ export const calculateDeliveryCharge = ({
         isBelowMinOrder: false,
         minOrderAmount: 0,
         breakdownText: itemResult.description,
-        explanation: `${totalItemQuantity} total item(s) in cart`
+        explanation: `${totalQty} total item(s) in cart`
       };
     }
   }
@@ -371,5 +448,148 @@ export const calculateDeliveryCharge = ({
     minOrderAmount: 0,
     breakdownText: 'FREE Delivery',
     explanation: 'Complimentary delivery applied'
+  };
+};
+
+export const calculateDeliveryCharge = ({
+  cartItems = [],
+  subtotal = 0,
+  pincode = '',
+  deliverySettings = null,
+  legacySettings = null,
+  isMultiPairOfferActive = false
+}) => {
+  const settings = deliverySettings || DEFAULT_DELIVERY_SETTINGS;
+  const numSubtotal = Math.max(0, Number(subtotal) || 0);
+
+  // If Multi-Product Pair Well With offer is active, delivery is unconditionally FREE
+  if (isMultiPairOfferActive) {
+    return {
+      shippingFee: 0,
+      comboShippingFee: 0,
+      singleShippingFee: 0,
+      method: 'pair_offer_free',
+      methodLabel: 'FREE Express Delivery',
+      locationLabel: null,
+      isBelowMinOrder: false,
+      minOrderAmount: 0,
+      breakdownText: 'FREE Delivery (Pair Offer)',
+      explanation: 'Unlocked with Pair Well With Offer'
+    };
+  }
+
+  const items = Array.isArray(cartItems) ? cartItems : [];
+  if (items.length === 0) {
+    return {
+      shippingFee: 0,
+      comboShippingFee: 0,
+      singleShippingFee: 0,
+      method: 'free',
+      methodLabel: 'Delivery',
+      locationLabel: null,
+      isBelowMinOrder: false,
+      minOrderAmount: 0,
+      breakdownText: '₹0',
+      explanation: 'Cart is empty'
+    };
+  }
+
+  const comboItems = items.filter(isComboItem);
+  const singleItems = items.filter(it => !isComboItem(it));
+
+  const hasCombos = comboItems.length > 0;
+  const hasSingles = singleItems.length > 0;
+  const isComboDeliveryEnabled = Boolean(settings?.combo_delivery?.enabled);
+
+  // If combo delivery setting is enabled and cart contains combo items
+  if (isComboDeliveryEnabled && hasCombos) {
+    const comboSubtotal = comboItems.reduce((acc, it) => acc + (Number(it.line_total ?? (Number(it.price ?? it.unit_price ?? 0) * (Number(it.quantity) || 1))) || 0), 0);
+    const comboRes = calculateComboDelivery({
+      comboItems,
+      comboSubtotal,
+      cartSubtotal: numSubtotal,
+      comboSettings: settings.combo_delivery
+    });
+
+    // Case 1: Both combo and single products are present in the cart
+    // Single products are charged at the additional item rate (additional cost of delivery)
+    if (hasSingles) {
+      const singleSubtotal = singleItems.reduce((acc, it) => acc + (Number(it.line_total ?? (Number(it.price ?? it.unit_price ?? 0) * (Number(it.quantity) || 1))) || 0), 0);
+      const singleQty = singleItems.reduce((acc, it) => acc + Math.max(1, Number(it.quantity) || 1), 0);
+
+      const singleRes = calculateStandardDelivery({
+        items: singleItems,
+        subtotal: singleSubtotal,
+        totalItemQuantity: singleQty,
+        pincode,
+        settings,
+        legacySettings,
+        isAdditionalToCombo: true
+      });
+
+      const totalShippingFee = comboRes.shippingFee + singleRes.shippingFee;
+
+      let breakdownText = '';
+      if (comboRes.shippingFee > 0 && singleRes.shippingFee > 0) {
+        breakdownText = `${comboRes.label} (₹${comboRes.shippingFee}) + ${singleRes.methodLabel} (₹${singleRes.shippingFee}): Total ₹${totalShippingFee}`;
+      } else if (comboRes.shippingFee > 0 && singleRes.shippingFee === 0) {
+        breakdownText = `${comboRes.label} (₹${comboRes.shippingFee}) + Free Delivery (Single Items)`;
+      } else if (comboRes.shippingFee === 0 && singleRes.shippingFee > 0) {
+        breakdownText = `Free Combo Delivery + ${singleRes.methodLabel} (₹${singleRes.shippingFee}): Total ₹${totalShippingFee}`;
+      } else {
+        breakdownText = 'FREE Delivery (Combos & Single Products)';
+      }
+
+      return {
+        shippingFee: totalShippingFee,
+        comboShippingFee: comboRes.shippingFee,
+        singleShippingFee: singleRes.shippingFee,
+        comboCount: comboRes.comboCount,
+        singleCount: singleQty,
+        method: 'combined_delivery',
+        methodLabel: `${comboRes.label} + ${singleRes.methodLabel}`,
+        locationLabel: singleRes.locationLabel,
+        isBelowMinOrder: singleRes.isBelowMinOrder,
+        minOrderAmount: singleRes.minOrderAmount,
+        breakdownText,
+        explanation: `${comboRes.comboCount} combo(s) [₹${comboRes.shippingFee}] + ${singleQty} additional single product(s) [₹${singleRes.shippingFee}]`
+      };
+    }
+
+    // Case 2: Only combo products in cart
+    return {
+      shippingFee: comboRes.shippingFee,
+      comboShippingFee: comboRes.shippingFee,
+      singleShippingFee: 0,
+      comboCount: comboRes.comboCount,
+      singleCount: 0,
+      method: 'combo_delivery',
+      methodLabel: comboRes.isFree ? 'Free Combo Delivery' : comboRes.label,
+      locationLabel: null,
+      isBelowMinOrder: false,
+      minOrderAmount: 0,
+      breakdownText: comboRes.breakdownText,
+      explanation: comboRes.explanation
+    };
+  }
+
+  // Case 3: Standard delivery only (single products only, or combo delivery disabled)
+  const totalItemQuantity = items.reduce((acc, item) => acc + (Math.max(1, Number(item.quantity) || 1)), 0);
+  const standardRes = calculateStandardDelivery({
+    items,
+    subtotal: numSubtotal,
+    totalItemQuantity,
+    pincode,
+    settings,
+    legacySettings,
+    isAdditionalToCombo: false
+  });
+
+  return {
+    ...standardRes,
+    comboShippingFee: 0,
+    singleShippingFee: standardRes.shippingFee,
+    comboCount: 0,
+    singleCount: totalItemQuantity
   };
 };

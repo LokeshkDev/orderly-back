@@ -9,7 +9,7 @@ import {
 } from 'react-icons/fi';
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
 import ProductCard from './ProductCard';
-import { formatPrice, calculateDiscount } from '../../utils/formatters';
+import { formatPrice, calculateDiscount, formatCamelCaseTitle } from '../../utils/formatters';
 import { getVariantStock } from '../../pages/ProductDetail';
 import { getActiveCoupons } from '../../services/api';
 import MobileHeader from '../common/MobileHeader';
@@ -230,7 +230,7 @@ const MobileProductDetail = ({
           {activeProduct.category}
         </Link>
         <FiChevronRight />
-        <span className="m-pdp-crumb-active">{activeProduct.name}</span>
+        <span className="m-pdp-crumb-active">{formatCamelCaseTitle(activeProduct.name)}</span>
       </nav>
 
       {/* ── 2. PRODUCT IMAGE GALLERY ─────────────────────────────── */}
@@ -334,7 +334,7 @@ const MobileProductDetail = ({
       </section>
 
       {/* ── 3. PRODUCT TITLE ─────────────────────────────────────── */}
-      <h1 className="m-pdp-product-name">{activeProduct.name}</h1>
+      <h1 className="m-pdp-product-name">{formatCamelCaseTitle(activeProduct.name)}</h1>
 
       
 
@@ -801,7 +801,7 @@ addToCart({ ...item, originalPrice: mrp, price: item.price || mrp, isPairOffer: 
       {showStickyBar && (
         <div className="m-pdp-sticky-purchase-bar">
           <div className="m-pdp-sticky-info">
-            <span className="m-pdp-sticky-name">{activeProduct.name}</span>
+            <span className="m-pdp-sticky-name">{formatCamelCaseTitle(activeProduct.name)}</span>
             <span className="m-pdp-sticky-price">{formatPrice(currentPrice)}</span>
           </div>
           <button

@@ -27,6 +27,16 @@ const Product = sequelize.define('Product', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  categories: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: [],
+    comment: 'Array of category names product belongs to'
+  },
+  subcategory: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   occasion: {
     type: DataTypes.STRING
   },

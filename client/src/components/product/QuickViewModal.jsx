@@ -4,7 +4,7 @@ import { FiX, FiShoppingBag, FiHeart, FiStar, FiCheck, FiArrowRight } from 'reac
 import { useQuickView } from '../../context/QuickViewContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
-import { formatPrice, calculateDiscount, normalizeProduct, colorImages, getProductSlug } from '../../utils/formatters';
+import { formatPrice, calculateDiscount, normalizeProduct, colorImages, getProductSlug, formatCamelCaseTitle } from '../../utils/formatters';
 import './QuickViewModal.css';
 
 const QuickViewModal = () => {
@@ -168,7 +168,7 @@ const QuickViewModal = () => {
           {/* Details Column */}
           <div className="col-lg-6 quickview-details">
             <span className="qv-brand">{product.brand}</span>
-            <h3 id="qv-modal-title" className="qv-title">{product.name}</h3>
+            <h3 id="qv-modal-title" className="qv-title">{formatCamelCaseTitle(product.name)}</h3>
 
             <div className="qv-rating">
               <span className="stars">

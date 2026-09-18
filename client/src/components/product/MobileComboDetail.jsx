@@ -7,7 +7,7 @@ import {
   FiHelpCircle, FiFileText, FiEdit3, FiStar, FiTrash2
 } from 'react-icons/fi';
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
-import { formatPrice, calculateDiscount, getComboSlug } from '../../utils/formatters';
+import { formatPrice, calculateDiscount, getComboSlug, formatCamelCaseTitle } from '../../utils/formatters';
 import { getVariantStock } from '../../pages/ProductDetail';
 import { extractAllComboImages } from '../../pages/ComboDetail';
 import MobileHeader from '../common/MobileHeader';
@@ -233,7 +233,7 @@ const MobileComboDetail = ({
       </section>
 
       {/* ── 3. COMBO NAME ────────────────────────────────────────── */}
-      <h1 className="m-c-combo-title">{combo.name}</h1>
+      <h1 className="m-c-combo-title">{formatCamelCaseTitle(combo.name)}</h1>
 
       {/* ── 5. PRICE & DISCOUNT ──────────────────────────────────── */}
       <div className="m-c-price-row">
@@ -552,7 +552,7 @@ const MobileComboDetail = ({
       {showStickyBar && (
         <div className="m-c-sticky-purchase-bar">
           <div className="m-c-sticky-info">
-            <span className="m-c-sticky-name">{combo.name}</span>
+            <span className="m-c-sticky-name">{formatCamelCaseTitle(combo.name)}</span>
             <span className="m-c-sticky-price">{formatPrice(currentOfferPrice)}</span>
           </div>
           <button

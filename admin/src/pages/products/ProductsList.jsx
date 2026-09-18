@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiCheck, 
-  FiPackage, FiImage, FiGrid, FiTag, FiLink2, FiCopy
+  FiPackage, FiImage, FiGrid, FiTag, FiLink2, FiCopy,
+  FiFolder, FiDollarSign, FiCheckSquare
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
@@ -11,6 +12,7 @@ const ProductsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [categoryOptions, setCategoryOptions] = useState([]);
+  const [rawCategories, setRawCategories] = useState([]);
   const [brandOptions, setBrandOptions] = useState([]);
 
   // Load products from the MySQL DB API. The DB is the single source of truth.
@@ -50,7 +52,9 @@ const ProductsList = () => {
           api.get('/brands')
         ]);
         if (catRes.data && catRes.data.success && Array.isArray(catRes.data.data)) {
-          setCategoryOptions(catRes.data.data.map(c => c.name).filter(Boolean));
+          setRawCategories(catRes.data.data);
+          const topLevelCats = catRes.data.data.filter(c => !c.parent_id && (c.type || 'product') === 'product');
+          setCategoryOptions(topLevelCats.map(c => c.name).filter(Boolean));
         }
         if (brandRes.data && brandRes.data.success && Array.isArray(brandRes.data.data)) {
           setBrandOptions(brandRes.data.data.map(b => b.name).filter(Boolean));
@@ -80,6 +84,19 @@ const ProductsList = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
 
+  // Bulk Selection & Batch Actions State
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [isBulkCategoryModalOpen, setIsBulkCategoryModalOpen] = useState(false);
+  const [isBulkPriceModalOpen, setIsBulkPriceModalOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkCategory, setBulkCategory] = useState('');
+  const [bulkCategories, setBulkCategories] = useState([]);
+  const [bulkCategoryMode, setBulkCategoryMode] = useState('replace'); // 'replace' or 'append'
+  const [bulkSubcategory, setBulkSubcategory] = useState('');
+  const [priceAdjustmentTarget, setPriceAdjustmentTarget] = useState('price'); // 'price', 'originalPrice', 'both'
+  const [priceAdjustmentType, setPriceAdjustmentType] = useState('fixed'); // 'fixed', 'increase_amount', 'decrease_amount', 'increase_percent', 'decrease_percent'
+  const [priceAdjustmentValue, setPriceAdjustmentValue] = useState('');
+
   // Variant input fields for adding new colors and sizes
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('#111111');
@@ -91,6 +108,7 @@ const ProductsList = () => {
     name: '',
     sku: '',
     category: '',
+    categories: [],
     brand: '',
     price: 0,
     originalPrice: 0,
@@ -192,6 +210,8 @@ const ProductsList = () => {
       name: '',
       sku: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
       category: categoryOptions[0] || 'Apparel',
+      categories: categoryOptions[0] ? [categoryOptions[0]] : [],
+      subcategory: '',
       brand: brandOptions[0] || 'ORDERLY STUDIO',
       price: 0,
       originalPrice: 0,
@@ -221,6 +241,10 @@ const ProductsList = () => {
     setEditingProduct(p);
     setNewColorName('');
     setNewSizeName('');
+
+    const initialCats = Array.isArray(p.categories) && p.categories.length > 0 
+      ? p.categories 
+      : (p.category ? [p.category] : []);
 
     const initialInventory = { ...(p.inventory || {}) };
     const pColors = Array.isArray(p.colors) && p.colors.length > 0 ? p.colors : [];
@@ -275,7 +299,9 @@ const ProductsList = () => {
       name: p.name,
       sku: p.sku || `SKU-${p.id}`,
       slug: p.slug || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      category: p.category,
+      category: p.category || initialCats[0] || '',
+      categories: initialCats,
+      subcategory: p.subcategory || '',
       brand: p.brand || '',
       price: p.price,
       originalPrice: p.originalPrice || 0,
@@ -496,13 +522,21 @@ const ProductsList = () => {
       ? cleanSlug
       : formData.slug;
 
+    const resolvedCats = Array.isArray(formData.categories) && formData.categories.length > 0
+      ? formData.categories
+      : (formData.category ? [formData.category] : []);
+    const resolvedPrimary = formData.category || resolvedCats[0] || '';
+
     const finalFormData = { 
       ...formData, 
+      category: resolvedPrimary,
+      categories: resolvedCats,
       inventory: fullInventory, 
       stock: totalStock,
       sizePrices: cleanSizePrices,
       sizeOriginalPrices: cleanSizeOriginalPrices,
       pair_offers: cleanPairOffers,
+      subcategory: formData.subcategory ? formData.subcategory.trim() : null,
       slug: finalSlug
     };
 
@@ -765,9 +799,118 @@ const ProductsList = () => {
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = categoryFilter === 'All' || p.category === categoryFilter;
+    const matchesCategory = categoryFilter === 'All' || 
+      p.category === categoryFilter || 
+      (Array.isArray(p.categories) && p.categories.includes(categoryFilter));
     return matchesSearch && matchesCategory;
   });
+
+  const isAllVisibleSelected = filteredProducts.length > 0 && filteredProducts.every(p => selectedProductIds.includes(p.id));
+  const isSomeVisibleSelected = filteredProducts.some(p => selectedProductIds.includes(p.id)) && !isAllVisibleSelected;
+
+  const handleSelectAllProducts = (e) => {
+    if (e.target.checked) {
+      const visibleIds = filteredProducts.map(p => p.id);
+      setSelectedProductIds(Array.from(new Set([...selectedProductIds, ...visibleIds])));
+    } else {
+      const visibleIdsSet = new Set(filteredProducts.map(p => p.id));
+      setSelectedProductIds(selectedProductIds.filter(id => !visibleIdsSet.has(id)));
+    }
+  };
+
+  const handleToggleProductSelect = (productId, e) => {
+    e.stopPropagation();
+    setSelectedProductIds(prev => 
+      prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
+    );
+  };
+
+  const handleSelectAllCatalog = () => {
+    setSelectedProductIds(products.map(p => p.id));
+  };
+
+  const handleClearProductSelection = () => {
+    setSelectedProductIds([]);
+  };
+
+  const handleApplyBulkCategory = async () => {
+    const catsToApply = bulkCategories.length > 0 
+      ? bulkCategories 
+      : (bulkCategory ? [bulkCategory] : []);
+
+    if (catsToApply.length === 0) {
+      toast.error('Please select at least one category');
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const res = await api.post('/products/bulk-update', {
+        ids: selectedProductIds,
+        updates: {
+          category: catsToApply[0],
+          categories: catsToApply,
+          categoryMode: bulkCategoryMode, // 'replace' or 'append'
+          subcategory: bulkSubcategory ? bulkSubcategory.trim() : null
+        }
+      });
+      if (res.data?.success) {
+        toast.success(res.data.message || `Updated category for ${selectedProductIds.length} products`);
+        const updatedMap = new Map((res.data.data || []).map(p => [p.id, p]));
+        const nextProducts = products.map(p => {
+          const up = updatedMap.get(p.id);
+          return up ? { ...p, ...up } : p;
+        });
+        saveProductsToStorage(nextProducts);
+        setIsBulkCategoryModalOpen(false);
+        setSelectedProductIds([]);
+        setBulkCategories([]);
+        setBulkCategory('');
+        setBulkSubcategory('');
+      } else {
+        toast.error(res.data?.message || 'Failed to update category');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Error updating category');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleApplyBulkPrice = async () => {
+    const numVal = parseFloat(priceAdjustmentValue);
+    if (isNaN(numVal) || (priceAdjustmentType === 'fixed' && numVal < 0)) {
+      toast.error('Please enter a valid price / adjustment value');
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const res = await api.post('/products/bulk-update', {
+        ids: selectedProductIds,
+        priceChange: {
+          target: priceAdjustmentTarget,
+          type: priceAdjustmentType,
+          value: numVal
+        }
+      });
+      if (res.data?.success) {
+        toast.success(res.data.message || `Updated prices for ${selectedProductIds.length} products`);
+        const updatedMap = new Map((res.data.data || []).map(p => [p.id, p]));
+        const nextProducts = products.map(p => {
+          const up = updatedMap.get(p.id);
+          return up ? { ...p, ...up } : p;
+        });
+        saveProductsToStorage(nextProducts);
+        setIsBulkPriceModalOpen(false);
+        setSelectedProductIds([]);
+      } else {
+        toast.error(res.data?.message || 'Failed to update prices');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Error updating prices');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   return (
     <div className="admin-products-page p-4">
@@ -814,16 +957,83 @@ const ProductsList = () => {
         </div>
       </div>
 
+      {/* Bulk Actions Floating/Sticky Bar */}
+      {selectedProductIds.length > 0 && (
+        <div className="admin-card-white mb-3 p-3 d-flex flex-wrap align-items-center justify-content-between gap-3 shadow-sm" style={{ background: '#0f172a', color: '#ffffff', borderRadius: '8px', border: '1px solid #1e293b' }}>
+          <div className="d-flex align-items-center gap-3 flex-wrap">
+            <div className="d-flex align-items-center gap-2">
+              <span className="badge bg-danger fs-6 px-3 py-1 fw-bold">{selectedProductIds.length}</span>
+              <span className="fw-semibold text-white">Product{selectedProductIds.length > 1 ? 's' : ''} Selected</span>
+            </div>
+            <button 
+              type="button" 
+              className="btn btn-sm btn-outline-light py-1 px-2" 
+              style={{ fontSize: '12px' }}
+              onClick={handleSelectAllCatalog}
+            >
+              Select All in Catalog ({products.length})
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-sm btn-link text-white-50 text-decoration-none py-1 px-1" 
+              style={{ fontSize: '12px' }}
+              onClick={handleClearProductSelection}
+            >
+              Clear Selection
+            </button>
+          </div>
+
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <button 
+              type="button" 
+              className="btn btn-sm btn-light fw-bold d-flex align-items-center gap-2 px-3 py-2"
+              style={{ borderRadius: '6px' }}
+              onClick={() => {
+                setBulkCategory(categoryOptions[0] || '');
+                setBulkSubcategory('');
+                setIsBulkCategoryModalOpen(true);
+              }}
+            >
+              <FiFolder className="text-primary" /> Category Setup
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-sm btn-danger fw-bold d-flex align-items-center gap-2 px-3 py-2"
+              style={{ borderRadius: '6px' }}
+              onClick={() => {
+                setPriceAdjustmentType('fixed');
+                setPriceAdjustmentTarget('price');
+                setPriceAdjustmentValue('');
+                setIsBulkPriceModalOpen(true);
+              }}
+            >
+              <FiDollarSign /> Price Change Options
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Products Table */}
       <div className="admin-card-white">
         <div className="table-responsive">
           <table className="admin-matrix-table align-middle">
             <thead>
               <tr>
+                <th style={{ width: '40px', textAlign: 'center' }}>
+                  <input 
+                    type="checkbox" 
+                    className="form-check-input"
+                    checked={isAllVisibleSelected}
+                    ref={el => { if (el) el.indeterminate = isSomeVisibleSelected; }}
+                    onChange={handleSelectAllProducts}
+                    title="Select/Deselect all visible products"
+                    style={{ cursor: 'pointer', width: '17px', height: '17px' }}
+                  />
+                </th>
                 <th style={{ width: '60px' }}>MEDIA</th>
                 <th>PRODUCT NAME</th>
                 <th>SKU</th>
-                <th>CATEGORY</th>
+                <th style={{ minWidth: '140px' }}>CATEGORY</th>
                 <th>PRICE (₹)</th>
                 <th>TOTAL STOCK</th>
                 <th style={{ textAlign: 'center' }}>BEST SELLER</th>
@@ -835,14 +1045,24 @@ const ProductsList = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', padding: '40px' }}>
+                  <td colSpan={11} style={{ textAlign: 'center', padding: '40px' }}>
                     <span className="spinner-border text-danger" role="status" /> Loading catalog from database...
                   </td>
                 </tr>
               ) : filteredProducts.map(p => {
                 const totalStock = Object.values(p.inventory || {}).reduce((a, b) => a + Number(b || 0), 0);
+                const isSelected = selectedProductIds.includes(p.id);
                 return (
-                  <tr key={p.id}>
+                  <tr key={p.id} style={{ background: isSelected ? '#f8fafc' : undefined }}>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        className="form-check-input"
+                        checked={isSelected}
+                        onChange={(e) => handleToggleProductSelect(p.id, e)}
+                        style={{ cursor: 'pointer', width: '17px', height: '17px' }}
+                      />
+                    </td>
                     <td>
                       <img 
                         src={p.images?.[0] || '/logo.png'} 
@@ -862,7 +1082,34 @@ const ProductsList = () => {
                       )}
                     </td>
                     <td><code className="cat-slug-badge">{p.sku || p.id}</code></td>
-                    <td>{p.category}</td>
+                    <td>
+                      {Array.isArray(p.categories) && p.categories.length > 0 ? (
+                        <div className="d-flex flex-wrap gap-1" style={{ maxWidth: '220px' }}>
+                          {p.categories.map((c, idx) => {
+                            const isPrimary = c === p.category;
+                            return (
+                              <span 
+                                key={idx} 
+                                className={`badge extra-small ${isPrimary ? 'bg-danger text-white' : 'bg-light text-dark border'}`}
+                                style={{ fontSize: '0.74rem' }}
+                                title={isPrimary ? 'Primary Category' : c}
+                              >
+                                {isPrimary && p.categories.length > 1 ? `★ ${c}` : c}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="fw-semibold text-dark" style={{ fontSize: '0.88rem' }}>
+                          {p.category || <span className="text-muted fst-italic extra-small">Unassigned</span>}
+                        </div>
+                      )}
+                      {p.subcategory && (
+                        <span className="badge bg-light text-secondary border extra-small mt-1 d-inline-block" style={{ fontSize: '0.72rem' }}>
+                          ↳ {p.subcategory}
+                        </span>
+                      )}
+                    </td>
                     <td><strong>₹{p.price}</strong></td>
                     <td>
                       <span className={totalStock === 0 ? 'status-badge-pill draft' : 'badge-count-pill'}>
@@ -967,18 +1214,121 @@ const ProductsList = () => {
                   />
                 </div>
 
-                {/* Category & Brand */}
+                {/* Multiple Categories Setup */}
+                <div className="col-12 px-1">
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <label className="admin-form-label mb-0">CATEGORIES (Multiple Categories Allowed)</label>
+                    <span className="text-muted extra-small">Click ★ on a badge to set it as Primary Category</span>
+                  </div>
+
+                  {/* Selected Categories Display */}
+                  <div className="p-2 border rounded bg-white mb-2 d-flex flex-wrap align-items-center gap-2" style={{ minHeight: '44px' }}>
+                    {Array.isArray(formData.categories) && formData.categories.length > 0 ? (
+                      formData.categories.map((cat, idx) => {
+                        const isPrimary = cat === formData.category;
+                        return (
+                          <span 
+                            key={idx}
+                            className={`badge d-inline-flex align-items-center gap-1 py-1.5 px-2.5 rounded-pill ${isPrimary ? 'bg-danger text-white' : 'bg-light text-dark border'}`}
+                            style={{ fontSize: '0.82rem', fontWeight: 500 }}
+                          >
+                            <button
+                              type="button"
+                              className="btn p-0 border-0 me-1"
+                              style={{ cursor: 'pointer', background: 'transparent', color: isPrimary ? '#fff' : '#b91c1c', fontSize: '0.76rem', textDecoration: 'none' }}
+                              onClick={() => setFormData(prev => ({ ...prev, category: cat }))}
+                              title={isPrimary ? 'Current Primary Category' : 'Click to set as Primary Category'}
+                            >
+                              {isPrimary ? '★ Primary' : '☆ Make Primary'}
+                            </button>
+                            <span>{cat}</span>
+                            <button
+                              type="button"
+                              className="btn p-0 border-0 ms-1"
+                              style={{ cursor: 'pointer', background: 'transparent', color: isPrimary ? '#fff' : '#64748b' }}
+                              onClick={() => {
+                                const nextCats = formData.categories.filter(c => c !== cat);
+                                const nextPrimary = isPrimary ? (nextCats[0] || '') : formData.category;
+                                setFormData(prev => ({
+                                  ...prev,
+                                  categories: nextCats,
+                                  category: nextPrimary
+                                }));
+                              }}
+                              title={`Remove ${cat}`}
+                            >
+                              <FiX size={13} />
+                            </button>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="text-muted extra-small p-1">No categories assigned yet. Click any category below to add.</span>
+                    )}
+                  </div>
+
+                  {/* Quick Category Add Pills */}
+                  <div className="d-flex flex-wrap align-items-center gap-1.5 mb-2">
+                    <span className="text-muted extra-small me-1">Available Categories:</span>
+                    {categoryOptions.map((c, i) => {
+                      const isSelected = Array.isArray(formData.categories) && formData.categories.includes(c);
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          className={`btn btn-sm py-0.5 px-2 rounded-pill ${isSelected ? 'btn-danger text-white' : 'btn-outline-secondary bg-white'}`}
+                          style={{ fontSize: '0.78rem' }}
+                          onClick={() => {
+                            if (isSelected) {
+                              const nextCats = formData.categories.filter(cat => cat !== c);
+                              setFormData(prev => ({
+                                ...prev,
+                                categories: nextCats,
+                                category: prev.category === c ? (nextCats[0] || '') : prev.category
+                              }));
+                            } else {
+                              const nextCats = [...(formData.categories || []), c];
+                              setFormData(prev => ({
+                                ...prev,
+                                categories: nextCats,
+                                category: prev.category || c
+                              }));
+                            }
+                          }}
+                        >
+                          {isSelected ? `✓ ${c}` : `+ ${c}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Subcategory & Brand */}
                 <div className="col-md-6 px-1">
-                  <label className="admin-form-label">CATEGORY</label>
-                  <select 
-                    className="admin-select"
-                    value={formData.category}
-                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  >
-                    {categoryOptions.map((c, i) => (
-                      <option key={i} value={c}>{c}</option>
-                    ))}
-                  </select>
+                  <label className="admin-form-label">SUB-CATEGORY (Optional)</label>
+                  {(() => {
+                    const activeCatNames = Array.isArray(formData.categories) && formData.categories.length > 0
+                      ? formData.categories.map(c => c.toLowerCase().trim())
+                      : [String(formData.category || '').toLowerCase().trim()];
+                    
+                    const parentCategoryIds = rawCategories
+                      .filter(c => activeCatNames.includes((c.name || '').toLowerCase().trim()) && !c.parent_id)
+                      .map(c => Number(c.id));
+                    
+                    const subCats = rawCategories.filter(c => parentCategoryIds.includes(Number(c.parent_id)));
+                    return (
+                      <select 
+                        className="admin-select"
+                        value={formData.subcategory || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, subcategory: e.target.value }))}
+                      >
+                        <option value="">None (No Sub-Category)</option>
+                        {subCats.map((sub, idx) => (
+                          <option key={idx} value={sub.name}>{sub.name}</option>
+                        ))}
+                      </select>
+                    );
+                  })()}
                 </div>
 
                 <div className="col-md-6 px-1">
@@ -1575,6 +1925,280 @@ const ProductsList = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Category Setup Modal */}
+      {isBulkCategoryModalOpen && (
+        <div className="admin-modal-backdrop" onClick={() => !bulkLoading && setIsBulkCategoryModalOpen(false)}>
+          <div className="admin-modal-box" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header d-flex align-items-center justify-content-between pb-3 border-bottom">
+              <h4 className="mb-0 font-weight-bold d-flex align-items-center gap-2" style={{ color: '#0f172a' }}>
+                <FiFolder className="text-danger" /> Bulk Category Setup
+              </h4>
+              <button 
+                type="button"
+                className="admin-modal-close" 
+                onClick={() => !bulkLoading && setIsBulkCategoryModalOpen(false)}
+                disabled={bulkLoading}
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="p-4">
+              <p className="text-muted small mb-3">
+                Update category and subcategory for the <strong>{selectedProductIds.length}</strong> selected product{selectedProductIds.length > 1 ? 's' : ''}.
+              </p>
+
+              <div className="mb-3">
+                <label className="admin-form-label fw-bold mb-1">SELECT CATEGORIES (Choose 1 or more)</label>
+                <div className="d-flex flex-wrap gap-1.5 p-2 border rounded bg-white mb-2" style={{ maxHeight: '130px', overflowY: 'auto' }}>
+                  {categoryOptions.map((c, i) => {
+                    const isChecked = bulkCategories.includes(c) || (!bulkCategories.length && bulkCategory === c);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`btn btn-sm py-1 px-2.5 rounded-pill ${isChecked ? 'btn-danger text-white' : 'btn-outline-secondary bg-white'}`}
+                        style={{ fontSize: '0.8rem' }}
+                        onClick={() => {
+                          setBulkCategories(prev => {
+                            const base = prev.length > 0 ? prev : (bulkCategory ? [bulkCategory] : []);
+                            if (base.includes(c)) {
+                              const next = base.filter(x => x !== c);
+                              setBulkCategory(next[0] || '');
+                              return next;
+                            } else {
+                              const next = [...base, c];
+                              setBulkCategory(next[0] || '');
+                              return next;
+                            }
+                          });
+                        }}
+                      >
+                        {isChecked ? `✓ ${c}` : `+ ${c}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="admin-form-label fw-bold mb-1">UPDATE MODE</label>
+                <div className="d-flex gap-3">
+                  <label className="d-flex align-items-center gap-1.5 cursor-pointer small">
+                    <input 
+                      type="radio" 
+                      name="bulkCatMode" 
+                      checked={bulkCategoryMode === 'replace'} 
+                      onChange={() => setBulkCategoryMode('replace')} 
+                    />
+                    <span><strong>Replace</strong> existing categories</span>
+                  </label>
+                  <label className="d-flex align-items-center gap-1.5 cursor-pointer small">
+                    <input 
+                      type="radio" 
+                      name="bulkCatMode" 
+                      checked={bulkCategoryMode === 'append'} 
+                      onChange={() => setBulkCategoryMode('append')} 
+                    />
+                    <span><strong>Add / Append</strong> to existing</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="admin-form-label fw-bold mb-1">SUB-CATEGORY (Optional)</label>
+                {(() => {
+                  const effectiveCats = bulkCategories.length > 0 ? bulkCategories : (bulkCategory ? [bulkCategory] : []);
+                  const catNamesLower = effectiveCats.map(c => c.toLowerCase().trim());
+                  const parentIds = rawCategories
+                    .filter(c => catNamesLower.includes((c.name || '').toLowerCase().trim()) && !c.parent_id)
+                    .map(c => Number(c.id));
+                  const subCats = rawCategories.filter(c => parentIds.includes(Number(c.parent_id)));
+                  return (
+                    <select 
+                      className="admin-select w-100"
+                      value={bulkSubcategory}
+                      onChange={(e) => setBulkSubcategory(e.target.value)}
+                      disabled={effectiveCats.length === 0}
+                    >
+                      <option value="">None (No Sub-Category / Clear Subcategory)</option>
+                      {subCats.map((sub, idx) => (
+                        <option key={idx} value={sub.name}>{sub.name}</option>
+                      ))}
+                    </select>
+                  );
+                })()}
+              </div>
+
+              <div className="alert alert-light border small text-secondary mt-3 mb-0">
+                <strong>Selection:</strong> Will {bulkCategoryMode} Categories: <code>{(bulkCategories.length > 0 ? bulkCategories : (bulkCategory ? [bulkCategory] : [])).join(', ') || 'None'}</code>{bulkSubcategory ? <span> and Subcategory: <code>{bulkSubcategory}</code></span> : ''} on <strong>{selectedProductIds.length}</strong> products.
+              </div>
+            </div>
+
+            <div className="admin-modal-footer d-flex justify-content-end gap-2 p-3 border-top bg-light">
+              <button 
+                type="button" 
+                className="btn btn-sm btn-secondary px-3" 
+                onClick={() => setIsBulkCategoryModalOpen(false)}
+                disabled={bulkLoading}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-sm btn-danger px-4 fw-bold" 
+                onClick={handleApplyBulkCategory}
+                disabled={bulkLoading || (bulkCategories.length === 0 && !bulkCategory)}
+              >
+                {bulkLoading ? 'Applying...' : `Apply to ${selectedProductIds.length} Products`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Price Adjustment Modal */}
+      {isBulkPriceModalOpen && (
+        <div className="admin-modal-backdrop" onClick={() => !bulkLoading && setIsBulkPriceModalOpen(false)}>
+          <div className="admin-modal-box" style={{ maxWidth: '620px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header d-flex align-items-center justify-content-between pb-3 border-bottom">
+              <h4 className="mb-0 font-weight-bold d-flex align-items-center gap-2" style={{ color: '#0f172a' }}>
+                <FiDollarSign className="text-danger" /> Bulk Price Change Options
+              </h4>
+              <button 
+                type="button"
+                className="admin-modal-close" 
+                onClick={() => !bulkLoading && setIsBulkPriceModalOpen(false)}
+                disabled={bulkLoading}
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="p-4">
+              <p className="text-muted small mb-3">
+                Adjust prices across <strong>{selectedProductIds.length}</strong> selected product{selectedProductIds.length > 1 ? 's' : ''}. Choose the target price field and adjustment formula.
+              </p>
+
+              <div className="row g-3 mb-3">
+                <div className="col-md-6">
+                  <label className="admin-form-label fw-bold mb-1">APPLY TO PRICE FIELD</label>
+                  <select 
+                    className="admin-select w-100"
+                    value={priceAdjustmentTarget}
+                    onChange={(e) => setPriceAdjustmentTarget(e.target.value)}
+                  >
+                    <option value="price">Selling Price Only (₹)</option>
+                    <option value="originalPrice">Original Price / MRP Only (₹)</option>
+                    <option value="both">Both Selling Price & Original Price</option>
+                  </select>
+                </div>
+
+                <div className="col-md-6">
+                  <label className="admin-form-label fw-bold mb-1">ADJUSTMENT TYPE</label>
+                  <select 
+                    className="admin-select w-100"
+                    value={priceAdjustmentType}
+                    onChange={(e) => setPriceAdjustmentType(e.target.value)}
+                  >
+                    <option value="fixed">Set to Fixed Price (₹)</option>
+                    <option value="increase_amount">Increase by Amount (+₹)</option>
+                    <option value="decrease_amount">Decrease by Amount (-₹)</option>
+                    <option value="increase_percent">Increase by Percentage (+%)</option>
+                    <option value="decrease_percent">Decrease by Percentage (-%)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="admin-form-label fw-bold mb-1">
+                  {priceAdjustmentType === 'fixed' && 'NEW FIXED PRICE (₹)'}
+                  {priceAdjustmentType === 'increase_amount' && 'INCREASE AMOUNT (₹)'}
+                  {priceAdjustmentType === 'decrease_amount' && 'DECREASE AMOUNT (₹)'}
+                  {priceAdjustmentType === 'increase_percent' && 'INCREASE PERCENTAGE (%)'}
+                  {priceAdjustmentType === 'decrease_percent' && 'DECREASE PERCENTAGE (%)'}
+                </label>
+                <div className="input-group">
+                  <span className="input-group-text bg-white fw-bold">
+                    {priceAdjustmentType.includes('percent') ? '%' : '₹'}
+                  </span>
+                  <input 
+                    type="number" 
+                    className="form-control"
+                    placeholder={priceAdjustmentType.includes('percent') ? 'e.g. 10' : 'e.g. 999'}
+                    value={priceAdjustmentValue}
+                    min="0"
+                    step="any"
+                    onChange={(e) => setPriceAdjustmentValue(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview of first 3 items */}
+              {priceAdjustmentValue !== '' && !isNaN(parseFloat(priceAdjustmentValue)) && (
+                <div className="card bg-light border p-3 mt-3">
+                  <div className="fw-bold small text-dark mb-2">Live Price Calculation Preview (First 3 items):</div>
+                  <table className="table table-sm table-borderless mb-0 small">
+                    <thead>
+                      <tr className="text-muted border-bottom">
+                        <th>Product</th>
+                        <th>Current Price</th>
+                        <th>New Calculated Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedProductIds.slice(0, 3).map(id => {
+                        const prod = products.find(p => p.id === id);
+                        if (!prod) return null;
+                        const val = parseFloat(priceAdjustmentValue) || 0;
+                        const calc = (curr) => {
+                          let next = curr;
+                          if (priceAdjustmentType === 'fixed') next = val;
+                          else if (priceAdjustmentType === 'increase_amount') next = curr + val;
+                          else if (priceAdjustmentType === 'decrease_amount') next = Math.max(0, curr - val);
+                          else if (priceAdjustmentType === 'increase_percent') next = Math.round(curr * (1 + val / 100));
+                          else if (priceAdjustmentType === 'decrease_percent') next = Math.round(curr * (1 - val / 100));
+                          return Math.max(0, Math.round(next));
+                        };
+                        return (
+                          <tr key={id}>
+                            <td className="text-truncate" style={{ maxWidth: '200px' }}>{prod.name}</td>
+                            <td>₹{prod.price} {priceAdjustmentTarget !== 'price' && prod.originalPrice ? `(MRP ₹${prod.originalPrice})` : ''}</td>
+                            <td className="fw-bold text-success">
+                              ₹{calc(Number(prod.price) || 0)}
+                              {priceAdjustmentTarget === 'both' && prod.originalPrice ? ` (MRP ₹${calc(Number(prod.originalPrice) || 0)})` : ''}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="admin-modal-footer d-flex justify-content-end gap-2 p-3 border-top bg-light">
+              <button 
+                type="button" 
+                className="btn btn-sm btn-secondary px-3" 
+                onClick={() => setIsBulkPriceModalOpen(false)}
+                disabled={bulkLoading}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-sm btn-danger px-4 fw-bold" 
+                onClick={handleApplyBulkPrice}
+                disabled={bulkLoading || priceAdjustmentValue === ''}
+              >
+                {bulkLoading ? 'Applying...' : `Update Prices for ${selectedProductIds.length} Products`}
+              </button>
+            </div>
           </div>
         </div>
       )}

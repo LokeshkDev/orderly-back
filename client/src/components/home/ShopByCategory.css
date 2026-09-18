@@ -24,31 +24,62 @@
   margin-bottom: 0;
 }
 
-/* 5 Column Responsive Grid */
+/* Category Carousel & Responsive Grid */
+.category-carousel-wrapper {
+  position: relative;
+  padding: 0 4px;
+}
+
+.category-swiper {
+  width: 100%;
+  padding-bottom: 10px;
+}
+
+.category-carousel-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(18, 18, 18, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(8px);
+}
+
+.category-carousel-nav:hover {
+  background: #E50914;
+  border-color: #E50914;
+  color: #FFFFFF;
+  transform: translateY(-50%) scale(1.08);
+}
+
+.category-carousel-prev {
+  left: -22px;
+}
+
+.category-carousel-next {
+  right: -22px;
+}
+
+@media (max-width: 992px) {
+  .category-carousel-nav {
+    display: none;
+  }
+}
+
 .category-cards-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 20px;
-}
-
-@media (max-width: 1200px) {
-  .category-cards-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .category-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  .category-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
 }
 
 .fashion-category-card {

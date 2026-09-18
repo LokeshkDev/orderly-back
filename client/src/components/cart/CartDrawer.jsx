@@ -14,7 +14,7 @@ import {
   FiPercent
 } from 'react-icons/fi';
 import { useCart } from '../../context/CartContext';
-import { formatPrice } from '../../utils/formatters';
+import { formatPrice, formatCamelCaseTitle } from '../../utils/formatters';
 import './CartDrawer.css';
 
 const CartDrawer = () => {
@@ -167,7 +167,7 @@ const CartDrawer = () => {
                         </span>
                       )}
                     </div>
-                    <h6 className="cart-item-title" title={item.name}>{item.name}</h6>
+                    <h6 className="cart-item-title" title={item.name}>{formatCamelCaseTitle(item.name)}</h6>
                     
                     {item.isCombo ? (
                       <div className="cart-combo-pieces-box">

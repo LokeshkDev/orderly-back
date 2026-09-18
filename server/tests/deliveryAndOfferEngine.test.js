@@ -119,4 +119,107 @@ console.log('--- Starting Delivery Engine & Pair Offer Unit Tests ---');
   console.log('✓ TEST 5 Passed: Pair offer discount calculated strictly from product MRP');
 }
 
-console.log('\n ALL 5 UNIT TESTS PASSED SUCCESSFULLY! ');
+// TEST 6: Combined Combo & Single Item Delivery Calculation
+{
+  const testDeliverySettings = {
+    price_based: { enabled: false },
+    pincode_based: { enabled: false },
+    item_based: {
+      enabled: true,
+      first_item_charge: 80,
+      additional_item_charge: 30
+    },
+    combo_delivery: {
+      enabled: true,
+      charge: 120,
+      free_delivery_above: 3500,
+      per_combo_charge: 60,
+      label: 'Combo Express Delivery'
+    },
+    priority: 'item_based'
+  };
+
+  const comboItem = {
+    id: 'combo-123',
+    name: '3-Piece Summer Suit Combo',
+    isCombo: true,
+    price: 1800,
+    quantity: 1
+  };
+
+  const singleItem = {
+    id: 456,
+    name: 'Striped Cotton Shirt',
+    isCombo: false,
+    price: 799,
+    quantity: 1
+  };
+
+  // Case A: Only combo in cart -> combo delivery charge of 120
+  const comboOnlyRes = calculateDeliveryCharge({
+    cartItems: [comboItem],
+    subtotal: 1800,
+    deliverySettings: testDeliverySettings
+  });
+  assert.strictEqual(comboOnlyRes.shippingFee, 120, 'Combo only should be 120');
+  assert.strictEqual(comboOnlyRes.method, 'combo_delivery');
+
+  // Case B: Only single item in cart -> item_based delivery charge of 80
+  const singleOnlyRes = calculateDeliveryCharge({
+    cartItems: [singleItem],
+    subtotal: 799,
+    deliverySettings: testDeliverySettings
+  });
+  assert.strictEqual(singleOnlyRes.shippingFee, 80, 'Single item only should be 80');
+  assert.strictEqual(singleOnlyRes.method, 'item_based');
+
+  // Case C: 1 combo AND 1 single item in cart -> combo base (120) + additional single item rate (30) = 150!
+  const combinedRes = calculateDeliveryCharge({
+    cartItems: [comboItem, singleItem],
+    subtotal: 2599,
+    deliverySettings: testDeliverySettings
+  });
+  assert.strictEqual(combinedRes.shippingFee, 150, 'Combined shipping should be 120 + 30 = 150');
+  assert.strictEqual(combinedRes.comboShippingFee, 120, 'Combo portion should be 120');
+  assert.strictEqual(combinedRes.singleShippingFee, 30, 'Single portion should be additional rate 30');
+  assert.strictEqual(combinedRes.method, 'combined_delivery');
+
+  // Case D: 2 combos in cart -> 1st combo 120 + 2nd combo 60 = 180
+  const twoCombosRes = calculateDeliveryCharge({
+    cartItems: [{ ...comboItem, quantity: 2 }],
+    subtotal: 3600,
+    deliverySettings: testDeliverySettings
+  });
+  // Note: subtotal 3600 is > free_delivery_above 3500, so let's test with subtotal below 3500 first
+  const twoCombosUnderThreshold = calculateDeliveryCharge({
+    cartItems: [{ ...comboItem, quantity: 2, price: 1400 }],
+    subtotal: 2800,
+    deliverySettings: testDeliverySettings
+  });
+  assert.strictEqual(twoCombosUnderThreshold.shippingFee, 180, '2 combos should be 120 + 60 = 180');
+  assert.strictEqual(twoCombosUnderThreshold.comboCount, 2);
+
+  // Case E: 2 combos + 1 single item -> 180 (2 combos) + 30 (1 additional single) = 210
+  const twoCombosPlusSingle = calculateDeliveryCharge({
+    cartItems: [{ ...comboItem, quantity: 2, price: 1400 }, singleItem],
+    subtotal: 3400,
+    deliverySettings: testDeliverySettings
+  });
+  assert.strictEqual(twoCombosPlusSingle.shippingFee, 210, '2 combos (180) + 1 single item (30) = 210');
+  assert.strictEqual(twoCombosPlusSingle.comboShippingFee, 180);
+  assert.strictEqual(twoCombosPlusSingle.singleShippingFee, 30);
+
+  // Case F: 2 combos + 2 single items -> 180 (2 combos) + 60 (2 * 30) = 240
+  const twoCombosPlusTwoSingles = calculateDeliveryCharge({
+    cartItems: [{ ...comboItem, quantity: 2, price: 1400 }, { ...singleItem, quantity: 2 }],
+    subtotal: 3400,
+    deliverySettings: testDeliverySettings
+  });
+  assert.strictEqual(twoCombosPlusTwoSingles.shippingFee, 240, '2 combos (180) + 2 single items (60) = 240');
+  assert.strictEqual(twoCombosPlusTwoSingles.comboShippingFee, 180);
+  assert.strictEqual(twoCombosPlusTwoSingles.singleShippingFee, 60);
+
+  console.log('✓ TEST 6 Passed: Combined Combo & Single Item Delivery Calculation with Additional Item Cost (120+30=150, 180+30=210, 180+60=240)');
+}
+
+console.log('\n ALL 6 UNIT TESTS PASSED SUCCESSFULLY! ');

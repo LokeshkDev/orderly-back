@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiCheck, 
-  FiLayers, FiPackage, FiGrid, FiTag, FiShoppingBag, FiDollarSign, FiPercent, FiBox, FiCopy
+  FiLayers, FiPackage, FiGrid, FiTag, FiShoppingBag, FiDollarSign, FiPercent, FiBox, FiCopy, FiFolder
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
@@ -26,6 +26,21 @@ const CombosList = () => {
   const [modalMode, setModalMode] = useState('existing'); // 'existing' or 'custom'
   const [editingCombo, setEditingCombo] = useState(null);
 
+  // Bulk Selection & Batch Actions State
+  const [selectedComboIds, setSelectedComboIds] = useState([]);
+  const [isBulkCategoryModalOpen, setIsBulkCategoryModalOpen] = useState(false);
+  const [isBulkPriceModalOpen, setIsBulkPriceModalOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkCategory, setBulkCategory] = useState('');
+  const [bulkCategorySlug, setBulkCategorySlug] = useState('');
+  const [bulkCategories, setBulkCategories] = useState([]);
+  const [bulkCategoryMode, setBulkCategoryMode] = useState('replace'); // 'replace' or 'append'
+  const [bulkSubcategory, setBulkSubcategory] = useState('');
+  const [bulkSubcategorySlug, setBulkSubcategorySlug] = useState('');
+  const [priceAdjustmentTarget, setPriceAdjustmentTarget] = useState('offer_price'); // 'offer_price', 'original_price', 'both'
+  const [priceAdjustmentType, setPriceAdjustmentType] = useState('fixed'); // 'fixed', 'increase_amount', 'decrease_amount', 'increase_percent', 'decrease_percent'
+  const [priceAdjustmentValue, setPriceAdjustmentValue] = useState('');
+
   // Form State
   const [piecesCount, setPiecesCount] = useState(2);
   const [formData, setFormData] = useState({
@@ -34,6 +49,10 @@ const CombosList = () => {
     slug: '',
     category: '',
     category_slug: '',
+    categories: [],
+    category_slugs: [],
+    subcategory: '',
+    subcategory_slug: '',
     offer_price: 0,
     original_price: 0,
     badge: '',
@@ -173,12 +192,25 @@ const CombosList = () => {
 
       const derivedImages = enrichedItems.map(it => it.primaryImage || it.image).filter(Boolean);
 
+      const existingCats = Array.isArray(comboToEdit.categories) && comboToEdit.categories.length > 0
+        ? comboToEdit.categories
+        : (comboToEdit.category ? [comboToEdit.category] : []);
+      const existingSlugs = Array.isArray(comboToEdit.category_slugs) && comboToEdit.category_slugs.length > 0
+        ? comboToEdit.category_slugs
+        : (comboToEdit.category_slug ? [comboToEdit.category_slug] : existingCats.map(c => c.toLowerCase().replace(/[^a-z0-9]+/g, '-')));
+      const primaryCat = comboToEdit.category || existingCats[0] || '';
+      const primarySlug = comboToEdit.category_slug || existingSlugs[0] || (primaryCat ? primaryCat.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
+
       setFormData({
         id: comboToEdit.id,
         name: comboToEdit.name,
         slug: comboToEdit.slug || comboToEdit.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        category: comboToEdit.category || comboCategories[0]?.name || '',
-        category_slug: comboToEdit.category_slug || comboCategories[0]?.slug || '',
+        category: primaryCat,
+        category_slug: primarySlug,
+        categories: existingCats,
+        category_slugs: existingSlugs,
+        subcategory: comboToEdit.subcategory || '',
+        subcategory_slug: comboToEdit.subcategory_slug || '',
         pieces_count: comboToEdit.pieces_count || 2,
         offer_price: comboToEdit.offer_price,
         original_price: comboToEdit.original_price,
@@ -200,12 +232,20 @@ const CombosList = () => {
       const { itemsArr, calcOriginalPrice } = initItemsForPieces(count, mode, defaultIds);
       const derivedImages = itemsArr.map(it => it.primaryImage || it.image).filter(Boolean);
 
+      const defaultParentCat = comboCategories.find(c => !c.parent_id) || comboCategories[0];
+      const initialCats = defaultParentCat?.name ? [defaultParentCat.name] : [];
+      const initialSlugs = defaultParentCat?.slug ? [defaultParentCat.slug] : [];
+
       setFormData({
         id: `combo-${Date.now()}`,
         name: '',
         slug: '',
-        category: comboCategories[0]?.name || '',
-        category_slug: comboCategories[0]?.slug || '',
+        category: defaultParentCat?.name || '',
+        category_slug: defaultParentCat?.slug || '',
+        categories: initialCats,
+        category_slugs: initialSlugs,
+        subcategory: '',
+        subcategory_slug: '',
         pieces_count: count,
         offer_price: calcOriginalPrice > 0 ? Math.round(calcOriginalPrice * 0.7) : 0,
         original_price: calcOriginalPrice > 0 ? calcOriginalPrice : 0,
@@ -285,8 +325,24 @@ const CombosList = () => {
       ? cleanSlug
       : formData.slug;
 
+    const resolvedCats = Array.isArray(formData.categories) && formData.categories.length > 0
+      ? formData.categories
+      : (formData.category ? [formData.category] : []);
+    const resolvedPrimaryCat = formData.category || resolvedCats[0] || '';
+
+    const resolvedSlugs = resolvedCats.map(catName => {
+      const matched = comboCategories.find(c => c.name?.toLowerCase().trim() === catName.toLowerCase().trim());
+      return matched?.slug || catName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    });
+    const primaryCatObj = comboCategories.find(c => c.name?.toLowerCase().trim() === resolvedPrimaryCat.toLowerCase().trim());
+    const resolvedPrimarySlug = primaryCatObj?.slug || (resolvedPrimaryCat ? resolvedPrimaryCat.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
+
     const finalCombo = {
       ...formData,
+      category: resolvedPrimaryCat,
+      category_slug: resolvedPrimarySlug,
+      categories: resolvedCats,
+      category_slugs: resolvedSlugs,
       cover_image: (formData.cover_image && typeof formData.cover_image === 'string') ? formData.cover_image.trim() : '',
       images: finalImages,
       pieces_count: piecesCount,
@@ -408,6 +464,7 @@ const CombosList = () => {
       c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.badge?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (Array.isArray(c.categories) && c.categories.some(cat => cat?.toLowerCase().includes(searchTerm.toLowerCase()))) ||
       c.id?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesPiece = pieceFilter === 'All' || String(c.pieces_count || 2) === String(pieceFilter);
@@ -427,23 +484,135 @@ const CombosList = () => {
       const querySlug = (catObj?.slug || catQuery).toLowerCase().trim();
       const queryName = (catObj?.name || catQuery).toLowerCase().trim();
 
-      const comboCat = (c.category || '').toLowerCase().trim();
-      const comboSlug = (c.category_slug || '').toLowerCase().trim();
-      const comboName = (c.name || '').toLowerCase().trim();
+      const comboCats = Array.isArray(c.categories) && c.categories.length > 0
+        ? c.categories.map(x => (x || '').toLowerCase().trim())
+        : [ (c.category || '').toLowerCase().trim() ];
+      const comboSlugs = Array.isArray(c.category_slugs) && c.category_slugs.length > 0
+        ? c.category_slugs.map(x => (x || '').toLowerCase().trim())
+        : [ (c.category_slug || '').toLowerCase().trim() ];
 
       const baseSlug = querySlug.replace(/-combos?$/g, '').replace(/combos?$/g, '').trim();
 
-      return comboCat === queryName ||
-             comboSlug === querySlug ||
-             comboCat === querySlug ||
-             comboSlug === queryName ||
-             comboCat.includes(querySlug) ||
-             comboSlug.includes(querySlug) ||
-             (baseSlug && baseSlug.length > 2 && (comboCat.includes(baseSlug) || comboSlug.includes(baseSlug) || comboName.includes(baseSlug)));
+      return comboCats.some(cat => cat === queryName || cat === querySlug || cat.includes(querySlug) || (baseSlug && baseSlug.length > 2 && cat.includes(baseSlug))) ||
+             comboSlugs.some(slug => slug === querySlug || slug === queryName || slug.includes(querySlug) || (baseSlug && baseSlug.length > 2 && slug.includes(baseSlug))) ||
+             (baseSlug && baseSlug.length > 2 && (c.name || '').toLowerCase().includes(baseSlug));
     })();
 
     return matchesSearch && matchesPiece && matchesMode && matchesCat;
   });
+
+  const isAllVisibleCombosSelected = filteredCombos.length > 0 && filteredCombos.every(c => selectedComboIds.includes(c.id));
+  const isSomeVisibleCombosSelected = filteredCombos.some(c => selectedComboIds.includes(c.id)) && !isAllVisibleCombosSelected;
+
+  const handleSelectAllCombos = (e) => {
+    if (e.target.checked) {
+      const visibleIds = filteredCombos.map(c => c.id);
+      setSelectedComboIds(Array.from(new Set([...selectedComboIds, ...visibleIds])));
+    } else {
+      const visibleIdsSet = new Set(filteredCombos.map(c => c.id));
+      setSelectedComboIds(selectedComboIds.filter(id => !visibleIdsSet.has(id)));
+    }
+  };
+
+  const handleToggleComboSelect = (comboId, e) => {
+    e.stopPropagation();
+    setSelectedComboIds(prev => 
+      prev.includes(comboId) ? prev.filter(id => id !== comboId) : [...prev, comboId]
+    );
+  };
+
+  const handleSelectAllCombosCatalog = () => {
+    setSelectedComboIds(combos.map(c => c.id));
+  };
+
+  const handleClearComboSelection = () => {
+    setSelectedComboIds([]);
+  };
+
+  const handleApplyBulkComboCategory = async () => {
+    const effectiveCats = bulkCategories.length > 0 ? bulkCategories : (bulkCategory ? [bulkCategory] : []);
+    if (effectiveCats.length === 0) {
+      toast.error('Please select at least one category');
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const primaryCat = effectiveCats[0];
+      const primaryCatObj = comboCategories.find(c => c.name?.toLowerCase().trim() === primaryCat.toLowerCase().trim());
+      const primarySlug = primaryCatObj?.slug || primaryCat.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      
+      const effectiveSlugs = effectiveCats.map(catName => {
+        const matched = comboCategories.find(c => c.name?.toLowerCase().trim() === catName.toLowerCase().trim());
+        return matched?.slug || catName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      });
+
+      const res = await api.post('/combos/bulk-update', {
+        ids: selectedComboIds,
+        categoryMode: bulkCategoryMode,
+        categories: effectiveCats,
+        category_slugs: effectiveSlugs,
+        updates: {
+          category: primaryCat,
+          category_slug: primarySlug,
+          categories: effectiveCats,
+          category_slugs: effectiveSlugs,
+          subcategory: bulkSubcategory || null,
+          subcategory_slug: bulkSubcategorySlug || (bulkSubcategory ? bulkSubcategory.toLowerCase().replace(/[^a-z0-9]+/g, '-') : null)
+        }
+      });
+      if (res.data?.success) {
+        toast.success(res.data.message || `Updated categories for ${selectedComboIds.length} combos`);
+        const updatedMap = new Map((res.data.data || []).map(c => [c.id, c]));
+        setCombos(prev => prev.map(c => {
+          const up = updatedMap.get(c.id);
+          return up ? { ...c, ...up } : c;
+        }));
+        setIsBulkCategoryModalOpen(false);
+        setSelectedComboIds([]);
+      } else {
+        toast.error(res.data?.message || 'Failed to update category');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Error updating category');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleApplyBulkComboPrice = async () => {
+    const numVal = parseFloat(priceAdjustmentValue);
+    if (isNaN(numVal) || (priceAdjustmentType === 'fixed' && numVal < 0)) {
+      toast.error('Please enter a valid price / adjustment value');
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const res = await api.post('/combos/bulk-update', {
+        ids: selectedComboIds,
+        priceChange: {
+          target: priceAdjustmentTarget,
+          type: priceAdjustmentType,
+          value: numVal
+        }
+      });
+      if (res.data?.success) {
+        toast.success(res.data.message || `Updated prices for ${selectedComboIds.length} combos`);
+        const updatedMap = new Map((res.data.data || []).map(c => [c.id, c]));
+        setCombos(prev => prev.map(c => {
+          const up = updatedMap.get(c.id);
+          return up ? { ...c, ...up } : c;
+        }));
+        setIsBulkPriceModalOpen(false);
+        setSelectedComboIds([]);
+      } else {
+        toast.error(res.data?.message || 'Failed to update prices');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Error updating prices');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   // Calculate stats
   const activeCount = combos.filter(c => c.status === 'Active').length;
@@ -553,7 +722,7 @@ const CombosList = () => {
               onChange={(e) => setCategoryFilter(e.target.value)}
             >
               <option value="All">All Combo Categories</option>
-              {comboCategories.map(cat => (
+              {comboCategories.filter(cat => !cat.parent_id).map(cat => (
                 <option key={cat.id || cat.slug} value={cat.name}>{cat.name}</option>
               ))}
             </select>
@@ -586,13 +755,86 @@ const CombosList = () => {
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedComboIds.length > 0 && (
+        <div className="mb-3 p-3 d-flex flex-wrap align-items-center justify-content-between gap-3 shadow-sm" style={{ background: '#0f172a', color: '#ffffff', borderRadius: '8px', border: '1px solid #1e293b' }}>
+          <div className="d-flex align-items-center gap-3 flex-wrap">
+            <div className="d-flex align-items-center gap-2">
+              <span className="badge bg-danger fs-6 px-3 py-1 fw-bold">{selectedComboIds.length}</span>
+              <span className="fw-semibold text-white">Combo{selectedComboIds.length > 1 ? 's' : ''} Selected</span>
+            </div>
+            <button 
+              type="button" 
+              className="btn btn-sm btn-outline-light py-1 px-2" 
+              style={{ fontSize: '12px' }}
+              onClick={handleSelectAllCombosCatalog}
+            >
+              Select All in Catalog ({combos.length})
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-sm btn-link text-white-50 text-decoration-none py-1 px-1" 
+              style={{ fontSize: '12px' }}
+              onClick={handleClearComboSelection}
+            >
+              Clear Selection
+            </button>
+          </div>
+
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <button 
+              type="button" 
+              className="btn btn-sm btn-light fw-bold d-flex align-items-center gap-2 px-3 py-2"
+              style={{ borderRadius: '6px' }}
+              onClick={() => {
+                const topCats = comboCategories.filter(c => !c.parent_id);
+                setBulkCategory(topCats[0]?.name || '');
+                setBulkCategorySlug(topCats[0]?.slug || '');
+                setBulkCategories(topCats[0]?.name ? [topCats[0].name] : []);
+                setBulkCategoryMode('replace');
+                setBulkSubcategory('');
+                setBulkSubcategorySlug('');
+                setIsBulkCategoryModalOpen(true);
+              }}
+            >
+              <FiFolder className="text-warning" /> Category Setup
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-sm btn-danger fw-bold d-flex align-items-center gap-2 px-3 py-2"
+              style={{ borderRadius: '6px' }}
+              onClick={() => {
+                setPriceAdjustmentType('fixed');
+                setPriceAdjustmentTarget('offer_price');
+                setPriceAdjustmentValue('');
+                setIsBulkPriceModalOpen(true);
+              }}
+            >
+              <FiDollarSign /> Price Change Options
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Combos Data Table */}
       <div className="combo-table-card">
         <div className="table-responsive">
           <table className="admin-matrix-table align-middle mb-0">
             <thead>
               <tr>
-                <th className="ps-4 text-start" style={{ minWidth: '260px' }}>COMBO OFFER</th>
+                <th style={{ width: '40px', textAlign: 'center', paddingLeft: '16px' }}>
+                  <input 
+                    type="checkbox" 
+                    className="form-check-input"
+                    checked={isAllVisibleCombosSelected}
+                    ref={el => { if (el) el.indeterminate = isSomeVisibleCombosSelected; }}
+                    onChange={handleSelectAllCombos}
+                    title="Select/Deselect all visible combos"
+                    style={{ cursor: 'pointer', width: '17px', height: '17px' }}
+                  />
+                </th>
+                <th className="ps-2 text-start" style={{ minWidth: '240px' }}>COMBO OFFER</th>
+                <th className="text-start" style={{ minWidth: '150px' }}>CATEGORY</th>
                 <th className="text-center" style={{ minWidth: '95px' }}>PIECES</th>
                 <th className="text-center" style={{ minWidth: '140px' }}>MODE</th>
                 <th className="text-end" style={{ minWidth: '110px' }}>ORIGINAL PRICE</th>
@@ -605,14 +847,23 @@ const CombosList = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-5">
+                  <td colSpan="10" className="text-center py-5">
                     <span className="spinner-border spinner-border-sm text-danger me-2" role="status" /> Loading combos catalog...
                   </td>
                 </tr>
               ) : filteredCombos.length > 0 ? (
                 filteredCombos.map(combo => (
-                  <tr key={combo.id}>
-                    <td className="ps-4 py-3 text-start">
+                  <tr key={combo.id} style={{ background: selectedComboIds.includes(combo.id) ? '#f8fafc' : undefined }}>
+                    <td style={{ textAlign: 'center', paddingLeft: '16px' }}>
+                      <input 
+                        type="checkbox" 
+                        className="form-check-input"
+                        checked={selectedComboIds.includes(combo.id)}
+                        onChange={(e) => handleToggleComboSelect(combo.id, e)}
+                        style={{ cursor: 'pointer', width: '17px', height: '17px' }}
+                      />
+                    </td>
+                    <td className="ps-2 py-3 text-start">
                       <div className="d-flex align-items-center gap-3">
                         <div style={{ width: '56px', height: '56px', borderRadius: '6px', overflow: 'hidden', flexShrink: 0, border: '1px solid #cbd5e1' }}>
                           <ComboCover 
@@ -624,9 +875,44 @@ const CombosList = () => {
                         </div>
                         <div className="min-w-0">
                           <div className="combo-title-text text-truncate" style={{ maxWidth: '240px' }} title={combo.name}>{combo.name}</div>
-                          <span className="combo-code-badge">{combo.id}</span>
+                          <div className="d-flex align-items-center gap-1 mt-1">
+                            <span className="combo-code-badge">{combo.id}</span>
+                          </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="py-3 text-start">
+                      {(() => {
+                        const cats = Array.isArray(combo.categories) && combo.categories.length > 0
+                          ? combo.categories
+                          : (combo.category ? [combo.category] : []);
+                        if (cats.length === 0) {
+                          return <span className="text-muted fst-italic extra-small">Unassigned</span>;
+                        }
+                        return (
+                          <div className="d-flex flex-wrap gap-1 align-items-center">
+                            {cats.map((cat, idx) => {
+                              const isPrimary = cat === combo.category || idx === 0;
+                              return (
+                                <span 
+                                  key={idx} 
+                                  className={`badge ${isPrimary ? 'bg-danger text-white' : 'bg-light text-dark border'}`}
+                                  style={{ fontSize: '0.74rem', fontWeight: 500 }}
+                                  title={isPrimary ? 'Primary Category' : 'Assigned Category'}
+                                >
+                                  {isPrimary && <span className="me-1">★</span>}
+                                  {cat}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                      {combo.subcategory && (
+                        <span className="badge bg-light text-secondary border extra-small mt-1 d-inline-block" style={{ fontSize: '0.72rem' }}>
+                          ↳ {combo.subcategory}
+                        </span>
+                      )}
                     </td>
                     <td className="text-center">
                       <span className="badge-pieces">
@@ -692,7 +978,7 @@ const CombosList = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-5 text-muted">
+                  <td colSpan="10" className="text-center py-5 text-muted">
                     <div className="py-4">
                       <FiLayers style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '12px' }} />
                       <p className="fw-bold text-dark mb-1">No combo deals found</p>
@@ -755,7 +1041,7 @@ const CombosList = () => {
                   </div>
 
                   {/* Combo Title */}
-                  <div className="col-md-5">
+                  <div className="col-md-6">
                     <label className="admin-form-label">Combo Offer Title *</label>
                     <input 
                       type="text" 
@@ -767,30 +1053,8 @@ const CombosList = () => {
                     />
                   </div>
 
-                  {/* Combo Category */}
-                  <div className="col-md-4">
-                    <label className="admin-form-label">Combo Category</label>
-                    <select
-                      className="admin-input"
-                      value={formData.category || ''}
-                      onChange={(e) => {
-                        const selectedCat = comboCategories.find(c => c.name === e.target.value);
-                        setFormData(prev => ({
-                          ...prev,
-                          category: e.target.value,
-                          category_slug: selectedCat?.slug || e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-                        }));
-                      }}
-                    >
-                      <option value="">Select Category</option>
-                      {comboCategories.map(c => (
-                        <option key={c.id || c.slug} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
                   {/* Badge Tag */}
-                  <div className="col-md-3">
+                  <div className="col-md-6">
                     <label className="admin-form-label">Savings Badge Tag</label>
                     <input 
                       type="text" 
@@ -801,20 +1065,160 @@ const CombosList = () => {
                     />
                   </div>
 
-                  {/* Combo Cover Image Upload Input */}
-                  <div className="col-12 border-top pt-3 mt-3">
-                    <FileUploadInput
-                      label="COMBO COVER IMAGE (OPTIONAL - LEAVE BLANK TO SHOW PRODUCT PRIMARY IMAGE)"
-                      folder="combos"
-                      value={formData.cover_image || ''}
-                      onChange={(url) => setFormData(prev => ({ ...prev, cover_image: url }))}
-                      recommendedSize="Recommended: 800 x 1000 px (3:4 Vertical Aspect Ratio, Max 10MB). Leave blank to show first product's primary image."
-                      placeholder="Upload or paste Combo Cover Image URL (Optional)..."
-                    />
+                  {/* Multi-Category Selector for Combos */}
+                  <div className="col-12">
+                    <div className="d-flex align-items-center justify-content-between mb-1">
+                      <label className="admin-form-label mb-0">COMBO CATEGORIES (Multiple Categories Allowed)</label>
+                      <span className="text-muted extra-small">Click ★ on a badge to designate Primary Category</span>
+                    </div>
+
+                    {/* Selected Categories Display */}
+                    <div className="p-2 border rounded bg-white mb-2 d-flex flex-wrap align-items-center gap-2" style={{ minHeight: '44px' }}>
+                      {Array.isArray(formData.categories) && formData.categories.length > 0 ? (
+                        formData.categories.map((cat, idx) => {
+                          const isPrimary = cat === formData.category || (!formData.category && idx === 0);
+                          return (
+                            <span 
+                              key={idx}
+                              className={`badge d-inline-flex align-items-center gap-1 py-1.5 px-2.5 rounded-pill ${isPrimary ? 'bg-danger text-white' : 'bg-light text-dark border'}`}
+                              style={{ fontSize: '0.82rem', fontWeight: 500 }}
+                            >
+                              <button
+                                type="button"
+                                className="btn p-0 border-0 me-1"
+                                style={{ cursor: 'pointer', background: 'transparent', color: isPrimary ? '#fff' : '#b91c1c', fontSize: '0.76rem', textDecoration: 'none' }}
+                                onClick={() => {
+                                  const catObj = comboCategories.find(c => c.name === cat);
+                                  setFormData(prev => ({ 
+                                    ...prev, 
+                                    category: cat,
+                                    category_slug: catObj?.slug || cat.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                                  }));
+                                }}
+                                title={isPrimary ? 'Current Primary Category' : 'Click to set as Primary Category'}
+                              >
+                                {isPrimary ? '★ Primary' : '☆ Make Primary'}
+                              </button>
+                              <span>{cat}</span>
+                              <button
+                                type="button"
+                                className="btn p-0 border-0 ms-1"
+                                style={{ cursor: 'pointer', background: 'transparent', color: isPrimary ? '#fff' : '#64748b' }}
+                                onClick={() => {
+                                  const nextCats = formData.categories.filter(c => c !== cat);
+                                  const nextSlugs = formData.category_slugs?.filter((_, i) => formData.categories[i] !== cat) || [];
+                                  const nextPrimary = isPrimary ? (nextCats[0] || '') : formData.category;
+                                  const nextPrimaryObj = comboCategories.find(c => c.name === nextPrimary);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    categories: nextCats,
+                                    category_slugs: nextSlugs,
+                                    category: nextPrimary,
+                                    category_slug: nextPrimaryObj?.slug || (nextPrimary ? nextPrimary.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '')
+                                  }));
+                                }}
+                                title={`Remove ${cat}`}
+                              >
+                                <FiX size={13} />
+                              </button>
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="text-muted extra-small p-1">No categories assigned yet. Click any category below to add.</span>
+                      )}
+                    </div>
+
+                    {/* Quick Category Add Pills */}
+                    <div className="d-flex flex-wrap align-items-center gap-1.5 mb-2">
+                      <span className="text-muted extra-small me-1">Available Categories:</span>
+                      {comboCategories.filter(c => !c.parent_id).map((c, i) => {
+                        const isSelected = Array.isArray(formData.categories) && formData.categories.includes(c.name);
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            className={`btn btn-sm py-0.5 px-2 rounded-pill ${isSelected ? 'btn-danger text-white' : 'btn-outline-secondary bg-white'}`}
+                            style={{ fontSize: '0.78rem' }}
+                            onClick={() => {
+                              if (isSelected) {
+                                const nextCats = formData.categories.filter(cat => cat !== c.name);
+                                const nextSlugs = nextCats.map(name => {
+                                  const obj = comboCategories.find(item => item.name === name);
+                                  return obj?.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                                });
+                                const nextPrimary = formData.category === c.name ? (nextCats[0] || '') : formData.category;
+                                const nextPrimaryObj = comboCategories.find(item => item.name === nextPrimary);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  categories: nextCats,
+                                  category_slugs: nextSlugs,
+                                  category: nextPrimary,
+                                  category_slug: nextPrimaryObj?.slug || (nextPrimary ? nextPrimary.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '')
+                                }));
+                              } else {
+                                const nextCats = [...(formData.categories || []), c.name];
+                                const nextSlugs = nextCats.map(name => {
+                                  const obj = comboCategories.find(item => item.name === name);
+                                  return obj?.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                                });
+                                const primaryCat = formData.category || c.name;
+                                const primaryCatObj = comboCategories.find(item => item.name === primaryCat);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  categories: nextCats,
+                                  category_slugs: nextSlugs,
+                                  category: primaryCat,
+                                  category_slug: primaryCatObj?.slug || (primaryCat ? primaryCat.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '')
+                                }));
+                              }
+                            }}
+                          >
+                            {isSelected ? `✓ ${c.name}` : `+ ${c.name}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Sub-Category */}
+                  <div className="col-md-12">
+                    <label className="admin-form-label">Sub-Category (Optional)</label>
+                    {(() => {
+                      const activeCatNames = Array.isArray(formData.categories) && formData.categories.length > 0
+                        ? formData.categories.map(c => c.toLowerCase().trim())
+                        : [String(formData.category || '').toLowerCase().trim()];
+                      
+                      const parentIds = comboCategories
+                        .filter(c => activeCatNames.includes((c.name || '').toLowerCase().trim()) && !c.parent_id)
+                        .map(c => Number(c.id));
+                      
+                      const subCats = comboCategories.filter(c => parentIds.includes(Number(c.parent_id)));
+                      return (
+                        <select
+                          className="admin-input"
+                          value={formData.subcategory || ''}
+                          onChange={(e) => {
+                            const subName = e.target.value;
+                            const subCat = subCats.find(s => s.name === subName);
+                            setFormData(prev => ({
+                              ...prev,
+                              subcategory: subName,
+                              subcategory_slug: subCat?.slug || (subName ? subName.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '')
+                            }));
+                          }}
+                        >
+                          <option value="">None (No Sub-Category)</option>
+                          {subCats.map(sub => (
+                            <option key={sub.id || sub.slug} value={sub.name}>{sub.name}</option>
+                          ))}
+                        </select>
+                      );
+                    })()}
                   </div>
 
                   {/* Pricing Row */}
-                  <div className="col-md-5">
+                  <div className="col-md-3">
                     <label className="admin-form-label">Original Price Sum (₹)</label>
                     <input 
                       type="number" 
@@ -824,7 +1228,7 @@ const CombosList = () => {
                     />
                   </div>
 
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <label className="admin-form-label text-success">Offer Price (₹) *</label>
                     <input 
                       type="number" 
@@ -845,6 +1249,18 @@ const CombosList = () => {
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
                     </select>
+                  </div>
+
+                  {/* Combo Cover Image Upload Input */}
+                  <div className="col-12 border-top pt-3 mt-3">
+                    <FileUploadInput
+                      label="COMBO COVER IMAGE (OPTIONAL - LEAVE BLANK TO SHOW PRODUCT PRIMARY IMAGE)"
+                      folder="combos"
+                      value={formData.cover_image || ''}
+                      onChange={(url) => setFormData(prev => ({ ...prev, cover_image: url }))}
+                      recommendedSize="Recommended: 800 x 1000 px (3:4 Vertical Aspect Ratio, Max 10MB). Leave blank to show first product's primary image."
+                      placeholder="Upload or paste Combo Cover Image URL (Optional)..."
+                    />
                   </div>
 
                   {/* Price Calculation Banner */}
@@ -1019,6 +1435,287 @@ const CombosList = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Combo Category Setup Modal */}
+      {isBulkCategoryModalOpen && (
+        <div className="admin-modal-backdrop" onClick={() => !bulkLoading && setIsBulkCategoryModalOpen(false)}>
+          <div className="admin-modal-box" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header d-flex align-items-center justify-content-between pb-3 border-bottom">
+              <h4 className="mb-0 font-weight-bold d-flex align-items-center gap-2" style={{ color: '#0f172a' }}>
+                <FiFolder className="text-warning" /> Bulk Category Setup
+              </h4>
+              <button 
+                type="button"
+                className="admin-modal-close" 
+                onClick={() => !bulkLoading && setIsBulkCategoryModalOpen(false)}
+                disabled={bulkLoading}
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="p-4">
+              <p className="text-muted small mb-3">
+                Update category and subcategory for the <strong>{selectedComboIds.length}</strong> selected combo{selectedComboIds.length > 1 ? 's' : ''}.
+              </p>
+
+              <div className="mb-3">
+                <label className="admin-form-label fw-bold mb-1">SELECT CATEGORIES (Choose 1 or more)</label>
+                <div className="d-flex flex-wrap gap-1.5 p-2 border rounded bg-white mb-2" style={{ maxHeight: '130px', overflowY: 'auto' }}>
+                  {comboCategories.filter(c => !c.parent_id).map((c, i) => {
+                    const isChecked = bulkCategories.includes(c.name) || (!bulkCategories.length && bulkCategory === c.name);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`btn btn-sm py-1 px-2.5 rounded-pill ${isChecked ? 'btn-danger text-white' : 'btn-outline-secondary bg-white'}`}
+                        style={{ fontSize: '0.8rem' }}
+                        onClick={() => {
+                          setBulkCategories(prev => {
+                            const base = prev.length > 0 ? prev : (bulkCategory ? [bulkCategory] : []);
+                            if (base.includes(c.name)) {
+                              const next = base.filter(x => x !== c.name);
+                              setBulkCategory(next[0] || '');
+                              setBulkCategorySlug(comboCategories.find(item => item.name === next[0])?.slug || '');
+                              return next;
+                            } else {
+                              const next = [...base, c.name];
+                              setBulkCategory(next[0] || '');
+                              setBulkCategorySlug(comboCategories.find(item => item.name === next[0])?.slug || '');
+                              return next;
+                            }
+                          });
+                        }}
+                      >
+                        {isChecked ? `✓ ${c.name}` : `+ ${c.name}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="admin-form-label fw-bold mb-1">UPDATE MODE</label>
+                <div className="d-flex gap-3">
+                  <label className="d-flex align-items-center gap-1.5 cursor-pointer small">
+                    <input 
+                      type="radio" 
+                      name="bulkComboCatMode" 
+                      checked={bulkCategoryMode === 'replace'} 
+                      onChange={() => setBulkCategoryMode('replace')} 
+                    />
+                    <span><strong>Replace</strong> existing categories</span>
+                  </label>
+                  <label className="d-flex align-items-center gap-1.5 cursor-pointer small">
+                    <input 
+                      type="radio" 
+                      name="bulkComboCatMode" 
+                      checked={bulkCategoryMode === 'append'} 
+                      onChange={() => setBulkCategoryMode('append')} 
+                    />
+                    <span><strong>Add / Append</strong> to existing</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="admin-form-label fw-bold mb-1">SUB-CATEGORY (Optional)</label>
+                {(() => {
+                  const effectiveCats = bulkCategories.length > 0 ? bulkCategories : (bulkCategory ? [bulkCategory] : []);
+                  const catNamesLower = effectiveCats.map(c => c.toLowerCase().trim());
+                  const parentIds = comboCategories
+                    .filter(c => catNamesLower.includes((c.name || '').toLowerCase().trim()) && !c.parent_id)
+                    .map(c => Number(c.id));
+                  const subCategories = comboCategories.filter(c => parentIds.includes(Number(c.parent_id)));
+                  return (
+                    <select 
+                      className="admin-select w-100"
+                      value={bulkSubcategory}
+                      onChange={(e) => {
+                        const subName = e.target.value;
+                        const subCat = subCategories.find(s => s.name === subName);
+                        setBulkSubcategory(subName);
+                        setBulkSubcategorySlug(subCat?.slug || (subName ? subName.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''));
+                      }}
+                      disabled={effectiveCats.length === 0}
+                    >
+                      <option value="">None (No Sub-Category / Clear Subcategory)</option>
+                      {subCategories.map((sub, idx) => (
+                        <option key={idx} value={sub.name}>{sub.name}</option>
+                      ))}
+                    </select>
+                  );
+                })()}
+              </div>
+
+              <div className="alert alert-light border small text-secondary mt-3 mb-0">
+                <strong>Selection:</strong> Will {bulkCategoryMode} Categories: <code>{(bulkCategories.length > 0 ? bulkCategories : (bulkCategory ? [bulkCategory] : [])).join(', ') || 'None'}</code>{bulkSubcategory ? <span> and Subcategory: <code>{bulkSubcategory}</code></span> : ''} on <strong>{selectedComboIds.length}</strong> combos.
+              </div>
+            </div>
+
+            <div className="admin-modal-footer d-flex justify-content-end gap-2 p-3 border-top bg-light">
+              <button 
+                type="button" 
+                className="btn btn-sm btn-secondary px-3" 
+                onClick={() => setIsBulkCategoryModalOpen(false)}
+                disabled={bulkLoading}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-sm btn-danger px-4 fw-bold" 
+                onClick={handleApplyBulkComboCategory}
+                disabled={bulkLoading || (bulkCategories.length === 0 && !bulkCategory)}
+              >
+                {bulkLoading ? 'Applying...' : `Apply to ${selectedComboIds.length} Combos`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Combo Price Adjustment Modal */}
+      {isBulkPriceModalOpen && (
+        <div className="admin-modal-backdrop" onClick={() => !bulkLoading && setIsBulkPriceModalOpen(false)}>
+          <div className="admin-modal-box" style={{ maxWidth: '620px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header d-flex align-items-center justify-content-between pb-3 border-bottom">
+              <h4 className="mb-0 font-weight-bold d-flex align-items-center gap-2" style={{ color: '#0f172a' }}>
+                <FiDollarSign className="text-danger" /> Bulk Price Change Options
+              </h4>
+              <button 
+                type="button"
+                className="admin-modal-close" 
+                onClick={() => !bulkLoading && setIsBulkPriceModalOpen(false)}
+                disabled={bulkLoading}
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="p-4">
+              <p className="text-muted small mb-3">
+                Adjust prices across <strong>{selectedComboIds.length}</strong> selected combo{selectedComboIds.length > 1 ? 's' : ''}. Choose the target price field and adjustment formula.
+              </p>
+
+              <div className="row g-3 mb-3">
+                <div className="col-md-6">
+                  <label className="admin-form-label fw-bold mb-1">APPLY TO PRICE FIELD</label>
+                  <select 
+                    className="admin-select w-100"
+                    value={priceAdjustmentTarget}
+                    onChange={(e) => setPriceAdjustmentTarget(e.target.value)}
+                  >
+                    <option value="offer_price">Offer Price Only (₹)</option>
+                    <option value="original_price">Original Price Only (₹)</option>
+                    <option value="both">Both Offer Price & Original Price</option>
+                  </select>
+                </div>
+
+                <div className="col-md-6">
+                  <label className="admin-form-label fw-bold mb-1">ADJUSTMENT TYPE</label>
+                  <select 
+                    className="admin-select w-100"
+                    value={priceAdjustmentType}
+                    onChange={(e) => setPriceAdjustmentType(e.target.value)}
+                  >
+                    <option value="fixed">Set to Fixed Price (₹)</option>
+                    <option value="increase_amount">Increase by Amount (+₹)</option>
+                    <option value="decrease_amount">Decrease by Amount (-₹)</option>
+                    <option value="increase_percent">Increase by Percentage (+%)</option>
+                    <option value="decrease_percent">Decrease by Percentage (-%)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="admin-form-label fw-bold mb-1">
+                  {priceAdjustmentType === 'fixed' && 'NEW FIXED PRICE (₹)'}
+                  {priceAdjustmentType === 'increase_amount' && 'INCREASE AMOUNT (₹)'}
+                  {priceAdjustmentType === 'decrease_amount' && 'DECREASE AMOUNT (₹)'}
+                  {priceAdjustmentType === 'increase_percent' && 'INCREASE PERCENTAGE (%)'}
+                  {priceAdjustmentType === 'decrease_percent' && 'DECREASE PERCENTAGE (%)'}
+                </label>
+                <div className="input-group">
+                  <span className="input-group-text bg-white fw-bold">
+                    {priceAdjustmentType.includes('percent') ? '%' : '₹'}
+                  </span>
+                  <input 
+                    type="number" 
+                    className="form-control"
+                    placeholder={priceAdjustmentType.includes('percent') ? 'e.g. 10' : 'e.g. 1499'}
+                    value={priceAdjustmentValue}
+                    min="0"
+                    step="any"
+                    onChange={(e) => setPriceAdjustmentValue(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview of first 3 combos */}
+              {priceAdjustmentValue !== '' && !isNaN(parseFloat(priceAdjustmentValue)) && (
+                <div className="card bg-light border p-3 mt-3">
+                  <div className="fw-bold small text-dark mb-2">Live Price Calculation Preview (First 3 combos):</div>
+                  <table className="table table-sm table-borderless mb-0 small">
+                    <thead>
+                      <tr className="text-muted border-bottom">
+                        <th>Combo Name</th>
+                        <th>Current Price</th>
+                        <th>New Calculated Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedComboIds.slice(0, 3).map(id => {
+                        const combo = combos.find(c => c.id === id);
+                        if (!combo) return null;
+                        const val = parseFloat(priceAdjustmentValue) || 0;
+                        const calc = (curr) => {
+                          let next = curr;
+                          if (priceAdjustmentType === 'fixed') next = val;
+                          else if (priceAdjustmentType === 'increase_amount') next = curr + val;
+                          else if (priceAdjustmentType === 'decrease_amount') next = Math.max(0, curr - val);
+                          else if (priceAdjustmentType === 'increase_percent') next = Math.round(curr * (1 + val / 100));
+                          else if (priceAdjustmentType === 'decrease_percent') next = Math.round(curr * (1 - val / 100));
+                          return Math.max(0, Math.round(next));
+                        };
+                        return (
+                          <tr key={id}>
+                            <td className="text-truncate" style={{ maxWidth: '200px' }}>{combo.name}</td>
+                            <td>₹{combo.offer_price} {priceAdjustmentTarget !== 'offer_price' && combo.original_price ? `(Orig ₹${combo.original_price})` : ''}</td>
+                            <td className="fw-bold text-success">
+                              ₹{calc(Number(combo.offer_price) || 0)}
+                              {priceAdjustmentTarget === 'both' && combo.original_price ? ` (Orig ₹${calc(Number(combo.original_price) || 0)})` : ''}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="admin-modal-footer d-flex justify-content-end gap-2 p-3 border-top bg-light">
+              <button 
+                type="button" 
+                className="btn btn-sm btn-secondary px-3" 
+                onClick={() => setIsBulkPriceModalOpen(false)}
+                disabled={bulkLoading}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-sm btn-danger px-4 fw-bold" 
+                onClick={handleApplyBulkComboPrice}
+                disabled={bulkLoading || priceAdjustmentValue === ''}
+              >
+                {bulkLoading ? 'Applying...' : `Update Prices for ${selectedComboIds.length} Combos`}
+              </button>
+            </div>
           </div>
         </div>
       )}

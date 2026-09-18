@@ -12,7 +12,11 @@ export const ensureComboColumnsExist = async () => {
     "ALTER TABLE `Combos` ADD COLUMN `last_updated_by` VARCHAR(255) DEFAULT 'Super Admin';",
     "ALTER TABLE `combos` ADD COLUMN `last_updated_by` VARCHAR(255) DEFAULT 'Super Admin';",
     "ALTER TABLE `Combos` ADD COLUMN `deleted` TINYINT(1) DEFAULT 0;",
-    "ALTER TABLE `combos` ADD COLUMN `deleted` TINYINT(1) DEFAULT 0;"
+    "ALTER TABLE `combos` ADD COLUMN `deleted` TINYINT(1) DEFAULT 0;",
+    "ALTER TABLE `Combos` ADD COLUMN `categories` JSON NULL;",
+    "ALTER TABLE `combos` ADD COLUMN `categories` JSON NULL;",
+    "ALTER TABLE `Combos` ADD COLUMN `category_slugs` JSON NULL;",
+    "ALTER TABLE `combos` ADD COLUMN `category_slugs` JSON NULL;"
   ];
   for (const q of queries) {
     try {
@@ -97,29 +101,53 @@ const syncComboPrimaryImages = async (combos) => {
 export const getCombos = async (req, res) => {
   try {
     await ensureComboColumnsExist();
-    const { search, status, category, category_slug, includeDeleted } = req.query;
-    const where = {};
+    const { search, status, category, category_slug, subcategory, subcategory_slug, includeDeleted } = req.query;
+    const andConditions = [];
 
-    if (includeDeleted !== 'true') where.deleted = false;
-    if (status) where.status = status;
+    if (includeDeleted !== 'true') andConditions.push({ deleted: false });
+    if (status) andConditions.push({ status });
+
     if (category) {
-      where[Op.or] = [
-        { category: category },
-        { category_slug: category }
-      ];
+      andConditions.push({
+        [Op.or]: [
+          { category: category },
+          { category_slug: category },
+          { categories: { [Op.like]: `%"${category}"%` } },
+          { category_slugs: { [Op.like]: `%"${category}"%` } }
+        ]
+      });
     }
     if (category_slug) {
-      where.category_slug = category_slug;
+      andConditions.push({
+        [Op.or]: [
+          { category_slug: category_slug },
+          { category_slugs: { [Op.like]: `%"${category_slug}"%` } }
+        ]
+      });
+    }
+    if (subcategory) {
+      andConditions.push({
+        [Op.or]: [
+          { subcategory: subcategory },
+          { subcategory_slug: subcategory }
+        ]
+      });
+    }
+    if (subcategory_slug) {
+      andConditions.push({ subcategory_slug });
     }
 
     if (search) {
-      where[Op.or] = [
-        { name: { [Op.like]: `%${search}%` } },
-        { badge: { [Op.like]: `%${search}%` } },
-        { category: { [Op.like]: `%${search}%` } }
-      ];
+      andConditions.push({
+        [Op.or]: [
+          { name: { [Op.like]: `%${search}%` } },
+          { badge: { [Op.like]: `%${search}%` } },
+          { category: { [Op.like]: `%${search}%` } }
+        ]
+      });
     }
 
+    const where = andConditions.length > 0 ? { [Op.and]: andConditions } : {};
     const combos = await Combo.findAll({ where, order: [['createdAt', 'DESC']] });
     await syncComboPrimaryImages(combos);
     return res.json({ success: true, count: combos.length, data: combos });
@@ -128,12 +156,14 @@ export const getCombos = async (req, res) => {
     try {
       comboSchemaEnsured = false;
       await ensureComboColumnsExist();
-      const { search, status, category, category_slug, includeDeleted } = req.query;
+      const { search, status, category, category_slug, subcategory, subcategory_slug, includeDeleted } = req.query;
       const where = {};
       if (includeDeleted !== 'true') where.deleted = false;
       if (status) where.status = status;
       if (category) where[Op.or] = [{ category }, { category_slug: category }];
       if (category_slug) where.category_slug = category_slug;
+      if (subcategory) where[Op.or] = [{ subcategory }, { subcategory_slug: subcategory }];
+      if (subcategory_slug) where.subcategory_slug = subcategory_slug;
       if (search) where[Op.or] = [{ name: { [Op.like]: `%${search}%` } }, { badge: { [Op.like]: `%${search}%` } }, { category: { [Op.like]: `%${search}%` } }];
       const combos = await Combo.findAll({ where, order: [['createdAt', 'DESC']] });
       await syncComboPrimaryImages(combos);
@@ -218,6 +248,25 @@ export const createCombo = async (req, res) => {
       }
     }
 
+    // Normalize categories & category_slugs
+    if (Array.isArray(comboData.categories) && comboData.categories.length > 0) {
+      comboData.categories = comboData.categories.map(c => typeof c === 'string' ? c.trim() : c.name || c).filter(Boolean);
+      if (!comboData.category || !comboData.categories.includes(comboData.category)) {
+        comboData.category = comboData.categories[0];
+      }
+      if (!comboData.category_slug) {
+        comboData.category_slug = comboData.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      }
+      if (!Array.isArray(comboData.category_slugs) || comboData.category_slugs.length === 0) {
+        comboData.category_slugs = comboData.categories.map(c => c.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+      }
+    } else if (comboData.category && typeof comboData.category === 'string') {
+      comboData.categories = [comboData.category.trim()];
+      const s = comboData.category_slug || comboData.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      comboData.category_slug = s;
+      comboData.category_slugs = [s];
+    }
+
     const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : 'Admin';
     comboData.last_updated_by = authorName;
     const combo = await Combo.create(comboData);
@@ -265,6 +314,25 @@ export const updateCombo = async (req, res) => {
       }
     }
 
+    // Normalize categories & category_slugs
+    if (Array.isArray(updatePayload.categories)) {
+      updatePayload.categories = updatePayload.categories.map(c => typeof c === 'string' ? c.trim() : c.name || c).filter(Boolean);
+      if (updatePayload.categories.length > 0) {
+        if (!updatePayload.category || !updatePayload.categories.includes(updatePayload.category)) {
+          updatePayload.category = updatePayload.categories[0];
+        }
+        if (!updatePayload.category_slug) {
+          updatePayload.category_slug = updatePayload.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        }
+        updatePayload.category_slugs = updatePayload.categories.map(c => c.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+      }
+    } else if (updatePayload.category && typeof updatePayload.category === 'string') {
+      updatePayload.categories = [updatePayload.category.trim()];
+      const s = updatePayload.category_slug || updatePayload.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      updatePayload.category_slug = s;
+      updatePayload.category_slugs = [s];
+    }
+
     const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : 'Admin';
     updatePayload.last_updated_by = authorName;
     await combo.update(updatePayload);
@@ -298,3 +366,126 @@ export const deleteCombo = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
+export const bulkUpdateCombos = async (req, res) => {
+  try {
+    await ensureComboColumnsExist();
+    const { ids, updates = {}, priceChange } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'No combo IDs provided' });
+    }
+
+    const authorName = req.headers['x-admin-name'] 
+      ? decodeURIComponent(req.headers['x-admin-name']) 
+      : 'Admin';
+
+    const combos = await Combo.findAll({
+      where: { id: { [Op.in]: ids } }
+    });
+
+    const updatedCombos = [];
+
+    for (const combo of combos) {
+      const patch = { last_updated_by: authorName };
+
+      if (updates.categories !== undefined && Array.isArray(updates.categories)) {
+        const newCats = updates.categories.map(c => typeof c === 'string' ? c.trim() : c.name || c).filter(Boolean);
+        const newSlugs = newCats.map(c => c.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+        if (updates.categoryMode === 'append') {
+          const existing = Array.isArray(combo.categories) && combo.categories.length > 0 
+            ? combo.categories 
+            : (combo.category ? [combo.category] : []);
+          const merged = Array.from(new Set([...existing, ...newCats]));
+          patch.categories = merged;
+          patch.category = merged[0] || combo.category;
+          patch.category_slug = (merged[0] || combo.category || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          patch.category_slugs = merged.map(c => c.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+        } else {
+          patch.categories = newCats;
+          patch.category = newCats[0] || updates.category || combo.category;
+          patch.category_slug = (newCats[0] || updates.category || combo.category || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          patch.category_slugs = newSlugs;
+        }
+      } else if (updates.category !== undefined) {
+        patch.category = updates.category;
+        patch.category_slug = updates.category_slug || updates.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        patch.categories = [updates.category];
+        patch.category_slugs = [patch.category_slug];
+      }
+      if (updates.subcategory !== undefined) {
+        patch.subcategory = updates.subcategory ? updates.subcategory.trim() : null;
+      }
+      if (updates.subcategory_slug !== undefined) {
+        patch.subcategory_slug = updates.subcategory_slug ? updates.subcategory_slug.trim() : null;
+      }
+      if (updates.status !== undefined) {
+        patch.status = updates.status;
+      }
+
+      if (priceChange && priceChange.type) {
+        const val = Number(priceChange.value) || 0;
+        const target = priceChange.target || 'offer_price'; // 'offer_price', 'original_price', 'both'
+
+        const calcNewPrice = (currentVal) => {
+          const curr = Number(currentVal) || 0;
+          let next = curr;
+          switch (priceChange.type) {
+            case 'fixed':
+              next = val;
+              break;
+            case 'increase_amount':
+              next = curr + val;
+              break;
+            case 'decrease_amount':
+              next = Math.max(0, curr - val);
+              break;
+            case 'increase_percent':
+              next = Math.round(curr * (1 + val / 100));
+              break;
+            case 'decrease_percent':
+              next = Math.round(curr * (1 - val / 100));
+              break;
+            default:
+              break;
+          }
+          return Math.max(0, Math.round(next));
+        };
+
+        let newOffer = combo.offer_price;
+        let newOrig = combo.original_price;
+
+        if (target === 'offer_price' || target === 'both') {
+          newOffer = calcNewPrice(combo.offer_price);
+          patch.offer_price = newOffer;
+        }
+        if (target === 'original_price' || target === 'both') {
+          newOrig = calcNewPrice(combo.original_price);
+          patch.original_price = newOrig;
+        }
+
+        // Auto update savings badge if valid
+        if (newOrig > 0 && newOffer > 0 && newOrig > newOffer) {
+          const discountPercent = Math.round(((newOrig - newOffer) / newOrig) * 100);
+          if (discountPercent > 0) {
+            patch.badge = `SAVE ${discountPercent}%`;
+          }
+        }
+      }
+
+      await combo.update(patch);
+      updatedCombos.push(combo);
+    }
+
+    await syncComboPrimaryImages(updatedCombos);
+
+    return res.json({
+      success: true,
+      message: `Successfully updated ${updatedCombos.length} combos`,
+      data: updatedCombos
+    });
+  } catch (err) {
+    console.error('bulkUpdateCombos error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+

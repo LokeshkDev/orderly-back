@@ -32,6 +32,12 @@ const Category = sequelize.define('Category', {
     type: DataTypes.STRING,
     defaultValue: 'product', // 'product' or 'combo'
   },
+  parent_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: null,
+    comment: 'Parent category ID for sub-categories (null if top-level category)'
+  },
   last_updated_by: {
     type: DataTypes.STRING,
     defaultValue: 'Super Admin',
@@ -44,5 +50,8 @@ const Category = sequelize.define('Category', {
 }, {
   timestamps: true,
 });
+
+Category.hasMany(Category, { as: 'subcategories', foreignKey: 'parent_id' });
+Category.belongsTo(Category, { as: 'parent', foreignKey: 'parent_id' });
 
 export default Category;

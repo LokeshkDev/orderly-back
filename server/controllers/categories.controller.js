@@ -20,15 +20,20 @@ const FALLBACK_COMBO_CATEGORIES = [
 
 export const getCategories = async (req, res) => {
   try {
-    const { type } = req.query;
+    const { type, parent_id, top_level_only } = req.query;
     let categories = [];
     const where = {};
     if (type) {
       where.type = type;
     }
+    if (parent_id !== undefined && parent_id !== '') {
+      where.parent_id = parent_id === 'null' ? null : Number(parent_id);
+    } else if (top_level_only === 'true') {
+      where.parent_id = null;
+    }
 
     try {
-      categories = await Category.findAll({ where, order: [['display_order', 'ASC']] });
+      categories = await Category.findAll({ where, order: [['display_order', 'ASC'], ['id', 'ASC']] });
     } catch (err) {}
 
     if (!categories || categories.length === 0) {
@@ -62,12 +67,19 @@ export const getCategory = async (req, res) => {
 
 export const createCategory = async (req, res) => {
   try {
+    const payload = { ...req.body };
+    if (payload.parent_id === '' || payload.parent_id === '0' || payload.parent_id === 0) {
+      payload.parent_id = null;
+    } else if (payload.parent_id) {
+      payload.parent_id = Number(payload.parent_id);
+    }
+
     let category;
     try {
       const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : 'Admin';
-    category = await Category.create({ ...req.body, last_updated_by: authorName });
+      category = await Category.create({ ...payload, last_updated_by: authorName });
     } catch (err) {
-      category = { id: Date.now(), ...req.body };
+      category = { id: Date.now(), ...payload };
     }
     res.status(201).json({ success: true, data: category });
   } catch (error) {
@@ -79,8 +91,16 @@ export const updateCategory = async (req, res) => {
   try {
     const category = await Category.findByPk(req.params.id);
     if (!category) return res.status(404).json({ success: false, message: 'Category not found' });
+    
+    const payload = { ...req.body };
+    if (payload.parent_id === '' || payload.parent_id === '0' || payload.parent_id === 0) {
+      payload.parent_id = null;
+    } else if (payload.parent_id) {
+      payload.parent_id = Number(payload.parent_id);
+    }
+
     const authorName = req.headers['x-admin-name'] ? decodeURIComponent(req.headers['x-admin-name']) : 'Admin';
-    await category.update({ ...req.body, last_updated_by: authorName });
+    await category.update({ ...payload, last_updated_by: authorName });
     res.status(200).json({ success: true, data: category });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

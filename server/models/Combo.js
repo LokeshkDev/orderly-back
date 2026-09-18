@@ -44,6 +44,26 @@ const Combo = sequelize.define('Combo', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  categories: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: [],
+    comment: 'Array of category names combo belongs to'
+  },
+  category_slugs: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: [],
+    comment: 'Array of category slugs combo belongs to'
+  },
+  subcategory: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  subcategory_slug: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   description: {
     type: DataTypes.TEXT
   },

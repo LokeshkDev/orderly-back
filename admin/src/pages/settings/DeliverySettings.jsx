@@ -78,7 +78,8 @@ const DeliverySettings = () => {
                 ...d,
                 price_based: { ...DEFAULT_DELIVERY_SETTINGS.price_based, ...(d.price_based || {}) },
                 pincode_based: { ...DEFAULT_DELIVERY_SETTINGS.pincode_based, ...(d.pincode_based || {}) },
-                item_based: { ...DEFAULT_DELIVERY_SETTINGS.item_based, ...(d.item_based || {}) }
+                item_based: { ...DEFAULT_DELIVERY_SETTINGS.item_based, ...(d.item_based || {}) },
+                combo_delivery: { ...DEFAULT_DELIVERY_SETTINGS.combo_delivery, ...(d.combo_delivery || {}) }
               });
             } catch (e) {}
           }
@@ -354,6 +355,12 @@ const DeliverySettings = () => {
           onClick={() => setActiveTab('cod')}
         >
           <FiCreditCard /> 4. Online / COD Settings
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'combo_delivery' ? 'active' : ''}`}
+          onClick={() => setActiveTab('combo_delivery')}
+        >
+          <FiPackage /> 5. Combo Delivery
         </button>
       </div>
 
@@ -996,6 +1003,184 @@ const DeliverySettings = () => {
                     <strong>COD Disabled:</strong> The Cash on Delivery option will be completely hidden on the website checkout, leaving Online Payment (Razorpay / Cards / UPI) as the sole payment method.
                   </li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: COMBO DELIVERY */}
+      {activeTab === 'combo_delivery' && (
+        <div className="row g-4">
+          <div className="col-12 col-lg-8">
+            <div className="admin-card-white p-4">
+              <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-4">
+                <div>
+                  <h5 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                    <FiPackage className="text-danger" /> Combo Products Delivery Settings
+                  </h5>
+                  <p className="text-muted small mb-0">
+                    Configure dedicated shipping rates and free delivery thresholds for multi-piece combo bundles.
+                  </p>
+                </div>
+                <span className={`badge ${delivery.combo_delivery?.enabled ? 'bg-success' : 'bg-secondary'} px-3 py-2 fs-6`}>
+                  {delivery.combo_delivery?.enabled ? 'COMBO DELIVERY ACTIVE' : 'DISABLED'}
+                </span>
+              </div>
+
+              {/* TOGGLE OPTION */}
+              <div className="p-3 mb-4 rounded border bg-light d-flex align-items-center justify-content-between">
+                <div>
+                  <strong className="d-block text-dark fs-6">Enable Dedicated Combo Delivery</strong>
+                  <span className="text-muted small">
+                    When enabled, any cart containing combo products will use these specialized shipping rates instead of standard rates.
+                  </span>
+                </div>
+                <div className="form-check form-switch fs-4">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    id="comboDeliveryToggle"
+                    checked={Boolean(delivery.combo_delivery?.enabled)}
+                    onChange={(e) => {
+                      setDelivery(prev => ({
+                        ...prev,
+                        combo_delivery: {
+                          ...prev.combo_delivery,
+                          enabled: e.target.checked
+                        }
+                      }));
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+
+              {/* COMBO RATES FORM */}
+              <div className="row g-3 mb-4">
+                <div className="col-md-6">
+                  <label className="admin-form-label">Flat Combo Delivery Charge (₹)</label>
+                  <div className="input-group">
+                    <span className="input-group-text">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      className="admin-input"
+                      value={delivery.combo_delivery?.charge ?? 99}
+                      onChange={(e) => {
+                        const val = Math.max(0, Number(e.target.value) || 0);
+                        setDelivery(prev => ({
+                          ...prev,
+                          combo_delivery: {
+                            ...prev.combo_delivery,
+                            charge: val
+                          }
+                        }));
+                      }}
+                      disabled={!delivery.combo_delivery?.enabled}
+                    />
+                  </div>
+                  <span className="text-muted extra-small">
+                    Base delivery fee applied to orders containing combos.
+                  </span>
+                </div>
+
+                <div className="col-md-6">
+                  <label className="admin-form-label">Free Delivery Above Subtotal (₹)</label>
+                  <div className="input-group">
+                    <span className="input-group-text">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      className="admin-input"
+                      value={delivery.combo_delivery?.free_delivery_above ?? 1999}
+                      onChange={(e) => {
+                        const val = Math.max(0, Number(e.target.value) || 0);
+                        setDelivery(prev => ({
+                          ...prev,
+                          combo_delivery: {
+                            ...prev.combo_delivery,
+                            free_delivery_above: val
+                          }
+                        }));
+                      }}
+                      disabled={!delivery.combo_delivery?.enabled}
+                    />
+                  </div>
+                  <span className="text-muted extra-small">
+                    Orders with subtotal at or above this amount get FREE shipping (0 to disable).
+                  </span>
+                </div>
+
+                <div className="col-md-6">
+                  <label className="admin-form-label">Additional Fee per Extra Combo (₹)</label>
+                  <div className="input-group">
+                    <span className="input-group-text">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      className="admin-input"
+                      value={delivery.combo_delivery?.per_combo_charge ?? 0}
+                      onChange={(e) => {
+                        const val = Math.max(0, Number(e.target.value) || 0);
+                        setDelivery(prev => ({
+                          ...prev,
+                          combo_delivery: {
+                            ...prev.combo_delivery,
+                            per_combo_charge: val
+                          }
+                        }));
+                      }}
+                      disabled={!delivery.combo_delivery?.enabled}
+                    />
+                  </div>
+                  <span className="text-muted extra-small">
+                    Extra fee added for each additional combo bundle in cart beyond the first (default: ₹0).
+                  </span>
+                </div>
+
+                <div className="col-md-6">
+                  <label className="admin-form-label">Delivery Method Label</label>
+                  <input
+                    type="text"
+                    className="admin-input"
+                    value={delivery.combo_delivery?.label || 'Combo Express Delivery'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDelivery(prev => ({
+                        ...prev,
+                        combo_delivery: {
+                          ...prev.combo_delivery,
+                          label: val
+                        }
+                      }));
+                    }}
+                    placeholder="e.g. Combo Express Delivery"
+                    disabled={!delivery.combo_delivery?.enabled}
+                  />
+                  <span className="text-muted extra-small">
+                    Customer-facing method title shown in Cart Drawer, Checkout, and Order Summary.
+                  </span>
+                </div>
+              </div>
+
+              {/* PREVIEW & SUMMARY */}
+              <div className="p-3 rounded bg-light border">
+                <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                  <FiInfo className="text-danger" /> Live Calculation Preview
+                </h6>
+                <p className="small text-muted mb-1">
+                  {delivery.combo_delivery?.enabled ? (
+                    <>
+                      Orders with combo bundle items below <strong>₹{(delivery.combo_delivery?.free_delivery_above ?? 1999).toLocaleString()}</strong> will incur a delivery charge of <strong>₹{delivery.combo_delivery?.charge ?? 99}</strong>. Orders at or above <strong>₹{(delivery.combo_delivery?.free_delivery_above ?? 1999).toLocaleString()}</strong> receive <strong>FREE Shipping</strong>.
+                    </>
+                  ) : (
+                    <>
+                      Combo Delivery is currently disabled. Standard delivery settings (Pincode / Price / Item) will apply to combo orders.
+                    </>
+                  )}
+                </p>
               </div>
             </div>
           </div>

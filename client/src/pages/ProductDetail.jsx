@@ -15,7 +15,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useQuickView } from '../context/QuickViewContext';
 import { getProductById, getProducts, getActiveCoupons } from '../services/api';
-import { formatPrice, calculateDiscount, getProductSlug } from '../utils/formatters';
+import { formatPrice, calculateDiscount, getProductSlug, formatCamelCaseTitle } from '../utils/formatters';
 import useIsMobile from '../utils/useIsMobile';
 import './ProductDetail.css';
 
@@ -610,11 +610,11 @@ const ProductDetail = () => {
                     {activeProduct.category || 'Menswear'}
                   </Link>
                   <FiChevronRight />
-                  <span className="pdp-crumb-current">{activeProduct.name}</span>
+                  <span className="pdp-crumb-current">{formatCamelCaseTitle(activeProduct.name)}</span>
                 </nav>
 
                 {/* 2. Product Title */}
-                <h1 className="pdp-product-name">{activeProduct.name}</h1>
+                <h1 className="pdp-product-name">{formatCamelCaseTitle(activeProduct.name)}</h1>
 
                 
 

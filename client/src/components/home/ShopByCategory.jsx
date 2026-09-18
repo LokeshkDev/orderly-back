@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Autoplay } from 'swiper/modules';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { getCategories, getSettings, matchesCategoryAlias } from '../../services/api';
 import { HomeCategoryGridSkeleton } from '../common/Skeleton';
+import 'swiper/css';
+import 'swiper/css/navigation';
 import './ShopByCategory.css';
 
 const DEFAULT_CATEGORIES = [
@@ -54,7 +59,7 @@ const ShopByCategory = ({ title, subtitle }) => {
 
         let allCats = [];
         if (catRes.status === 'fulfilled' && catRes.value?.success && Array.isArray(catRes.value.data)) {
-          allCats = catRes.value.data.filter(c => c.is_active !== false);
+          allCats = catRes.value.data.filter(c => c.is_active !== false && !c.parent_id);
         }
 
         let collectionsConfig = null;
@@ -86,6 +91,13 @@ const ShopByCategory = ({ title, subtitle }) => {
           });
         }
 
+        // Always append any remaining active categories so newly added categories immediately reflect!
+        allCats.forEach(cat => {
+          if (!orderedCats.some(item => (item.id || item._id) === (cat.id || cat._id))) {
+            orderedCats.push(cat);
+          }
+        });
+
         if (orderedCats.length === 0) {
           orderedCats = allCats;
         }
@@ -93,10 +105,10 @@ const ShopByCategory = ({ title, subtitle }) => {
         if (orderedCats.length > 0) {
           const mapped = orderedCats.map((cat, idx) => ({
             id: cat.id || cat._id,
-            name: (cat.name || '').toUpperCase(),
+            name: (cat.name || '').toUpperCase().trim(),
             sub: cat.description || cat.sub || DEFAULT_CATEGORIES[idx % DEFAULT_CATEGORIES.length]?.sub || 'Premium Collection',
             categoryQuery: cat.slug || cat.name,
-            image: (cat.image && cat.image.length > 10) ? cat.image : ''
+            image: (cat.image && cat.image.length > 10) ? cat.image : (DEFAULT_CATEGORIES[idx % DEFAULT_CATEGORIES.length]?.image || '')
           }));
           setCategoriesData(mapped);
         } else {
@@ -147,48 +159,90 @@ const ShopByCategory = ({ title, subtitle }) => {
           </h2>
         </div>
 
-        {/* 5-Column Fashion Cards Grid or Skeleton */}
+        {/* Carousel or Skeleton */}
         {loading ? (
           <HomeCategoryGridSkeleton />
         ) : (
-          <div className="category-cards-grid">
-            {categoriesData.slice(0, 5).map((cat, idx) => {
-              return (
-                <div 
-                  key={idx}
-                  className="fashion-category-card"
-                  onClick={() => handleCardClick(cat.categoryQuery)}
+          <div className="category-carousel-wrapper position-relative">
+            {categoriesData.length > 2 && (
+              <>
+                <button 
+                  type="button" 
+                  className="category-carousel-nav category-carousel-prev" 
+                  aria-label="Previous categories"
                 >
-                  {/* 100% Full Card Background Cover Image */}
-                  {cat.image && cat.image.length > 0 ? (
-                    <img 
-                      src={cat.image} 
-                      alt={cat.name}
-                      className="fashion-cat-img"
-                      width="400"
-                      height="550"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <div className="fashion-cat-img orderly-img-fallback">ORDERLY</div>
-                  )}
-                  
-                  {/* Gradient Dark Overlay */}
-                  <div className="fashion-cat-overlay" />
-                  <div className="fashion-cat-red-accent" />
+                  <FiChevronLeft />
+                </button>
+                <button 
+                  type="button" 
+                  className="category-carousel-nav category-carousel-next" 
+                  aria-label="Next categories"
+                >
+                  <FiChevronRight />
+                </button>
+              </>
+            )}
 
-                  {/* Bottom Aligned Text Content */}
-                  <div className="fashion-cat-content">
-                    <h3 className="fashion-cat-title">{cat.name}</h3>
-                    <p className="fashion-cat-sub">{cat.sub}</p>
-                    <span className="fashion-cat-link">
-                      SHOP NOW <span className="cat-arrow">&rarr;</span>
-                    </span>
+            <Swiper
+              modules={[Navigation, Autoplay]}
+              navigation={{
+                prevEl: '.category-carousel-prev',
+                nextEl: '.category-carousel-next'
+              }}
+              autoplay={{
+                delay: 4500,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true
+              }}
+              loop={categoriesData.length > 5}
+              spaceBetween={20}
+              slidesPerView={2}
+              breakpoints={{
+                480: { slidesPerView: 2, spaceBetween: 12 },
+                768: { slidesPerView: 3, spaceBetween: 16 },
+                992: { slidesPerView: 4, spaceBetween: 20 },
+                1200: { slidesPerView: 5, spaceBetween: 20 },
+                1400: { slidesPerView: 5, spaceBetween: 24 }
+              }}
+              className="category-swiper"
+            >
+              {categoriesData.map((cat, idx) => (
+                <SwiperSlide key={cat.id || idx}>
+                  <div 
+                    className="fashion-category-card"
+                    onClick={() => handleCardClick(cat.categoryQuery)}
+                  >
+                    {/* 100% Full Card Background Cover Image */}
+                    {cat.image && cat.image.length > 0 ? (
+                      <img 
+                        src={cat.image} 
+                        alt={cat.name}
+                        className="fashion-cat-img"
+                        width="400"
+                        height="550"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div className="fashion-cat-img orderly-img-fallback">ORDERLY</div>
+                    )}
+                    
+                    {/* Gradient Dark Overlay */}
+                    <div className="fashion-cat-overlay" />
+                    <div className="fashion-cat-red-accent" />
+
+                    {/* Bottom Aligned Text Content */}
+                    <div className="fashion-cat-content">
+                      <h3 className="fashion-cat-title">{cat.name}</h3>
+                      <p className="fashion-cat-sub">{cat.sub}</p>
+                      <span className="fashion-cat-link">
+                        SHOP NOW <span className="cat-arrow">&rarr;</span>
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                </SwiperSlide>
+              ))}
+            </Swiper>
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useParams, Link } from 'react-router-dom';
-import { FiX, FiSliders, FiChevronRight, FiChevronLeft, FiHeart, FiShoppingBag } from 'react-icons/fi';
+import { FiX, FiSliders, FiChevronRight, FiChevronLeft, FiChevronDown, FiHeart, FiShoppingBag } from 'react-icons/fi';
 import SEOHead from '../components/common/SEOHead';
 import ProductCard from '../components/product/ProductCard';
 import { ProductCardSkeleton } from '../components/common/Skeleton';
@@ -22,6 +22,7 @@ const Shop = () => {
   const { wishlist, toggleWishlist } = useWishlist();
   
   const categoryParam = searchParams.get('category') || '';
+  const subcategoryParam = searchParams.get('subcategory') || '';
   const brandParam = searchParams.get('brand') || 'All';
   const searchParam = searchParams.get('search') || '';
 
@@ -57,6 +58,11 @@ const Shop = () => {
       .filter(p => p && p !== 'All');
   }, [resolveCategoryName, categoriesList]);
 
+  const parseSubcategories = useCallback((param) => {
+    if (!param || param === 'All') return [];
+    return param.split(',').map(p => p.trim()).filter(Boolean);
+  }, []);
+
   const [selectedCategories, setSelectedCategories] = useState(() => {
     if (slug) {
       const resolved = resolveCategoryName(slug);
@@ -64,6 +70,16 @@ const Shop = () => {
     }
     return parseCategories(categoryParam);
   });
+
+  const [selectedSubcategories, setSelectedSubcategories] = useState(() => parseSubcategories(subcategoryParam));
+  const [expandedCategoryAccordions, setExpandedCategoryAccordions] = useState([]);
+
+  const toggleCategoryAccordion = (catName, e) => {
+    if (e) e.stopPropagation();
+    setExpandedCategoryAccordions(prev =>
+      prev.includes(catName) ? prev.filter(c => c !== catName) : [...prev, catName]
+    );
+  };
 
   const [selectedSizes, setSelectedSizes] = useState([]);
   const [minPrice, setMinPrice] = useState(0);
@@ -118,7 +134,13 @@ const Shop = () => {
     } else {
       setSelectedCategories([]);
     }
-  }, [categoryParam, slug, resolveCategoryName, parseCategories]);
+
+    if (subcategoryParam) {
+      setSelectedSubcategories(parseSubcategories(subcategoryParam));
+    } else {
+      setSelectedSubcategories([]);
+    }
+  }, [categoryParam, subcategoryParam, slug, resolveCategoryName, parseCategories, parseSubcategories]);
 
   // Fetch complete product dataset from API & listen for Admin live updates
   useEffect(() => {
@@ -166,20 +188,32 @@ const Shop = () => {
   // Dynamically extract all available categories from categories API + product catalog
   const dynamicCategories = useMemo(() => {
     const catMap = new Map();
-    categoriesList.filter(c => c.is_active !== false).forEach(c => {
-      if (c.name) catMap.set(c.name.toLowerCase().trim(), c.name.trim());
-    });
+    // Only top-level product categories
+    categoriesList
+      .filter(c => c.is_active !== false && !c.parent_id && (c.type || 'product') === 'product')
+      .forEach(c => {
+        if (c.name) catMap.set(c.name.toLowerCase().trim(), c.name.trim());
+      });
+
+    // Subcategory names set to prevent any known subcategory from becoming a top-level filter
+    const subcategoryNamesSet = new Set(
+      categoriesList
+        .filter(c => c.parent_id)
+        .map(c => (c.name || '').toLowerCase().trim())
+        .filter(Boolean)
+    );
+
     const singles = productsList.filter(p => !p.type?.includes('combo') && !p.is_combo);
     singles.forEach(p => {
       if (p.category && typeof p.category === 'string') {
         const key = p.category.toLowerCase().trim();
-        if (!catMap.has(key)) {
+        if (!catMap.has(key) && !subcategoryNamesSet.has(key)) {
           catMap.set(key, p.category.trim());
         }
       }
     });
     const list = Array.from(catMap.values());
-    return list.length > 0 ? list : (categoryOptions.length > 0 ? categoryOptions : ['Shirts', 'T-Shirts', 'Pants', 'Jackets', 'Accessories']);
+    return list.length > 0 ? list : (categoryOptions.length > 0 ? categoryOptions.filter(c => !subcategoryNamesSet.has(c.toLowerCase().trim())) : ['Shirts', 'T-Shirts', 'Pants', 'Jackets', 'Accessories']);
   }, [categoriesList, productsList, categoryOptions]);
 
   // Calculate dynamic category counts (strictly real counts, no mock fallbacks)
@@ -187,8 +221,11 @@ const Shop = () => {
     const counts = {};
     const singles = productsList.filter(p => !p.type?.includes('combo') && !p.is_combo);
     singles.forEach(p => {
+      const prodCats = Array.isArray(p.categories) && p.categories.length > 0
+        ? p.categories
+        : (p.category ? [p.category] : []);
       dynamicCategories.forEach(cat => {
-        if (matchesCategoryAlias(p.category, cat)) {
+        if (prodCats.some(pCat => matchesCategoryAlias(pCat, cat))) {
           counts[cat] = (counts[cat] || 0) + 1;
         }
       });
@@ -261,18 +298,107 @@ const Shop = () => {
     return counts;
   }, [productsList]);
 
+  // Get list of subcategories for a given parent category
+  const getSubcategoriesForParent = useCallback((parentName) => {
+    if (!parentName) return [];
+    const parentObj = categoriesList.find(c => 
+      c.name?.toLowerCase().trim() === parentName.toLowerCase().trim() ||
+      matchesCategoryAlias(c.name, parentName)
+    );
+    const result = [];
+    const seen = new Set();
+
+    if (parentObj) {
+      categoriesList
+        .filter(c => Number(c.parent_id) === Number(parentObj.id) && c.is_active !== false)
+        .forEach(sub => {
+          const sName = sub.name.trim();
+          if (!seen.has(sName.toLowerCase())) {
+            seen.add(sName.toLowerCase());
+            result.push({ id: sub.id, name: sName });
+          }
+        });
+    }
+
+    // Also scan productsList for any subcategory under this category
+    productsList.forEach(p => {
+      if (matchesCategoryAlias(p.category, parentName) && p.subcategory && typeof p.subcategory === 'string' && p.subcategory.trim()) {
+        const sName = p.subcategory.trim();
+        if (!seen.has(sName.toLowerCase())) {
+          seen.add(sName.toLowerCase());
+          result.push({ id: `p-${sName}`, name: sName });
+        }
+      }
+    });
+
+    return result;
+  }, [categoriesList, productsList]);
+
+  // Dynamic counts for each subcategory
+  const subcategoryCounts = useMemo(() => {
+    const counts = {};
+    const singles = productsList.filter(p => !p.type?.includes('combo') && !p.is_combo);
+    singles.forEach(p => {
+      if (p.subcategory && typeof p.subcategory === 'string' && p.subcategory.trim()) {
+        const sub = p.subcategory.trim();
+        counts[sub] = (counts[sub] || 0) + 1;
+        counts[sub.toLowerCase()] = (counts[sub.toLowerCase()] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [productsList]);
+
   // Category Toggle Handler (Multi-Choice)
   const handleCategoryToggle = (cat) => {
     setCurrentPage(1);
     setSelectedCategories(prev => {
       const exists = prev.includes(cat);
       const next = exists ? prev.filter(c => c !== cat) : [...prev, cat];
+      const newParams = new URLSearchParams(searchParams);
       if (next.length === 0) {
-        searchParams.delete('category');
-        setSearchParams(searchParams);
+        newParams.delete('category');
       } else {
-        setSearchParams({ category: next.join(',') });
+        newParams.set('category', next.join(','));
       }
+
+      if (exists) {
+        // Remove child subcategories of this unchecked category
+        const subCats = getSubcategoriesForParent(cat);
+        const subNamesToRemove = new Set(subCats.map(s => s.name.toLowerCase()));
+        setSelectedSubcategories(currentSubs => {
+          const nextSubs = currentSubs.filter(s => !subNamesToRemove.has(s.toLowerCase()));
+          if (nextSubs.length === 0) {
+            newParams.delete('subcategory');
+          } else {
+            newParams.set('subcategory', nextSubs.join(','));
+          }
+          return nextSubs;
+        });
+      }
+
+      setSearchParams(newParams);
+      return next;
+    });
+  };
+
+  // Subcategory Toggle Handler
+  const handleSubcategoryToggle = (subName, parentName) => {
+    setCurrentPage(1);
+    setSelectedSubcategories(prev => {
+      const exists = prev.includes(subName);
+      const next = exists ? prev.filter(s => s !== subName) : [...prev, subName];
+      const newParams = new URLSearchParams(searchParams);
+      if (next.length === 0) {
+        newParams.delete('subcategory');
+      } else {
+        newParams.set('subcategory', next.join(','));
+      }
+      if (!exists && parentName && !selectedCategories.includes(parentName)) {
+        const nextCats = [...selectedCategories, parentName];
+        setSelectedCategories(nextCats);
+        newParams.set('category', nextCats.join(','));
+      }
+      setSearchParams(newParams);
       return next;
     });
   };
@@ -313,8 +439,18 @@ const Shop = () => {
       }
       // Multi-Category Check
       if (selectedCategories.length > 0) {
-        const matchedCat = selectedCategories.some(cat => matchesCategoryAlias(product.category, cat));
+        const prodCats = Array.isArray(product.categories) && product.categories.length > 0
+          ? product.categories
+          : (product.category ? [product.category] : []);
+        const matchedCat = selectedCategories.some(cat => prodCats.some(pCat => matchesCategoryAlias(pCat, cat)));
         if (!matchedCat) return false;
+      }
+      // Sub-Category Check
+      if (selectedSubcategories.length > 0) {
+        const matchedSub = selectedSubcategories.some(sub => 
+          product.subcategory && product.subcategory.toLowerCase().trim() === sub.toLowerCase().trim()
+        );
+        if (!matchedSub) return false;
       }
       // Multi-Size Check
       if (selectedSizes.length > 0) {
@@ -369,7 +505,7 @@ const Shop = () => {
       }
       return (Number(b.popularity || b.sales_count) || 0) - (Number(a.popularity || a.sales_count) || 0);
     });
-  }, [productsList, selectedCategories, selectedSizes, appliedMinPrice, appliedMaxPrice, sortBy, inStockOnly, searchParam]);
+  }, [productsList, selectedCategories, selectedSubcategories, selectedSizes, appliedMinPrice, appliedMaxPrice, sortBy, inStockOnly, searchParam]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
@@ -389,6 +525,7 @@ const Shop = () => {
 
   const clearAllFilters = () => {
     setSelectedCategories([]);
+    setSelectedSubcategories([]);
     setSelectedSizes([]);
     setMinPrice(priceBounds.min || 0);
     setMaxPrice(priceBounds.max || 10000);
@@ -400,7 +537,7 @@ const Shop = () => {
     setSearchParams({});
   };
 
-  const hasActiveFilters = selectedCategories.length > 0 || selectedSizes.length > 0 || appliedMaxPrice < 100000 || appliedMinPrice > 0 || inStockOnly || (searchParam && searchParam.trim() !== '');
+  const hasActiveFilters = selectedCategories.length > 0 || selectedSubcategories.length > 0 || selectedSizes.length > 0 || appliedMaxPrice < 100000 || appliedMinPrice > 0 || inStockOnly || (searchParam && searchParam.trim() !== '');
 
   const pageTitle = useMemo(() => {
     if (selectedCategories.length === 0) return 'Shop All Menswear';
@@ -483,18 +620,21 @@ const Shop = () => {
                 <div className="filter-group-block">
                   <div className="d-flex align-items-center justify-content-between mb-2">
                     <h4 className="filter-group-heading mb-0">CATEGORIES</h4>
-                    {selectedCategories.length > 0 && (
+                    {(selectedCategories.length > 0 || selectedSubcategories.length > 0) && (
                       <button 
                         type="button" 
                         className="clear-all-link"
                         onClick={() => {
                           setSelectedCategories([]);
-                          searchParams.delete('category');
-                          setSearchParams(searchParams);
+                          setSelectedSubcategories([]);
+                          const p = new URLSearchParams(searchParams);
+                          p.delete('category');
+                          p.delete('subcategory');
+                          setSearchParams(p);
                           setCurrentPage(1);
                         }}
                       >
-                        Reset ({selectedCategories.length})
+                        Reset ({selectedCategories.length + selectedSubcategories.length})
                       </button>
                     )}
                   </div>
@@ -502,16 +642,69 @@ const Shop = () => {
                     {dynamicCategories.map((cat, idx) => {
                       const count = categoryCounts[cat] || 0;
                       const isChecked = selectedCategories.includes(cat);
+                      const subCategories = getSubcategoriesForParent(cat);
+                      const isExpanded = expandedCategoryAccordions.includes(cat) || isChecked || subCategories.some(sub => selectedSubcategories.includes(sub.name));
+
                       return (
-                        <label key={idx} className="filter-check-item">
-                          <input 
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => handleCategoryToggle(cat)}
-                          />
-                          <span className="check-label-text">{cat}</span>
-                          <span className="count-muted">({count})</span>
-                        </label>
+                        <div key={idx} className="filter-cat-tree-node mb-1">
+                          <div className="d-flex align-items-center justify-content-between">
+                            <label className="filter-check-item flex-grow-1 mb-0 cursor-pointer">
+                              <input 
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  handleCategoryToggle(cat);
+                                  if (!isChecked && !expandedCategoryAccordions.includes(cat)) {
+                                    setExpandedCategoryAccordions(prev => [...prev, cat]);
+                                  }
+                                }}
+                              />
+                              <span className="check-label-text fw-medium">{cat}</span>
+                              <span className="count-muted">({count})</span>
+                            </label>
+                            {subCategories.length > 0 && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-link text-muted p-1 text-decoration-none d-flex align-items-center"
+                                style={{ fontSize: '13px', lineHeight: 1 }}
+                                onClick={(e) => toggleCategoryAccordion(cat, e)}
+                                title={isExpanded ? 'Collapse sub-categories' : 'Expand sub-categories'}
+                              >
+                                {isExpanded ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Accordion Sub-categories */}
+                          {subCategories.length > 0 && isExpanded && (
+                            <div className="filter-subcategories-indent ms-3 ps-2 border-start my-1 d-flex flex-column gap-1">
+                              {subCategories.map(sub => {
+                                const isSubChecked = selectedSubcategories.includes(sub.name);
+                                const subCount = subcategoryCounts[sub.name] || subcategoryCounts[sub.name.toLowerCase()] || 0;
+                                return (
+                                  <label key={sub.id || sub.name} className="filter-check-item filter-subcheck-item py-0 cursor-pointer">
+                                    <input 
+                                      type="checkbox"
+                                      checked={isSubChecked}
+                                      onChange={() => handleSubcategoryToggle(sub.name, cat)}
+                                    />
+                                    <span 
+                                      className="check-label-text" 
+                                      style={{ 
+                                        fontSize: '0.84rem', 
+                                        color: isSubChecked ? '#e50914' : '#4b5563',
+                                        fontWeight: isSubChecked ? '600' : 'normal'
+                                      }}
+                                    >
+                                      {sub.name}
+                                    </span>
+                                    <span className="count-muted" style={{ fontSize: '0.74rem' }}>({subCount})</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>

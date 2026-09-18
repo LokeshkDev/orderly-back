@@ -196,7 +196,23 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
   });
   const [dbCategories, setDbCategories] = useState([]);
 
-  // Trending & Best Sellers / New Arrivals Config State
+  // Category options for navigation builder (single products, combos, and subcategories)
+  const navigationCategoryOptions = React.useMemo(() => {
+    if (!Array.isArray(dbCategories)) return { productCategories: [], comboCategories: [] };
+    const productParents = dbCategories.filter(c => !c.parent_id && (c.type || 'product') === 'product');
+    const comboParents = dbCategories.filter(c => !c.parent_id && c.type === 'combo');
+
+    return {
+      productCategories: productParents.map(parent => ({
+        ...parent,
+        subcategories: dbCategories.filter(sub => Number(sub.parent_id) === Number(parent.id))
+      })),
+      comboCategories: comboParents.map(parent => ({
+        ...parent,
+        subcategories: dbCategories.filter(sub => Number(sub.parent_id) === Number(parent.id))
+      }))
+    };
+  }, [dbCategories]);
   const [bestSellersConfig, setBestSellersConfig] = useState({
     eyebrow: 'TRENDING NOW',
     heading: 'BEST SELLING & NEW ARRIVALS',
@@ -2771,6 +2787,65 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
         width="680px"
       >
         <form onSubmit={handleSaveHeaderNav}>
+          {/* QUICK CATEGORY SELECTOR FOR MAIN LINK */}
+          <div className="mb-3 p-2 bg-light border rounded">
+            <label className="admin-form-label mb-1 text-primary d-flex align-items-center gap-1 small fw-bold">
+              <FiTag /> Quick Select Category for Header Link (Auto-Fills Label & URL)
+            </label>
+            <select
+              className="admin-select"
+              defaultValue=""
+              onChange={(e) => {
+                if (!e.target.value) return;
+                try {
+                  const item = JSON.parse(e.target.value);
+                  setHeaderNavForm(prev => ({
+                    ...prev,
+                    label: item.label,
+                    url: item.url
+                  }));
+                } catch (err) {}
+                e.target.value = '';
+              }}
+            >
+              <option value="">-- Choose Category or Page to Auto-Populate --</option>
+              <optgroup label="🛍️ Apparel & Single Product Categories">
+                {navigationCategoryOptions.productCategories.map(parent => (
+                  <React.Fragment key={parent.id}>
+                    <option value={JSON.stringify({ label: parent.name.toUpperCase(), url: `/shop?category=${encodeURIComponent(parent.name)}` })}>
+                      {parent.name} (/shop?category={parent.name})
+                    </option>
+                    {parent.subcategories.map(sub => (
+                      <option key={sub.id} value={JSON.stringify({ label: sub.name.toUpperCase(), url: `/shop?category=${encodeURIComponent(parent.name)}&subcategory=${encodeURIComponent(sub.name)}` })}>
+                        &nbsp;&nbsp;↳ {sub.name} (Sub of {parent.name})
+                      </option>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </optgroup>
+              <optgroup label="🎁 Combo & Bundle Categories">
+                {navigationCategoryOptions.comboCategories.map(parent => (
+                  <React.Fragment key={parent.id}>
+                    <option value={JSON.stringify({ label: parent.name.toUpperCase(), url: `/combos?category=${encodeURIComponent(parent.slug || parent.name)}` })}>
+                      {parent.name} (/combos?category={parent.slug || parent.name})
+                    </option>
+                    {parent.subcategories.map(sub => (
+                      <option key={sub.id} value={JSON.stringify({ label: sub.name.toUpperCase(), url: `/combos?category=${encodeURIComponent(parent.slug || parent.name)}&subcategory=${encodeURIComponent(sub.slug || sub.name)}` })}>
+                        &nbsp;&nbsp;↳ {sub.name} (Sub of {parent.name})
+                      </option>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </optgroup>
+              <optgroup label="🌐 Special Main Pages">
+                <option value={JSON.stringify({ label: 'SHOP', url: '/shop' })}>All Products (/shop)</option>
+                <option value={JSON.stringify({ label: 'COMBOS', url: '/combos' })}>All Combos (/combos)</option>
+                <option value={JSON.stringify({ label: 'ABOUT US', url: '/about' })}>About Us (/about)</option>
+                <option value={JSON.stringify({ label: 'CONTACT', url: '/contact' })}>Contact (/contact)</option>
+              </optgroup>
+            </select>
+          </div>
+
           <div className="row g-3 mb-3">
             <div className="col-md-6">
               <label className="admin-form-label">Menu Item Label (e.g. SHOP, COMBOS, OVERSIZED TEES)</label>
@@ -2827,17 +2902,72 @@ const HomepageSettings = ({ defaultTab = 'sections' }) => {
 
           {/* DROPDOWN SUB-ITEMS SECTION IN MODAL */}
           <div className="p-3 bg-light border rounded mb-3">
-            <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+            <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom flex-wrap gap-2">
               <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2 small">
                 <FiCornerDownRight className="text-danger" /> Dropdown Sub-Items ({(headerNavForm.sub_items || []).length})
               </h6>
-              <button 
-                type="button" 
-                className="btn-admin-outline py-1 px-2 extra-small"
-                onClick={handleModalAddSubItem}
-              >
-                <FiPlus /> Add Sub-Item
-              </button>
+              <div className="d-flex align-items-center gap-2">
+                <select
+                  className="admin-select py-1 extra-small"
+                  style={{ maxWidth: '240px' }}
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    try {
+                      const item = JSON.parse(e.target.value);
+                      const newSub = {
+                        id: `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                        label: item.label,
+                        url: item.url,
+                        enabled: true
+                      };
+                      setHeaderNavForm(prev => ({
+                        ...prev,
+                        sub_items: [...(prev.sub_items || []), newSub]
+                      }));
+                    } catch (err) {}
+                    e.target.value = '';
+                  }}
+                >
+                  <option value="">+ Quick Add Category Sub-Link</option>
+                  <optgroup label="🛍️ Product Categories">
+                    {navigationCategoryOptions.productCategories.map(parent => (
+                      <React.Fragment key={parent.id}>
+                        <option value={JSON.stringify({ label: parent.name.toUpperCase(), url: `/shop?category=${encodeURIComponent(parent.name)}` })}>
+                          {parent.name}
+                        </option>
+                        {parent.subcategories.map(sub => (
+                          <option key={sub.id} value={JSON.stringify({ label: sub.name.toUpperCase(), url: `/shop?category=${encodeURIComponent(parent.name)}&subcategory=${encodeURIComponent(sub.name)}` })}>
+                            &nbsp;&nbsp;↳ {sub.name}
+                          </option>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </optgroup>
+                  <optgroup label="🎁 Combo Categories">
+                    {navigationCategoryOptions.comboCategories.map(parent => (
+                      <React.Fragment key={parent.id}>
+                        <option value={JSON.stringify({ label: parent.name.toUpperCase(), url: `/combos?category=${encodeURIComponent(parent.slug || parent.name)}` })}>
+                          {parent.name}
+                        </option>
+                        {parent.subcategories.map(sub => (
+                          <option key={sub.id} value={JSON.stringify({ label: sub.name.toUpperCase(), url: `/combos?category=${encodeURIComponent(parent.slug || parent.name)}&subcategory=${encodeURIComponent(sub.slug || sub.name)}` })}>
+                            &nbsp;&nbsp;↳ {sub.name}
+                          </option>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </optgroup>
+                </select>
+
+                <button 
+                  type="button" 
+                  className="btn-admin-outline py-1 px-2 extra-small flex-shrink-0"
+                  onClick={handleModalAddSubItem}
+                >
+                  <FiPlus /> Custom Sub-Item
+                </button>
+              </div>
             </div>
 
             <div className="d-flex flex-column gap-2" style={{ maxHeight: '220px', overflowY: 'auto' }}>

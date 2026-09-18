@@ -12,7 +12,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { getComboById, getCombos, getProducts } from '../services/api';
 import { ComboDetailSkeleton } from '../components/common/Skeleton';
 import { getVariantStock } from './ProductDetail';
-import { formatPrice, calculateDiscount, getComboSlug } from '../utils/formatters';
+import { formatPrice, calculateDiscount, getComboSlug, formatCamelCaseTitle } from '../utils/formatters';
 import './ComboDetail.css';
 
 /* ── Star rating renderer ──────────────────────────────────────── */
@@ -423,7 +423,7 @@ const ComboDetail = () => {
           <FiChevronRight />
           <Link to="/combos">Combos</Link>
           <FiChevronRight />
-          <span className="c-pdp-crumb-current">{combo.name}</span>
+          <span className="c-pdp-crumb-current">{formatCamelCaseTitle(combo.name)}</span>
         </nav>
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -522,7 +522,7 @@ const ComboDetail = () => {
           <div className="c-pdp-info-col">
             <div className="c-pdp-info-inner">
               {/* Title */}
-              <h1 className="c-pdp-title">{combo.name}</h1>
+              <h1 className="c-pdp-title">{formatCamelCaseTitle(combo.name)}</h1>
 
               
 

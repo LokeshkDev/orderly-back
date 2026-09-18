@@ -638,6 +638,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-transform: capitalize;
   transition: color 0.2s ease;
 }
 

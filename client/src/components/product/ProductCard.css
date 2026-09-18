@@ -208,6 +208,7 @@
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-transform: capitalize;
 }
 
 .product-name a {

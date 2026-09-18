@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiCheck, FiFolder, FiLayers, FiTag } from 'react-icons/fi';
+import { 
+  FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiCheck, 
+  FiFolder, FiLayers, FiTag, FiChevronDown, FiChevronRight 
+} from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 import FileUploadInput from '../../components/common/FileUploadInput';
@@ -36,6 +39,13 @@ const Categories = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [expandedParentIds, setExpandedParentIds] = useState([]);
+
+  const toggleExpandParent = (parentId) => {
+    setExpandedParentIds(prev => 
+      prev.includes(parentId) ? prev.filter(id => id !== parentId) : [...prev, parentId]
+    );
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -43,20 +53,38 @@ const Categories = () => {
     image: '',
     description: '',
     type: 'product',
+    parent_id: '',
     display_order: 1,
     is_active: true
   });
 
   const openAddModal = () => {
     setEditingCategory(null);
-    const tabCategories = categories.filter(c => (c.type || 'product') === activeTab);
+    const tabCategories = categories.filter(c => (c.type || 'product') === activeTab && !c.parent_id);
     setFormData({
       name: '',
       slug: '',
       image: '',
       description: '',
       type: activeTab,
+      parent_id: '',
       display_order: tabCategories.length + 1,
+      is_active: true
+    });
+    setIsModalOpen(true);
+  };
+
+  const openAddSubModal = (parentCat) => {
+    setEditingCategory(null);
+    const subCats = categories.filter(c => Number(c.parent_id) === Number(parentCat.id));
+    setFormData({
+      name: '',
+      slug: '',
+      image: parentCat.image || '',
+      description: '',
+      type: parentCat.type || activeTab,
+      parent_id: parentCat.id,
+      display_order: subCats.length + 1,
       is_active: true
     });
     setIsModalOpen(true);
@@ -70,6 +98,7 @@ const Categories = () => {
       image: cat.image || '',
       description: cat.description || '',
       type: cat.type || 'product',
+      parent_id: cat.parent_id || '',
       display_order: cat.display_order || 1,
       is_active: cat.is_active ?? true
     });
@@ -92,7 +121,8 @@ const Categories = () => {
     try {
       const payload = {
         ...formData,
-        type: formData.type || activeTab
+        type: formData.type || activeTab,
+        parent_id: formData.parent_id ? Number(formData.parent_id) : null
       };
 
       if (editingCategory) {
@@ -133,13 +163,35 @@ const Categories = () => {
     return cType === activeTab;
   });
 
-  const filteredCategories = currentTabCategories.filter(c =>
-    (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.slug || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const topLevelCategories = currentTabCategories.filter(c => !c.parent_id);
+  const getSubcategories = (parentId) => currentTabCategories.filter(c => Number(c.parent_id) === Number(parentId));
 
-  const productCatCount = categories.filter(c => (c.type || 'product') === 'product').length;
-  const comboCatCount = categories.filter(c => c.type === 'combo').length;
+  const filteredParents = topLevelCategories.filter(cat => {
+    const s = searchTerm.toLowerCase().trim();
+    if (!s) return true;
+    const selfMatch = (cat.name || '').toLowerCase().includes(s) || (cat.slug || '').toLowerCase().includes(s);
+    if (selfMatch) return true;
+    const subs = getSubcategories(cat.id);
+    return subs.some(sub => (sub.name || '').toLowerCase().includes(s) || (sub.slug || '').toLowerCase().includes(s));
+  });
+
+  const productTopCount = categories.filter(c => (c.type || 'product') === 'product' && !c.parent_id).length;
+  const comboTopCount = categories.filter(c => c.type === 'combo' && !c.parent_id).length;
+  const productSubCount = categories.filter(c => (c.type || 'product') === 'product' && c.parent_id).length;
+  const comboSubCount = categories.filter(c => c.type === 'combo' && c.parent_id).length;
+
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      const s = searchTerm.toLowerCase().trim();
+      const matchParentIds = topLevelCategories.filter(cat => {
+        const subs = getSubcategories(cat.id);
+        return subs.some(sub => (sub.name || '').toLowerCase().includes(s) || (sub.slug || '').toLowerCase().includes(s));
+      }).map(c => c.id);
+      if (matchParentIds.length > 0) {
+        setExpandedParentIds(prev => Array.from(new Set([...prev, ...matchParentIds])));
+      }
+    }
+  }, [searchTerm]);
 
   return (
     <div className="admin-categories-page p-4">
@@ -170,7 +222,7 @@ const Categories = () => {
         >
           <FiFolder />
           <span>Apparel Categories</span>
-          <span className="cat-tab-counter">{productCatCount}</span>
+          <span className="cat-tab-counter">{productTopCount} {productSubCount > 0 ? `(+${productSubCount} subs)` : ''}</span>
         </button>
 
         <button
@@ -180,7 +232,7 @@ const Categories = () => {
         >
           <FiLayers />
           <span>Combo Categories</span>
-          <span className="cat-tab-counter">{comboCatCount}</span>
+          <span className="cat-tab-counter">{comboTopCount} {comboSubCount > 0 ? `(+${comboSubCount} subs)` : ''}</span>
         </button>
       </div>
 
@@ -224,61 +276,194 @@ const Categories = () => {
                     <span className="spinner-border text-danger" role="status" /> Loading categories from database...
                   </td>
                 </tr>
-              ) : filteredCategories.length === 0 ? (
+              ) : filteredParents.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '40px' }} className="text-muted">
                     No {activeTab === 'product' ? 'apparel' : 'combo'} categories found. Click "{activeTab === 'product' ? 'Add Category' : 'Add Combo Category'}" to create one.
                   </td>
                 </tr>
-              ) : filteredCategories.map(cat => (
-                <tr key={cat.id}>
-                  <td>
-                    <img
-                      src={cat.image || '/logo.png'}
-                      alt={cat.name}
-                      style={{ width: '42px', height: '42px', objectFit: cat.image ? 'cover' : 'contain', background: '#050505', borderRadius: '6px' }}
-                      onError={(e) => { e.target.src = '/logo.png'; }}
-                    />
-                  </td>
-                  <td>
-                    <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>{cat.name}</strong>
-                  </td>
-                  <td><code className="cat-slug-badge">{cat.slug}</code></td>
-                  <td>
-                    {activeTab === 'product' ? (
-                      <span className="badge-count-pill">{cat.product_count || 0} items</span>
-                    ) : (
-                      <span className="text-muted extra-small text-truncate d-inline-block" style={{ maxWidth: '280px' }}>
-                        {cat.description || 'Curated combo sets collection'}
-                      </span>
+              ) : filteredParents.map(cat => {
+                const subCats = getSubcategories(cat.id);
+                const isExpanded = expandedParentIds.includes(cat.id);
+
+                return (
+                  <React.Fragment key={cat.id}>
+                    <tr style={{ background: isExpanded ? '#f8fafc' : undefined }}>
+                      <td>
+                        <img
+                          src={cat.image || '/logo.png'}
+                          alt={cat.name}
+                          style={{ width: '42px', height: '42px', objectFit: cat.image ? 'cover' : 'contain', background: '#050505', borderRadius: '6px' }}
+                          onError={(e) => { e.target.src = '/logo.png'; }}
+                        />
+                      </td>
+                      <td>
+                        <div>
+                          <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>{cat.name}</strong>
+                          <div className="d-flex align-items-center gap-1 mt-1">
+                            {subCats.length > 0 ? (
+                              <button 
+                                type="button" 
+                                className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 extra-small py-0 px-2 fw-bold"
+                                style={{ borderRadius: '12px', fontSize: '0.74rem' }}
+                                onClick={() => toggleExpandParent(cat.id)}
+                                title={isExpanded ? 'Collapse sub-categories' : 'Expand sub-categories'}
+                              >
+                                {isExpanded ? <FiChevronDown size={13} /> : <FiChevronRight size={13} />}
+                                {subCats.length} sub-categor{subCats.length > 1 ? 'ies' : 'y'}
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-light border text-secondary extra-small py-0 px-2"
+                              style={{ borderRadius: '12px', fontSize: '0.72rem' }}
+                              onClick={() => openAddSubModal(cat)}
+                              title={`Add subcategory under ${cat.name}`}
+                            >
+                              + Add Sub
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                      <td><code className="cat-slug-badge">{cat.slug}</code></td>
+                      <td>
+                        {activeTab === 'product' ? (
+                          <span className="badge-count-pill">{cat.product_count || 0} items</span>
+                        ) : (
+                          <span className="text-muted extra-small text-truncate d-inline-block" style={{ maxWidth: '280px' }}>
+                            {cat.description || 'Curated combo sets collection'}
+                          </span>
+                        )}
+                      </td>
+                      <td><strong>#{cat.display_order}</strong></td>
+                      <td>
+                        <span className={`status-badge-pill ${cat.is_active ? 'active' : 'draft'}`}>
+                          {cat.is_active ? 'Active' : 'Draft'}
+                        </span>
+                      </td>
+                      <td className="text-end">
+                        <div className="d-inline-flex gap-2">
+                          <button
+                            className="btn-admin-outline py-1 px-2"
+                            onClick={() => openEditModal(cat)}
+                            title="Edit Category"
+                          >
+                            <FiEdit /> Edit
+                          </button>
+                          <button
+                            className="btn-admin-outline py-1 px-2 text-danger"
+                            onClick={() => handleDelete(cat.id, cat.name)}
+                            title="Delete Category"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* Accordion Sub-Categories Nested Row */}
+                    {isExpanded && (
+                      <tr className="category-accordion-detail-row">
+                        <td colSpan={7} style={{ background: '#f8fafc', padding: '10px 16px 16px 56px', borderBottom: '2px solid #cbd5e1' }}>
+                          <div className="p-3 bg-white rounded border shadow-sm">
+                            <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                              <div className="fw-bold small text-dark d-flex align-items-center gap-2">
+                                <span className="text-danger fw-bold fs-6">↳</span> Sub-categories of <strong>{cat.name}</strong> ({subCats.length})
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 py-1 px-2 fw-bold"
+                                style={{ fontSize: '11px', borderRadius: '6px' }}
+                                onClick={() => openAddSubModal(cat)}
+                              >
+                                <FiPlus size={12} /> Add Sub-Category under {cat.name}
+                              </button>
+                            </div>
+
+                            {subCats.length === 0 ? (
+                              <div className="text-muted small py-2">
+                                No sub-categories created yet under {cat.name}. Click "+ Add Sub-Category" above to create one.
+                              </div>
+                            ) : (
+                              <div className="table-responsive">
+                                <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.84rem' }}>
+                                  <thead>
+                                    <tr className="text-muted" style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                      <th style={{ width: '45px' }}>MEDIA</th>
+                                      <th>SUB-CATEGORY NAME</th>
+                                      <th>SLUG</th>
+                                      <th>{activeTab === 'product' ? 'PRODUCTS' : 'DESCRIPTION'}</th>
+                                      <th>ORDER</th>
+                                      <th>STATUS</th>
+                                      <th className="text-end">ACTIONS</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {subCats.map(sub => (
+                                      <tr key={sub.id}>
+                                        <td>
+                                          <img
+                                            src={sub.image || cat.image || '/logo.png'}
+                                            alt={sub.name}
+                                            style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px', background: '#050505' }}
+                                            onError={(e) => { e.target.src = '/logo.png'; }}
+                                          />
+                                        </td>
+                                        <td>
+                                          <div className="d-flex align-items-center gap-1">
+                                            <span className="text-danger fw-bold">↳</span>
+                                            <strong style={{ color: '#1e293b' }}>{sub.name}</strong>
+                                          </div>
+                                        </td>
+                                        <td><code className="cat-slug-badge">{sub.slug}</code></td>
+                                        <td>
+                                          {activeTab === 'product' ? (
+                                            <span className="badge-count-pill">{sub.product_count || 0} items</span>
+                                          ) : (
+                                            <span className="text-muted extra-small text-truncate d-inline-block" style={{ maxWidth: '200px' }}>
+                                              {sub.description || `Sub-category of ${cat.name}`}
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td>#{sub.display_order}</td>
+                                        <td>
+                                          <span className={`status-badge-pill ${sub.is_active ? 'active' : 'draft'}`}>
+                                            {sub.is_active ? 'Active' : 'Draft'}
+                                          </span>
+                                        </td>
+                                        <td className="text-end">
+                                          <div className="d-inline-flex gap-2">
+                                            <button
+                                              className="btn-admin-outline py-1 px-2"
+                                              style={{ fontSize: '11px' }}
+                                              onClick={() => openEditModal(sub)}
+                                              title="Edit Sub-Category"
+                                            >
+                                              <FiEdit size={12} /> Edit
+                                            </button>
+                                            <button
+                                              className="btn-admin-outline py-1 px-2 text-danger"
+                                              style={{ fontSize: '11px' }}
+                                              onClick={() => handleDelete(sub.id, sub.name)}
+                                              title="Delete Sub-Category"
+                                            >
+                                              <FiTrash2 size={12} />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td><strong>#{cat.display_order}</strong></td>
-                  <td>
-                    <span className={`status-badge-pill ${cat.is_active ? 'active' : 'draft'}`}>
-                      {cat.is_active ? 'Active' : 'Draft'}
-                    </span>
-                  </td>
-                  <td className="text-end">
-                    <div className="d-inline-flex gap-2">
-                      <button
-                        className="btn-admin-outline py-1 px-2"
-                        onClick={() => openEditModal(cat)}
-                        title="Edit Category"
-                      >
-                        <FiEdit /> Edit
-                      </button>
-                      <button
-                        className="btn-admin-outline py-1 px-2 text-danger"
-                        onClick={() => handleDelete(cat.id, cat.name)}
-                        title="Delete Category"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -321,6 +506,27 @@ const Categories = () => {
                       Combo Category (Curated Sets)
                     </label>
                   </div>
+                </div>
+
+                <div className="col-12">
+                  <label className="admin-form-label">PARENT CATEGORY (Optional)</label>
+                  <select
+                    className="admin-input"
+                    value={formData.parent_id || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, parent_id: e.target.value }))}
+                  >
+                    <option value="">None (Top-Level Main Category)</option>
+                    {categories
+                      .filter(c => (c.type || 'product') === (formData.type || activeTab) && !c.parent_id && (!editingCategory || c.id !== editingCategory.id))
+                      .map(parent => (
+                        <option key={parent.id} value={parent.id}>
+                          Sub-category of: {parent.name}
+                        </option>
+                      ))}
+                  </select>
+                  <span className="text-muted extra-small">
+                    Select a parent category to create a sub-category, or leave as "None" for a top-level category.
+                  </span>
                 </div>
 
                 <div className="col-12">

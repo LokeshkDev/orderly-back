@@ -109,3 +109,25 @@ export const getComboSlug = (combo) => {
   }
   return combo.slug || combo.id || '';
 };
+
+/**
+ * Format product or combo name to Title / CamelCase
+ * E.g. "FORMAL STRIPED SHIRT" -> "Formal Striped Shirt"
+ * "2-piece linen suit" -> "2-Piece Linen Suit"
+ */
+export const formatCamelCaseTitle = (text) => {
+  if (!text) return '';
+  return String(text)
+    .trim()
+    .split(/\s+/)
+    .map(word => {
+      return word
+        .split('-')
+        .map(subWord => {
+          if (!subWord) return '';
+          return subWord.charAt(0).toUpperCase() + subWord.slice(1).toLowerCase();
+        })
+        .join('-');
+    })
+    .join(' ');
+};

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/common/SEO';
 import { useCart } from '../context/CartContext';
 import { createOrder, createRazorpayOrder, getPaymentConfig, getSettings, verifyRazorpayPayment, reportRazorpayFailure, getActiveCoupons } from '../services/api';
-import { formatPrice } from '../utils/formatters';
+import { formatPrice, formatCamelCaseTitle } from '../utils/formatters';
 import { 
   FiLock, FiCheckCircle, FiCreditCard, FiTruck, FiHome, FiBriefcase, FiMapPin, FiShield, FiAlertCircle, FiTag, FiCopy, FiCheck
 } from 'react-icons/fi';
@@ -592,7 +592,7 @@ const Checkout = () => {
                         <img src={item.images?.[0] || item.image} alt={item.name} className="summary-item-img" />
                         <div className="summary-item-info">
                           <div className="d-flex align-items-center flex-wrap gap-1 mb-1">
-                            <h6 className="text-white fw-bold mb-0">{item.name}</h6>
+                            <h6 className="text-white fw-bold mb-0">{formatCamelCaseTitle(item.name)}</h6>
                             {item.isPairOffer && (
                               <span className="badge bg-danger text-white extra-small">
                                 PAIR PRODUCT {item.pairOffer?.discount_percent ? `(${item.pairOffer.discount_percent}% OFF)` : ''}

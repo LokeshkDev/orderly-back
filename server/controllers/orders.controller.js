@@ -26,7 +26,11 @@ export const ensureOrderItemColumnsExist = async () => {
     "ALTER TABLE `OrderItems` ADD COLUMN `sku` VARCHAR(255) NULL;",
     "ALTER TABLE `orderitems` ADD COLUMN `sku` VARCHAR(255) NULL;",
     "ALTER TABLE `OrderItems` ADD COLUMN `image` VARCHAR(500) NULL;",
-    "ALTER TABLE `orderitems` ADD COLUMN `image` VARCHAR(500) NULL;"
+    "ALTER TABLE `orderitems` ADD COLUMN `image` VARCHAR(500) NULL;",
+    "ALTER TABLE `OrderItems` ADD COLUMN `is_combo` TINYINT(1) DEFAULT 0;",
+    "ALTER TABLE `orderitems` ADD COLUMN `is_combo` TINYINT(1) DEFAULT 0;",
+    "ALTER TABLE `OrderItems` ADD COLUMN `selected_pieces` JSON NULL;",
+    "ALTER TABLE `orderitems` ADD COLUMN `selected_pieces` JSON NULL;"
   ];
   for (const q of queries) {
     try {
@@ -36,11 +40,89 @@ export const ensureOrderItemColumnsExist = async () => {
   orderItemColumnsEnsured = true;
 };
 
+const resolvePieceSize = (ci, fallbackSize, targetProd) => {
+  let availableSizes = Array.isArray(ci.sizes) && ci.sizes.length > 0 ? ci.sizes : null;
+  if (!availableSizes && targetProd) {
+    let pSizes = targetProd.sizes;
+    if (typeof pSizes === 'string') {
+      try { pSizes = JSON.parse(pSizes); } catch (e) { pSizes = []; }
+    }
+    if (Array.isArray(pSizes) && pSizes.length > 0) availableSizes = pSizes;
+  }
+  
+  const pieceName = (ci.name || ci.pieceLabel || '').toLowerCase();
+  const isPant = /trouser|pant|jean|slick|bottom/i.test(pieceName);
+  const isSuitOrBlazer = /blazer|suit|coat/i.test(pieceName);
+
+  if (!availableSizes || availableSizes.length === 0) {
+    if (isPant) {
+      availableSizes = ['28', '30', '32', '34', '36', '38'];
+    } else if (isSuitOrBlazer) {
+      availableSizes = ['38', '40', '42', '44'];
+    } else {
+      availableSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+    }
+  }
+
+  const cleanFallback = String(fallbackSize || 'M').trim();
+
+  // 1. Direct match
+  if (availableSizes.some(s => String(s).toLowerCase().trim() === cleanFallback.toLowerCase())) {
+    return cleanFallback;
+  }
+
+  // 2. Numeric waist size resolution for pants/jeans
+  const isNumericList = availableSizes.some(s => /^\d+$/.test(String(s).trim()));
+  if (isNumericList || isPant) {
+    const sizeMap = {
+      'xs': '28',
+      's': '30',
+      'm': '32',
+      'l': '34',
+      'xl': '36',
+      'xxl': '38',
+      '2xl': '38',
+      '3xl': '40'
+    };
+    const mapped = sizeMap[cleanFallback.toLowerCase()];
+    if (mapped && availableSizes.some(s => String(s).trim() === mapped)) {
+      return mapped;
+    }
+    // Match closest numeric
+    const targetNum = Number(mapped || 32);
+    const closest = availableSizes.find(s => Number(s) === targetNum) || 
+                    availableSizes.find(s => Number(s) === 32) || 
+                    availableSizes.find(s => Number(s) === 30) || 
+                    availableSizes[0];
+    return String(closest || '32');
+  }
+
+  // 3. Suit / Blazer chest sizes
+  if (isSuitOrBlazer) {
+    const suitMap = {
+      'xs': '36',
+      's': '38',
+      'm': '40',
+      'l': '42',
+      'xl': '44',
+      'xxl': '46',
+      '2xl': '46'
+    };
+    const mapped = suitMap[cleanFallback.toLowerCase()];
+    if (mapped && availableSizes.some(s => String(s).includes(mapped))) {
+      return mapped;
+    }
+    return String(availableSizes[0] || '40');
+  }
+
+  return String(availableSizes[0] || cleanFallback || 'M');
+};
+
 export const enrichOrdersWithCatalog = async (orders) => {
   if (!orders || !orders.length) return orders;
   try {
     const products = await Product.findAll({
-      attributes: ['id', 'name', 'sku', 'images', 'colors'],
+      attributes: ['id', 'name', 'sku', 'images', 'colors', 'sizes'],
       raw: true
     });
     const combos = await Combo.findAll({
@@ -105,12 +187,46 @@ export const enrichOrdersWithCatalog = async (orders) => {
           }
         }
 
+        // For existing combo orders missing selectedPieces, reconstruct from combo catalog
+        let reconstructedPieces = item.selectedPieces || item.selected_pieces || null;
+        if (isComboItem && (!reconstructedPieces || (Array.isArray(reconstructedPieces) && reconstructedPieces.length === 0))) {
+          const matchedCombo = combos.find(c => {
+            if (cId && String(c.id) === cId) return true;
+            if (pId && (String(c.id) === pId || pId.startsWith(String(c.id)))) return true;
+            const cName = normalizeText(c.name);
+            return cName && (cName === normName || cName.includes(normName) || normName.includes(cName));
+          });
+          if (matchedCombo) {
+            let comboItems = matchedCombo.items;
+            if (typeof comboItems === 'string') {
+              try { comboItems = JSON.parse(comboItems); } catch (e) { comboItems = []; }
+            }
+            if (Array.isArray(comboItems) && comboItems.length > 0) {
+              const fallbackSize = item.selectedSize || item.size || 'M';
+              const fallbackColor = item.selectedColor || item.color || 'Standard';
+              reconstructedPieces = comboItems.map((ci, idx) => {
+                const targetProd = products.find(p => String(p.id) === String(ci.productId) || (p.name && ci.name && normalizeText(p.name) === normalizeText(ci.name)));
+                const resolvedSize = resolvePieceSize(ci, fallbackSize, targetProd);
+                return {
+                  pieceIndex: ci.pieceIndex ?? idx,
+                  pieceLabel: ci.pieceLabel || `Piece ${idx + 1}`,
+                  name: ci.name || ci.pieceLabel || `Piece ${idx + 1}`,
+                  size: resolvedSize,
+                  color: fallbackColor
+                };
+              });
+            }
+          }
+        }
+
         return {
           ...item,
           isCombo: isComboItem,
           is_combo: isComboItem,
           comboId: isComboItem ? resolvedComboId : null,
           combo_id: isComboItem ? resolvedComboId : null,
+          selectedPieces: reconstructedPieces || [],
+          selected_pieces: reconstructedPieces || null,
           image: resolvedImage || directImg || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop',
           sku: isComboItem ? null : (resolvedSku || item.sku || null),
           product_sku: isComboItem ? null : (resolvedSku || item.product_sku || item.sku || null)
@@ -181,6 +297,30 @@ const getParsedSettings = async () => {
 const normalizeOrder = (o) => {
   const row = o && typeof o.toJSON === 'function' ? o.toJSON() : (o || {});
   const orderItems = row.items || row.OrderItems || [];
+
+  let parsedShippingAddress = row.shippingAddress || row.shipping_address || null;
+  if (typeof parsedShippingAddress === 'string') {
+    try { parsedShippingAddress = JSON.parse(parsedShippingAddress); } catch (e) {
+      parsedShippingAddress = { address: parsedShippingAddress };
+    }
+  }
+  let parsedBillingAddress = row.billingAddress || row.billing_address || null;
+  if (typeof parsedBillingAddress === 'string') {
+    try { parsedBillingAddress = JSON.parse(parsedBillingAddress); } catch (e) {
+      parsedBillingAddress = { address: parsedBillingAddress };
+    }
+  }
+
+  // Ensure pincode is normalized and available on parsedShippingAddress
+  if (parsedShippingAddress && typeof parsedShippingAddress === 'object') {
+    const rawPin = parsedShippingAddress.pincode || parsedShippingAddress.pin || parsedShippingAddress.postal_code || parsedShippingAddress.postalCode || parsedShippingAddress.zip || parsedShippingAddress.zipCode || '';
+    if (rawPin) parsedShippingAddress.pincode = String(rawPin).trim();
+  }
+
+  const customerFullName = (parsedShippingAddress?.fullName || (parsedShippingAddress?.firstName ? `${parsedShippingAddress.firstName} ${parsedShippingAddress.lastName || ''}`.trim() : '') || row.customer_name || row.Customer?.name || 'Customer').trim();
+  const customerEmail = parsedShippingAddress?.email || row.email || row.Customer?.email || '';
+  const customerPhone = parsedShippingAddress?.phone || row.phone || row.Customer?.phone || '';
+
   return {
     ...row,
     id: row.id,
@@ -207,13 +347,14 @@ const normalizeOrder = (o) => {
       name: item.name || item.product_name || item.productName || 'Product',
       productId: item.productId || item.product_id || null,
       product_id: item.productId || item.product_id || null,
-      isCombo: Boolean(item.isCombo),
+      isCombo: Boolean(item.isCombo || item.is_combo),
       comboId: item.comboId || item.combo_id || null,
       image: item.image || item.primaryImage || item.coverImage || item.cover_image || item.product_image || item.imageUrl || item.Product?.primaryImage || item.Product?.image || item.Product?.images?.[0] || (Array.isArray(item.images) ? item.images[0] : null) || null,
       selectedSize: item.selectedSize || item.size || null,
       size: item.selectedSize || item.size || null,
       selectedColor: item.selectedColor || item.color || null,
       color: item.selectedColor || item.color || null,
+      selectedPieces: item.selectedPieces || item.selected_pieces || [],
       quantity: Number(item.quantity || 1),
       price: Number(item.price ?? item.unit_price ?? item.amount ?? 0),
       unit_price: Number(item.unit_price ?? item.price ?? item.amount ?? 0),
@@ -221,17 +362,18 @@ const normalizeOrder = (o) => {
       pairOffer: item.pairOffer || null,
       isPairOffer: Boolean(item.isPairOffer || item.pairOffer?.enabled)
     })) : [],
-    shippingAddress: row.shippingAddress || row.shipping_address || null,
-    shipping_address: row.shippingAddress || row.shipping_address || null,
-    billingAddress: row.billingAddress || row.billing_address || null,
+    shippingAddress: parsedShippingAddress,
+    shipping_address: parsedShippingAddress,
+    billingAddress: parsedBillingAddress,
+    billing_address: parsedBillingAddress,
     pricingBreakdown: row.pricingBreakdown || row.pricing_breakdown || null,
     paymentAmount: row.paymentAmount || row.payment_amount || null,
     codAdvancePercentage: row.codAdvancePercentage || row.cod_advance_percentage || null,
     codAdvanceAmount: row.codAdvanceAmount || row.cod_advance_amount || null,
     codDueAmount: row.codDueAmount || row.cod_due_amount || null,
-    email: row.email || row.shipping_address?.email || row.shippingAddress?.email || row.Customer?.email || '',
-    phone: row.phone || row.shipping_address?.phone || row.shippingAddress?.phone || row.Customer?.phone || '',
-    customer_name: row.customer_name || row.Customer?.name || row.shippingAddress?.fullName || row.shipping_address?.fullName || 'Guest Customer'
+    email: customerEmail,
+    phone: customerPhone,
+    customer_name: customerFullName
   };
 };
 
@@ -283,6 +425,7 @@ export const normalizeOrderPayload = async (payload = {}) => {
     product_sku: item.product_sku || item.sku || null,
     size: item.selectedSize || item.size || null,
     color: item.selectedColor || item.color || null,
+    selected_pieces: Array.isArray(item.selectedPieces) && item.selectedPieces.length > 0 ? item.selectedPieces : null,
     quantity: Math.max(1, Number(item.quantity || 1)),
     unit_price: roundCurrency(item.unit_price ?? item.price ?? 0),
     original_price: roundCurrency(item.original_price ?? item.originalPrice ?? item.price ?? 0),
@@ -450,6 +593,8 @@ export const createOrder = async (req, res) => {
           image: item.image ? String(item.image) : null,
           size: item.size ? String(item.size) : null,
           color: item.color ? String(item.color) : null,
+          is_combo: Boolean(item.is_combo),
+          selected_pieces: item.selected_pieces || null,
           quantity: Math.max(1, Number(item.quantity) || 1),
           unit_price: Number(item.unit_price ?? item.price ?? 0)
         }));
@@ -473,7 +618,9 @@ export const createOrder = async (req, res) => {
             price: item.unit_price,
             quantity: item.quantity,
             productId: item.product_id,
-            product_id: item.product_id
+            product_id: item.product_id,
+            isCombo: Boolean(item.is_combo),
+            selectedPieces: item.selected_pieces || []
           }))
         })
       : {

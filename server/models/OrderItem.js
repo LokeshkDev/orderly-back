@@ -46,6 +46,16 @@ const OrderItem = sequelize.define('OrderItem', {
   image: {
     type: DataTypes.STRING(500),
     allowNull: true,
+  },
+  is_combo: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: false,
+  },
+  selected_pieces: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: null,
   }
 }, {
   timestamps: false,

@@ -239,10 +239,23 @@ const OrderDetail = () => {
     );
   }
 
-  const customerName = order.Customer?.name || order.customer || 'Guest Customer';
-  const customerEmail = order.Customer?.email || order.shipping_address?.email || 'admin@orderly.com';
-  const customerPhone = order.Customer?.phone || order.shipping_address?.phone || '+91 98765 43210';
-  const address = order.shipping_address || {};
+  const decodeAddressText = (str) => {
+    if (!str || typeof str !== 'string') return str || '';
+    return str.replace(/&#x2F;/g, '/').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+  };
+
+  const rawAddress = order.shipping_address || order.shippingAddress || {};
+  const address = typeof rawAddress === 'string' ? (() => { try { return JSON.parse(rawAddress); } catch (e) { return { address: rawAddress }; } })() : (rawAddress || {});
+
+  const customerName = decodeAddressText(address.fullName || (address.firstName ? `${address.firstName} ${address.lastName || ''}`.trim() : '') || order.customer_name || order.Customer?.name || order.customer || 'Customer');
+  const customerEmail = address.email || order.email || order.Customer?.email || order.shipping_address?.email || order.shippingAddress?.email || 'N/A';
+  const customerPhone = address.phone || order.phone || order.Customer?.phone || order.shipping_address?.phone || order.shippingAddress?.phone || 'N/A';
+  
+  const addressLine = decodeAddressText(address.address || address.street || address.address1 || address.line1 || '');
+  const apartment = decodeAddressText(address.apartment || address.suite || address.line2 || '');
+  const city = decodeAddressText(address.city || address.district || address.town || '');
+  const state = decodeAddressText(address.state || address.province || address.region || '');
+  const pincode = String(address.pincode || address.pin || address.postal_code || address.postalCode || address.zip || address.zipCode || '').trim();
   const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Recent Order';
 
   // Sample items breakdown if DB row missing detailed items array
@@ -304,9 +317,20 @@ const OrderDetail = () => {
 
             <div className="border-top pt-3">
               <h6 className="admin-form-label mb-2"><FiMapPin /> Delivery Address:</h6>
-              <p className="text-dark small mb-1 fw-bold">{address.firstName ? `${address.firstName} ${address.lastName}` : customerName}</p>
-              <p className="text-muted small mb-1">{address.address || 'MG Road, Koramangala Sector 4'}</p>
-              <p className="text-muted small mb-0">{address.city || 'Bengaluru'}, {address.state || 'Karnataka'} - {address.pincode || '560034'}</p>
+              <p className="text-dark small mb-1 fw-bold">{customerName}</p>
+              {addressLine ? (
+                <p className="text-muted small mb-1">
+                  {addressLine}{apartment ? `, ${apartment}` : ''}
+                </p>
+              ) : (
+                <p className="text-muted small mb-1 fst-italic">No street address provided</p>
+              )}
+              <p className="text-muted small mb-0">
+                {[city, state].filter(Boolean).join(', ')}{pincode ? ` - ${pincode}` : ''}
+              </p>
+              {address.addressType && (
+                <span className="badge bg-light text-secondary border extra-small mt-2 d-inline-block">{address.addressType}</span>
+              )}
             </div>
 
             <div className="border-top pt-3 mt-3 d-flex align-items-center justify-content-between">
@@ -448,9 +472,23 @@ const OrderDetail = () => {
                       </div>
                     </td>
                     <td>
-                      <span className="small text-muted">
-                        Color: <strong className="text-dark">{item.selectedColor || item.color || 'Standard'}</strong> | Size: <strong className="text-dark">{item.selectedSize || item.size || 'M'}</strong>
-                      </span>
+                      {Array.isArray(item.selectedPieces) && item.selectedPieces.length > 0 ? (
+                        <div className="small">
+                          {item.selectedPieces.map((piece, pIdx) => (
+                            <div key={pIdx} className="text-muted mb-1">
+                              <strong className="text-dark">{piece.name || piece.pieceLabel || `Piece ${pIdx + 1}`}:</strong>{' '}
+                              Size <strong className="text-dark">{piece.size || 'M'}</strong>
+                              {piece.color && piece.color !== 'Standard' && (
+                                <> | {piece.color}</>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="small text-muted">
+                          Color: <strong className="text-dark">{item.selectedColor || item.color || 'Standard'}</strong> | Size: <strong className="text-dark">{item.selectedSize || item.size || 'M'}</strong>
+                        </span>
+                      )}
                     </td>
                     <td>₹{item.price || order.total}</td>
                     <td><strong className="text-dark">{item.quantity || 1}</strong></td>

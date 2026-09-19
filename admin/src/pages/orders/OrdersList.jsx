@@ -833,19 +833,50 @@ const OrdersList = () => {
 
             <div className="row g-4">
               {/* Left Column: Customer & Items */}
-              <div className="col-md-7">
-                <div className="admin-info-box mb-4">
-                  <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
-                    <FiUser className="text-danger" /> Customer & Shipping Delivery Info
-                  </h6>
-                  <strong className="text-dark fs-6 d-block mb-1">{selectedOrder.customer_name || selectedOrder.Customer?.name || 'Customer'}</strong>
-                  <p className="text-muted small mb-2">{selectedOrder.shippingAddress?.address || selectedOrder.address || 'Standard Shipping Address on File'}</p>
-                  
-                  <div className="d-flex flex-column gap-1 extra-small text-muted mt-2 pt-2 border-top">
-                    <span><FiMail className="me-1 text-danger" /> Email: <strong className="text-dark">{selectedOrder.email || selectedOrder.shippingAddress?.email || 'customer@orderly.com'}</strong></span>
-                    <span><FiPhone className="me-1 text-danger" /> Phone: <strong className="text-dark">{selectedOrder.phone || selectedOrder.shippingAddress?.phone || '+91 98765 43210'}</strong></span>
-                  </div>
-                </div>
+              <div className="col-lg-7 col-xl-8">
+                {(() => {
+                  const decodeText = (str) => {
+                    if (!str || typeof str !== 'string') return str || '';
+                    return str.replace(/&#x2F;/g, '/').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+                  };
+                  const rawAddr = selectedOrder.shippingAddress || selectedOrder.shipping_address || {};
+                  const addr = typeof rawAddr === 'string' ? (() => { try { return JSON.parse(rawAddr); } catch (e) { return { address: rawAddr }; } })() : (rawAddr || {});
+                  const custName = decodeText(addr.fullName || (addr.firstName ? `${addr.firstName} ${addr.lastName || ''}`.trim() : '') || selectedOrder.customer_name || selectedOrder.Customer?.name || 'Customer');
+                  const street = decodeText(addr.address || addr.street || selectedOrder.address || '');
+                  const apt = decodeText(addr.apartment || addr.suite || '');
+                  const city = decodeText(addr.city || '');
+                  const state = decodeText(addr.state || '');
+                  const pin = String(addr.pincode || addr.pin || addr.postal_code || addr.postalCode || addr.zip || addr.zipCode || '').trim();
+                  const email = addr.email || selectedOrder.email || selectedOrder.Customer?.email || 'N/A';
+                  const phone = addr.phone || selectedOrder.phone || selectedOrder.Customer?.phone || 'N/A';
+
+                  return (
+                    <div className="admin-info-box mb-4">
+                      <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                        <FiUser className="text-danger" /> Customer & Shipping Delivery Info
+                      </h6>
+                      <strong className="text-dark fs-6 d-block mb-1">{custName}</strong>
+                      {street ? (
+                        <p className="text-muted small mb-1">{street}{apt ? `, ${apt}` : ''}</p>
+                      ) : (
+                        <p className="text-muted small mb-1 fst-italic">Standard Shipping Address on File</p>
+                      )}
+                      {(city || state || pin) && (
+                        <p className="text-muted small mb-2">
+                          {[city, state].filter(Boolean).join(', ')}{pin ? ` - ${pin}` : ''}
+                        </p>
+                      )}
+                      {addr.addressType && (
+                        <span className="badge bg-light text-secondary border extra-small mb-2 d-inline-block">{addr.addressType}</span>
+                      )}
+                      
+                      <div className="d-flex flex-column gap-1 extra-small text-muted mt-2 pt-2 border-top">
+                        <span><FiMail className="me-1 text-danger" /> Email: <strong className="text-dark">{email}</strong></span>
+                        <span><FiPhone className="me-1 text-danger" /> Phone: <strong className="text-dark">{phone}</strong></span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
                   <FiPackage className="text-danger" /> Ordered Apparel Items
@@ -895,9 +926,21 @@ const OrdersList = () => {
                                         {itemIdentifier.label}: {itemIdentifier.value}
                                       </span>
                                     )}
-                                    <span className="text-muted extra-small">
-                                      Size: {item.selectedSize || item.size || 'L'} {item.selectedColor || item.color ? `| ${item.selectedColor || item.color}` : ''}
-                                    </span>
+                                    {Array.isArray(item.selectedPieces) && item.selectedPieces.length > 0 ? (
+                                      <div className="extra-small text-muted mt-1">
+                                        {item.selectedPieces.map((piece, pIdx) => (
+                                          <div key={pIdx}>
+                                            <strong className="text-dark">{piece.name || piece.pieceLabel || `Piece ${pIdx + 1}`}:</strong>{' '}
+                                            Size {piece.size || 'M'}
+                                            {piece.color && piece.color !== 'Standard' ? ` | ${piece.color}` : ''}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted extra-small">
+                                        Size: {item.selectedSize || item.size || 'L'} {item.selectedColor || item.color ? `| ${item.selectedColor || item.color}` : ''}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -914,7 +957,7 @@ const OrdersList = () => {
               </div>
 
               {/* Right Column: Update Fulfillment & Payment Form */}
-              <div className="col-md-5">
+              <div className="col-lg-5 col-xl-4">
                 <form onSubmit={handleUpdateStatus} className="admin-info-box h-100 d-flex flex-column justify-content-between">
                   <div>
                     <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">

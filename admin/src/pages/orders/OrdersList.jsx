@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiShoppingCart, FiSearch, FiEye, FiClock, FiCheckCircle, FiTruck, FiDollarSign, FiUser, FiCalendar, FiCreditCard, FiX, FiPrinter, FiSave, FiPackage, FiMapPin, FiMail, FiPlus, FiTrash2, FiEdit, FiPhone, FiZoomIn } from 'react-icons/fi';
+import { FiShoppingCart, FiSearch, FiEye, FiClock, FiCheckCircle, FiTruck, FiDollarSign, FiUser, FiCalendar, FiCreditCard, FiX, FiPrinter, FiSave, FiPackage, FiMapPin, FiMail, FiPlus, FiTrash2, FiEdit, FiPhone, FiZoomIn, FiRotateCcw, FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { 
   DEFAULT_COURIER_SETTINGS, 
@@ -156,6 +156,14 @@ const OrdersList = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [paymentFilter, setPaymentFilter] = useState('All');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('All');
+  const [dateFilter, setDateFilter] = useState('All');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // View Modal State
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -234,14 +242,27 @@ const OrdersList = () => {
         }
       } catch (err) {}
 
-      // Combine with localStorage orders
+      // Combine with localStorage orders only for valid offline-created orders
       try {
         const saved = localStorage.getItem('orderly_orders');
         if (saved) {
           const localList = JSON.parse(saved);
           if (Array.isArray(localList)) {
+            const fetchedIds = new Set(fetchedOrders.map(o => String(o.id)));
+            const fetchedNums = new Set(fetchedOrders.map(o => String(o.order_number).toLowerCase()));
+
+            // Filter out any phantom or empty orders that might have been stored
+            const validLocalOrders = localList.filter(o => {
+              if (!o) return false;
+              const oId = String(o.id || '');
+              const oNum = String(o.order_number || '').toLowerCase();
+              if (fetchedIds.has(oId) || fetchedNums.has(oNum)) return false;
+              if (!Array.isArray(o.items) || o.items.length === 0) return false;
+              return true;
+            });
+
             const mergedMap = new Map();
-            [...fetchedOrders, ...localList].forEach(o => {
+            [...validLocalOrders, ...fetchedOrders].forEach(o => {
               const key = o.order_number || o.id;
               if (key) mergedMap.set(String(key), o);
             });
@@ -249,6 +270,13 @@ const OrdersList = () => {
           }
         }
       } catch (e) {}
+
+      // Keep localStorage in sync with cleaned fetched orders
+      if (fetchedOrders.length > 0) {
+        try {
+          localStorage.setItem('orderly_orders', JSON.stringify(fetchedOrders));
+        } catch (e) {}
+      }
 
       setOrders(fetchedOrders);
     } catch (err) {
@@ -318,16 +346,9 @@ const OrdersList = () => {
           tracking_number: trackingNumber,
           tracking_url: dynamicTrackingUrl
         });
-        if (selectedOrder.order_number && selectedOrder.order_number !== targetKey) {
-          await api.patch(`/orders/${selectedOrder.order_number}/status`, { 
-            status: formattedStatus,
-            payment_status: editingPaymentStatus,
-            courier_name: courierName,
-            tracking_number: trackingNumber,
-            tracking_url: dynamicTrackingUrl
-          });
-        }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Status patch API note:', e.message);
+      }
 
       const updatedOrders = orders.map(o => 
         (String(o.id) === String(selectedOrder.id) || o.order_number === selectedOrder.order_number)
@@ -544,23 +565,122 @@ const OrdersList = () => {
     }
   };
 
-  // Filter orders by search & dropdowns
+  const isFilterActive = Boolean(
+    searchTerm.trim() || 
+    statusFilter !== 'All' || 
+    paymentFilter !== 'All' || 
+    paymentStatusFilter !== 'All' || 
+    dateFilter !== 'All' || 
+    startDate || 
+    endDate || 
+    sortBy !== 'newest'
+  );
+
+  const resetAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('All');
+    setPaymentFilter('All');
+    setPaymentStatusFilter('All');
+    setDateFilter('All');
+    setStartDate('');
+    setEndDate('');
+    setSortBy('newest');
+  };
+
+  // Filter orders by search, status, payment, date range & sort
   const filteredOrders = orders.filter(o => {
-    const q = searchTerm.toLowerCase();
-    const matchesSearch = 
+    const q = searchTerm.toLowerCase().trim();
+    const matchesSearch = !q || (
       o.order_number?.toLowerCase().includes(q) ||
       o.customer?.toLowerCase().includes(q) ||
       o.customer_name?.toLowerCase().includes(q) ||
       o.Customer?.name?.toLowerCase().includes(q) ||
       o.email?.toLowerCase().includes(q) ||
-      o.id?.toString().includes(q);
+      o.shippingAddress?.email?.toLowerCase().includes(q) ||
+      o.phone?.toLowerCase().includes(q) ||
+      o.shippingAddress?.phone?.toLowerCase().includes(q) ||
+      o.shippingAddress?.pincode?.toLowerCase().includes(q) ||
+      o.shippingAddress?.address?.toLowerCase().includes(q) ||
+      o.id?.toString().includes(q) ||
+      (Array.isArray(o.items) && o.items.some(it => (it.name || it.product_name || '').toLowerCase().includes(q)))
+    );
 
-    const matchesStatus = statusFilter === 'All' || o.status?.toLowerCase() === statusFilter.toLowerCase();
-    const matchesPayment = paymentFilter === 'All' || o.payment_method?.toLowerCase() === paymentFilter.toLowerCase();
+    const matchesStatus = statusFilter === 'All' || (o.status || 'Pending').toLowerCase() === statusFilter.toLowerCase();
+    const matchesPayment = paymentFilter === 'All' || (o.payment_method || 'cod').toLowerCase() === paymentFilter.toLowerCase();
     const matchesPaymentStatus = paymentStatusFilter === 'All' || 
       (o.payment_status || o.paymentStatus || 'pending').toLowerCase() === paymentStatusFilter.toLowerCase();
 
-    return matchesSearch && matchesStatus && matchesPayment && matchesPaymentStatus;
+    // Date Filtering
+    let matchesDate = true;
+    if (dateFilter !== 'All') {
+      const rawDate = o.created_at || o.createdAt || o.paid_at || null;
+      if (!rawDate) {
+        matchesDate = false;
+      } else {
+        const orderDate = new Date(rawDate);
+        if (isNaN(orderDate.getTime())) {
+          matchesDate = false;
+        } else {
+          const now = new Date();
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+          const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+          if (dateFilter === 'today') {
+            matchesDate = orderDate >= todayStart && orderDate <= todayEnd;
+          } else if (dateFilter === 'yesterday') {
+            const yestStart = new Date(todayStart);
+            yestStart.setDate(yestStart.getDate() - 1);
+            const yestEnd = new Date(todayEnd);
+            yestEnd.setDate(yestEnd.getDate() - 1);
+            matchesDate = orderDate >= yestStart && orderDate <= yestEnd;
+          } else if (dateFilter === 'last7') {
+            const last7Start = new Date(todayStart);
+            last7Start.setDate(last7Start.getDate() - 6);
+            matchesDate = orderDate >= last7Start && orderDate <= todayEnd;
+          } else if (dateFilter === 'thisMonth') {
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+            matchesDate = orderDate >= monthStart && orderDate <= todayEnd;
+          } else if (dateFilter === 'lastMonth') {
+            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+            matchesDate = orderDate >= lastMonthStart && orderDate <= lastMonthEnd;
+          } else if (dateFilter === 'custom') {
+            if (startDate) {
+              const customStart = new Date(startDate);
+              customStart.setHours(0, 0, 0, 0);
+              if (orderDate < customStart) matchesDate = false;
+            }
+            if (endDate && matchesDate) {
+              const customEnd = new Date(endDate);
+              customEnd.setHours(23, 59, 59, 999);
+              if (orderDate > customEnd) matchesDate = false;
+            }
+          }
+        }
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesPayment && matchesPaymentStatus && matchesDate;
+  }).sort((a, b) => {
+    if (sortBy === 'newest') {
+      const timeA = new Date(a.created_at || a.createdAt || 0).getTime();
+      const timeB = new Date(b.created_at || b.createdAt || 0).getTime();
+      if (timeA !== timeB) return timeB - timeA;
+      return Number(b.id || 0) - Number(a.id || 0);
+    }
+    if (sortBy === 'oldest') {
+      const timeA = new Date(a.created_at || a.createdAt || 0).getTime();
+      const timeB = new Date(b.created_at || b.createdAt || 0).getTime();
+      if (timeA !== timeB) return timeA - timeB;
+      return Number(a.id || 0) - Number(b.id || 0);
+    }
+    if (sortBy === 'amount_high') {
+      return Number(b.total || 0) - Number(a.total || 0);
+    }
+    if (sortBy === 'amount_low') {
+      return Number(a.total || 0) - Number(b.total || 0);
+    }
+    return 0;
   });
 
   // Summary Stats
@@ -568,6 +688,43 @@ const OrdersList = () => {
   const pendingCount = orders.filter(o => o.status?.toLowerCase() === 'pending').length;
   const completedCount = orders.filter(o => ['shipped', 'delivered', 'confirmed'].includes(o.status?.toLowerCase())).length;
   const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+
+  // Reset pagination on filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, paymentFilter, paymentStatusFilter, dateFilter, startDate, endDate, sortBy, pageSize]);
+
+  // Pagination Calculations
+  const totalPages = Math.ceil(filteredOrders.length / pageSize) || 1;
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const paginatedOrders = filteredOrders.slice(startIndex, startIndex + pageSize);
+
+  const getPageNumbers = (current, total) => {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages = [];
+    pages.push(1);
+
+    if (current > 3) {
+      pages.push('...');
+    }
+
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (current < total - 2) {
+      pages.push('...');
+    }
+
+    pages.push(total);
+    return pages;
+  };
 
   return (
     <div className="orders-page p-4">
@@ -656,20 +813,40 @@ const OrdersList = () => {
       {/* Toolbar Filter Controls */}
       <div className="order-toolbar-card mb-4">
         <div className="row g-3 align-items-center">
-          <div className="col-12 col-lg-4">
+          {/* Search Input */}
+          <div className="col-12 col-lg-3">
             <div className="order-search-wrapper">
               <FiSearch className="order-search-icon" />
               <input 
                 type="text" 
                 className="order-search-input"
-                placeholder="Search by Order #, Customer Name, Email, or ID..."
+                placeholder="Search orders, names, email, pin..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="col-4 col-lg-2">
+          {/* Date Filter */}
+          <div className="col-6 col-sm-4 col-lg-2">
+            <select 
+              className="order-select-filter w-100"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              title="Filter by date range"
+            >
+              <option value="All">📅 All Dates</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last7">Last 7 Days</option>
+              <option value="thisMonth">This Month</option>
+              <option value="lastMonth">Last Month</option>
+              <option value="custom">Custom Date Range...</option>
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="col-6 col-sm-4 col-lg-2">
             <select 
               className="order-select-filter w-100"
               value={statusFilter}
@@ -678,13 +855,16 @@ const OrdersList = () => {
               <option value="All">All Statuses</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
+              <option value="processing">Processing</option>
               <option value="shipped">Shipped</option>
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
+              <option value="returned">Returned</option>
             </select>
           </div>
 
-          <div className="col-4 col-lg-3">
+          {/* Payment Method Filter */}
+          <div className="col-6 col-sm-4 col-lg-2">
             <select 
               className="order-select-filter w-100"
               value={paymentFilter}
@@ -696,7 +876,8 @@ const OrdersList = () => {
             </select>
           </div>
 
-          <div className="col-4 col-lg-3">
+          {/* Payment Status Filter */}
+          <div className="col-6 col-sm-6 col-lg-2">
             <select 
               className="order-select-filter w-100"
               value={paymentStatusFilter}
@@ -709,7 +890,68 @@ const OrdersList = () => {
               <option value="refunded">Refunded</option>
             </select>
           </div>
+
+          {/* Sort By */}
+          <div className="col-6 col-sm-6 col-lg-1">
+            <select 
+              className="order-select-filter w-100"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              title="Sort order"
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="amount_high">₹ High</option>
+              <option value="amount_low">₹ Low</option>
+            </select>
+          </div>
         </div>
+
+        {/* Custom Date Picker & Filter Summary Row */}
+        {(dateFilter === 'custom' || isFilterActive) && (
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-3 mt-3 border-top">
+            {dateFilter === 'custom' ? (
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <span className="small text-muted fw-bold d-flex align-items-center gap-1">
+                  <FiCalendar className="text-danger" /> Date Range:
+                </span>
+                <div className="d-flex align-items-center gap-1">
+                  <label className="extra-small text-muted mb-0">From:</label>
+                  <input 
+                    type="date" 
+                    className="order-date-input"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="d-flex align-items-center gap-1">
+                  <label className="extra-small text-muted mb-0">To:</label>
+                  <input 
+                    type="date" 
+                    className="order-date-input"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <span className="small text-muted">
+                Showing <strong>{filteredOrders.length}</strong> of <strong>{orders.length}</strong> orders
+              </span>
+            )}
+
+            {isFilterActive && (
+              <button 
+                type="button" 
+                className="btn-admin-outline py-1 px-3 d-inline-flex align-items-center gap-1 text-danger border-danger"
+                onClick={resetAllFilters}
+                style={{ fontSize: '0.82rem' }}
+              >
+                <FiRotateCcw /> Reset All Filters
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Orders Data Table */}
@@ -735,8 +977,8 @@ const OrdersList = () => {
                     <span className="spinner-border spinner-border-sm text-danger me-2" role="status" /> Loading order registry...
                   </td>
                 </tr>
-              ) : filteredOrders.length > 0 ? (
-                filteredOrders.map(order => {
+              ) : paginatedOrders.length > 0 ? (
+                paginatedOrders.map(order => {
                   const customerName = order.customer_name || order.Customer?.name || order.customer || 'Customer';
                   const customerEmail = order.email || order.shippingAddress?.email || order.Customer?.email || 'customer@orderly.com';
                   const dateStr = order.created_at || order.createdAt ? new Date(order.created_at || order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent';
@@ -767,7 +1009,7 @@ const OrdersList = () => {
                         <strong className="text-dark fs-6">₹{Number(order.total || 0).toLocaleString()}</strong>
                       </td>
                       <td>
-                        <StatusBadge status={order.status || 'Active'} />
+                        <StatusBadge status={order.status || 'Pending'} />
                       </td>
                       <td className="text-end pe-4">
                         <div className="d-inline-flex gap-2">
@@ -802,10 +1044,10 @@ const OrdersList = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-5 text-muted">
+                  <td colSpan="8" className="text-center py-5 text-muted">
                     <div className="py-4">
                       <FiShoppingCart style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '12px' }} />
-                      <p className="fw-bold text-dark mb-1">No orders found matching your search</p>
+                      <p className="fw-bold text-dark mb-1">No orders found matching your search or filters</p>
                       <p className="small text-muted mb-0">Try adjusting your filters or click "+ Create New Order".</p>
                     </div>
                   </td>
@@ -814,6 +1056,95 @@ const OrdersList = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {!loading && filteredOrders.length > 0 && (
+          <div className="order-pagination-footer d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 p-3">
+            {/* Left: Showing entries & Page Size Dropdown */}
+            <div className="d-flex align-items-center gap-3 flex-wrap">
+              <span className="text-muted small">
+                Showing <strong className="text-dark">{startIndex + 1}</strong> to <strong className="text-dark">{Math.min(startIndex + pageSize, filteredOrders.length)}</strong> of <strong className="text-dark">{filteredOrders.length}</strong> orders
+              </span>
+
+              <div className="d-flex align-items-center gap-1.5">
+                <span className="extra-small text-muted fw-bold text-uppercase">Show:</span>
+                <select 
+                  className="order-page-size-select"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <span className="extra-small text-muted">per page</span>
+              </div>
+            </div>
+
+            {/* Right: Page Navigation Buttons */}
+            {totalPages > 1 && (
+              <div className="order-pagination-controls d-flex align-items-center gap-1">
+                <button 
+                  type="button" 
+                  className="order-page-btn"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={validCurrentPage === 1}
+                  title="First Page"
+                >
+                  <FiChevronsLeft />
+                </button>
+                <button 
+                  type="button" 
+                  className="order-page-btn"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={validCurrentPage === 1}
+                  title="Previous Page"
+                >
+                  <FiChevronLeft />
+                </button>
+
+                {getPageNumbers(validCurrentPage, totalPages).map((page, idx) => {
+                  if (page === '...') {
+                    return <span key={`dots-${idx}`} className="order-page-dots">...</span>;
+                  }
+                  return (
+                    <button
+                      key={page}
+                      type="button"
+                      className={`order-page-btn ${validCurrentPage === page ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+
+                <button 
+                  type="button" 
+                  className="order-page-btn"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={validCurrentPage === totalPages}
+                  title="Next Page"
+                >
+                  <FiChevronRight />
+                </button>
+                <button 
+                  type="button" 
+                  className="order-page-btn"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={validCurrentPage === totalPages}
+                  title="Last Page"
+                >
+                  <FiChevronsRight />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* VIEW ORDER DETAILS MODAL (SOLID HIGH-CONTRAST CARD) */}
@@ -822,7 +1153,10 @@ const OrdersList = () => {
           <div className="admin-order-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header-line">
               <div>
-                <h4 className="fw-bold text-dark mb-1">Order Details #{selectedOrder.order_number || selectedOrder.id}</h4>
+                <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                  <h4 className="fw-bold text-dark mb-0">Order Details #{selectedOrder.order_number || selectedOrder.id}</h4>
+                  <StatusBadge status={selectedOrder.status || 'Pending'} />
+                </div>
                 <span className="text-muted small">Placed on {new Date(selectedOrder.created_at || selectedOrder.createdAt || Date.now()).toLocaleString()}</span>
               </div>
               

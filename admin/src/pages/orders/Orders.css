@@ -160,6 +160,23 @@
   box-shadow: 0 0 0 3px rgba(193, 18, 31, 0.12);
 }
 
+.order-date-input {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 0.85rem;
+  color: #0f172a;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.order-date-input:focus {
+  border-color: #c1121f;
+  box-shadow: 0 0 0 3px rgba(193, 18, 31, 0.12);
+}
+
 /* Data Table Container */
 .order-table-card {
   background: #ffffff;
@@ -252,6 +269,85 @@
 }
 
 /* ---------------------------------------------------- */
+/* Order Pagination Footer & Controls */
+.order-pagination-footer {
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+}
+
+.order-page-size-select {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.order-page-size-select:focus {
+  border-color: #c1121f;
+  box-shadow: 0 0 0 2px rgba(193, 18, 31, 0.12);
+}
+
+.order-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.order-page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.order-page-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.order-page-btn.active {
+  background: #c1121f !important;
+  border-color: #c1121f !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(193, 18, 31, 0.25);
+}
+
+.order-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.order-page-dots {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 32px;
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
 /* SOLID HIGH-CONTRAST THEMED MODAL POPUP DIALOGS       */
 /* ---------------------------------------------------- */
 

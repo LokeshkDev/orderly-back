@@ -702,21 +702,44 @@ export const createOrder = async (req, res) => {
 export const getMyOrders = async (req, res) => {
   try {
     let orders = [];
+    const customerId = req.customer?.id;
+    const customerEmail = (req.customer?.email || '').toLowerCase().trim();
+
     try {
-      orders = await Order.findAll({
-        where: { customer_id: req.customer?.id || null },
-        include: [{ model: OrderItem, as: 'items', required: false }]
-      });
+      if (customerId) {
+        orders = await Order.findAll({
+          where: { customer_id: customerId },
+          order: [['id', 'DESC']],
+          include: [{ model: OrderItem, as: 'items', required: false }]
+        });
+      }
       if (Array.isArray(orders)) {
         orders = orders.map(normalizeOrder);
       }
     } catch (err) {}
 
+    // Match runtime orders by customer id or email
+    const matchedRuntime = RUNTIME_ORDERS.filter(o => {
+      if (!o || !Array.isArray(o.items) || o.items.length === 0) return false;
+      if (customerId && String(o.customer_id) === String(customerId)) return true;
+      if (customerEmail && o.email && String(o.email).toLowerCase() === customerEmail) return true;
+      return false;
+    });
+
+    const dbOrderIds = new Set(orders.map(o => String(o.id)));
+    const dbOrderNums = new Set(orders.map(o => String(o.order_number).toLowerCase()));
+
+    const map = new Map();
+    [...matchedRuntime.filter(ro => !dbOrderIds.has(String(ro.id)) && !dbOrderNums.has(String(ro.order_number).toLowerCase())), ...orders].forEach(o => {
+      const key = o.order_number || o.id;
+      if (key) map.set(String(key), o);
+    });
+
     const rawList = Array.from(map.values());
     const enrichedList = await enrichOrdersWithCatalog(rawList);
     res.status(200).json({ success: true, data: enrichedList });
   } catch (error) {
-    const enrichedRuntime = await enrichOrdersWithCatalog(RUNTIME_ORDERS);
+    const enrichedRuntime = await enrichOrdersWithCatalog(RUNTIME_ORDERS.filter(o => o && Array.isArray(o.items) && o.items.length > 0));
     res.status(200).json({ success: true, data: enrichedRuntime });
   }
 };
@@ -747,8 +770,21 @@ export const getAllOrders = async (req, res) => {
       dbOrders = dbOrders.map(normalizeOrder);
     }
 
+    const dbOrderIds = new Set(dbOrders.map(o => String(o.id)));
+    const dbOrderNums = new Set(dbOrders.map(o => String(o.order_number).toLowerCase()));
+
+    // Keep only valid runtime orders with real items that don't match any DB order
+    const validRuntimeOrders = RUNTIME_ORDERS.filter(ro => {
+      if (!ro) return false;
+      const roId = String(ro.id || '');
+      const roNum = String(ro.order_number || '').toLowerCase();
+      if (dbOrderIds.has(roId) || dbOrderNums.has(roNum)) return false;
+      if (!Array.isArray(ro.items) || ro.items.length === 0) return false;
+      return true;
+    });
+
     const map = new Map();
-    [...RUNTIME_ORDERS, ...dbOrders].forEach(o => {
+    [...validRuntimeOrders, ...dbOrders].forEach(o => {
       const key = o.order_number || o.id;
       if (key) map.set(String(key), o);
     });
@@ -757,7 +793,8 @@ export const getAllOrders = async (req, res) => {
     const enrichedList = await enrichOrdersWithCatalog(rawList);
     res.status(200).json({ success: true, data: enrichedList });
   } catch (error) {
-    const enrichedRuntime = await enrichOrdersWithCatalog(RUNTIME_ORDERS);
+    const validRuntime = RUNTIME_ORDERS.filter(o => o && Array.isArray(o.items) && o.items.length > 0);
+    const enrichedRuntime = await enrichOrdersWithCatalog(validRuntime);
     res.status(200).json({ success: true, data: enrichedRuntime });
   }
 };
@@ -767,13 +804,8 @@ export const getOrders = getAllOrders;
 export const getOrderById = async (req, res) => {
   try {
     const id = req.params.id;
-    const runtimeFound = RUNTIME_ORDERS.find(o => String(o.id) === String(id) || o.order_number === id);
-    if (runtimeFound) {
-      const [enriched] = await enrichOrdersWithCatalog([normalizeOrder(runtimeFound)]);
-      return res.status(200).json({ success: true, data: enriched });
-    }
 
-    let order;
+    let order = null;
     try {
       order = await Order.findOne({
         where: { [Op.or]: [{ id }, { order_number: id }] },
@@ -783,6 +815,15 @@ export const getOrderById = async (req, res) => {
 
     if (order) {
       const [enriched] = await enrichOrdersWithCatalog([normalizeOrder(order)]);
+      return res.status(200).json({ success: true, data: enriched });
+    }
+
+    const runtimeFound = RUNTIME_ORDERS.find(o => 
+      (String(o.id) === String(id) || (o.order_number && String(o.order_number).toLowerCase() === String(id).toLowerCase())) &&
+      Array.isArray(o.items) && o.items.length > 0
+    );
+    if (runtimeFound) {
+      const [enriched] = await enrichOrdersWithCatalog([normalizeOrder(runtimeFound)]);
       return res.status(200).json({ success: true, data: enriched });
     }
 
@@ -817,6 +858,10 @@ export const updateOrderStatus = async (req, res) => {
       (o.order_number && String(o.order_number).toLowerCase() === String(orderId).toLowerCase())
     );
 
+    if (!dbOrder && !runtimeItem) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
     const effectiveCourier = courier_name || dbOrder?.courier_name || runtimeItem?.courier_name || '';
     const effectiveTracking = tracking_number !== undefined ? tracking_number : (dbOrder?.tracking_number || runtimeItem?.tracking_number || '');
     const dynamicTrackingUrl = buildCourierTrackingUrl(effectiveCourier, effectiveTracking, courier_settings);
@@ -824,10 +869,6 @@ export const updateOrderStatus = async (req, res) => {
     const updateFields = {};
     if (formattedStatus) updateFields.status = formattedStatus;
     if (effectivePaymentStatus) updateFields.payment_status = effectivePaymentStatus;
-    if (effectiveCourier) updateFields.courier_name = effectiveCourier;
-    if (effectiveTracking) updateFields.tracking_number = effectiveTracking;
-    if (dynamicTrackingUrl) updateFields.tracking_url = dynamicTrackingUrl;
-
     if (effectiveCourier) updateFields.courier_name = effectiveCourier;
     if (effectiveTracking) updateFields.tracking_number = effectiveTracking;
     if (dynamicTrackingUrl) updateFields.tracking_url = dynamicTrackingUrl;
@@ -844,21 +885,16 @@ export const updateOrderStatus = async (req, res) => {
 
     if (runtimeItem) {
       Object.assign(runtimeItem, updateFields);
-    } else {
-      runtimeItem = {
-        id: orderId,
-        order_number: String(orderId).startsWith('ORD-') ? orderId : `ORD-${orderId}`,
-        ...updateFields,
-        created_at: new Date().toISOString()
-      };
-      RUNTIME_ORDERS.unshift(runtimeItem);
     }
 
-    const orderRecord = dbOrder ? normalizeOrder(dbOrder) : normalizeOrder(runtimeItem);
+    const orderRecord = dbOrder ? normalizeOrder(dbOrder) : (runtimeItem ? normalizeOrder(runtimeItem) : null);
+    if (!orderRecord) {
+      return res.status(404).json({ success: false, message: 'Order record unavailable' });
+    }
 
     // Check status-specific email trigger (deduplicated)
     if (lowerStatus === 'cancelled' || lowerStatus === 'canceled') {
-      const alreadySent = dbOrder ? dbOrder.cancelled_email_sent : runtimeItem.cancelled_email_sent;
+      const alreadySent = dbOrder ? dbOrder.cancelled_email_sent : runtimeItem?.cancelled_email_sent;
       if (!alreadySent) {
         try {
           await sendOrderEmail({
@@ -882,13 +918,13 @@ export const updateOrderStatus = async (req, res) => {
           if (dbOrder) {
             try { await dbOrder.update({ cancelled_email_sent: true }); } catch (e) {}
           }
-          runtimeItem.cancelled_email_sent = true;
+          if (runtimeItem) runtimeItem.cancelled_email_sent = true;
         } catch (emailError) {
           console.warn('Cancelled email notification note:', emailError.message);
         }
       }
     } else if (lowerStatus === 'failed') {
-      const alreadySent = dbOrder ? dbOrder.failed_email_sent : runtimeItem.failed_email_sent;
+      const alreadySent = dbOrder ? dbOrder.failed_email_sent : runtimeItem?.failed_email_sent;
       if (!alreadySent) {
         try {
           await sendOrderEmail({
@@ -912,13 +948,13 @@ export const updateOrderStatus = async (req, res) => {
           if (dbOrder) {
             try { await dbOrder.update({ failed_email_sent: true }); } catch (e) {}
           }
-          runtimeItem.failed_email_sent = true;
+          if (runtimeItem) runtimeItem.failed_email_sent = true;
         } catch (emailError) {
           console.warn('Failed email notification note:', emailError.message);
         }
       }
     } else if (lowerStatus === 'shipped') {
-      const alreadySent = dbOrder ? dbOrder.shipped_email_sent : runtimeItem.shipped_email_sent;
+      const alreadySent = dbOrder ? dbOrder.shipped_email_sent : runtimeItem?.shipped_email_sent;
       if (!alreadySent && email_settings?.order_shipped?.enabled !== false) {
         try {
           await sendOrderEmail({
@@ -947,13 +983,13 @@ export const updateOrderStatus = async (req, res) => {
           if (dbOrder) {
             try { await dbOrder.update({ shipped_email_sent: true }); } catch (e) {}
           }
-          runtimeItem.shipped_email_sent = true;
+          if (runtimeItem) runtimeItem.shipped_email_sent = true;
         } catch (emailError) {
           console.warn('Shipped email notification note:', emailError.message);
         }
       }
     } else if (lowerStatus === 'delivered') {
-      const alreadySent = dbOrder ? dbOrder.delivered_email_sent : runtimeItem.delivered_email_sent;
+      const alreadySent = dbOrder ? dbOrder.delivered_email_sent : runtimeItem?.delivered_email_sent;
       if (!alreadySent && email_settings?.order_delivered?.enabled !== false) {
         try {
           await sendOrderEmail({
@@ -979,7 +1015,7 @@ export const updateOrderStatus = async (req, res) => {
           if (dbOrder) {
             try { await dbOrder.update({ delivered_email_sent: true }); } catch (e) {}
           }
-          runtimeItem.delivered_email_sent = true;
+          if (runtimeItem) runtimeItem.delivered_email_sent = true;
         } catch (emailError) {
           console.warn('Delivered email notification note:', emailError.message);
         }

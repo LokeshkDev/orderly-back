@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import SEO from '../components/common/SEO';
 import { formatPrice } from '../utils/formatters';
+import { trackPurchase } from '../utils/analytics';
 import { FiCheckCircle, FiHome, FiArrowRight, FiShoppingBag, FiTruck, FiMail, FiCreditCard, FiExternalLink } from 'react-icons/fi';
 import { getSettings, getOrderByNumber } from '../services/api';
 import { buildCourierTrackingUrl } from '../utils/deliveryCalculator';
@@ -44,6 +45,21 @@ const OrderSuccess = () => {
     window.addEventListener('orderly_settings_updated', load);
     return () => { active = false; window.removeEventListener('orderly_settings_updated', load); };
   }, []);
+
+  const trackedPurchaseRef = useRef(false);
+
+  useEffect(() => {
+    if (orderId && !trackedPurchaseRef.current) {
+      trackedPurchaseRef.current = true;
+      try {
+        trackPurchase({
+          order_number: orderId,
+          total: Number(total) || 0,
+          items: liveOrder?.items || state.items || []
+        });
+      } catch (e) {}
+    }
+  }, [orderId, total, liveOrder, state.items]);
 
   useEffect(() => {
     if (!orderId) return;

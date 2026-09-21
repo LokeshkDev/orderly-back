@@ -16,6 +16,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useQuickView } from '../context/QuickViewContext';
 import { getProductById, getProducts, getActiveCoupons } from '../services/api';
 import { formatPrice, calculateDiscount, getProductSlug, formatCamelCaseTitle } from '../utils/formatters';
+import { trackViewItem } from '../utils/analytics';
 import useIsMobile from '../utils/useIsMobile';
 import './ProductDetail.css';
 
@@ -195,6 +196,7 @@ const ProductDetail = () => {
       if (res && res.success && res.data) {
         const item = res.data;
         setProduct(item);
+        try { trackViewItem(item); } catch (e) {}
         const cleanSlug = getProductSlug(item);
         if (cleanSlug && cleanSlug !== id && typeof window !== 'undefined' && window.history) {
           window.history.replaceState(null, '', `/product/${cleanSlug}`);

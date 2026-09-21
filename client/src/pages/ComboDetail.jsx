@@ -13,6 +13,7 @@ import { getComboById, getCombos, getProducts } from '../services/api';
 import { ComboDetailSkeleton } from '../components/common/Skeleton';
 import { getVariantStock } from './ProductDetail';
 import { formatPrice, calculateDiscount, getComboSlug, formatCamelCaseTitle } from '../utils/formatters';
+import { trackViewItem } from '../utils/analytics';
 import './ComboDetail.css';
 
 /* ── Star rating renderer ──────────────────────────────────────── */
@@ -151,6 +152,7 @@ const ComboDetail = () => {
           };
 
           setCombo(normalizedCombo);
+          try { trackViewItem(normalizedCombo); } catch (e) {}
           setActiveImgIndex(0);
           const initial = {};
           normalizedItems.forEach((item) => {

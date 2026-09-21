@@ -4,6 +4,16 @@ import db from '../models/index.js';
 const router = express.Router();
 const { Product, Combo, Category } = db;
 
+const escapeXml = (unsafe) => {
+  if (!unsafe || typeof unsafe !== 'string') return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+};
+
 router.get(['/sitemap.xml', '/sitemap'], async (req, res) => {
   try {
     const baseUrl = 'https://orderlymenswear.in';
@@ -12,11 +22,11 @@ router.get(['/sitemap.xml', '/sitemap'], async (req, res) => {
     const [products, combos, categories] = await Promise.allSettled([
       Product.findAll({
         where: { status: 'Active', deleted: false },
-        attributes: ['id', 'slug', 'updatedAt']
+        attributes: ['id', 'name', 'slug', 'images', 'updatedAt']
       }),
       Combo.findAll({
         where: { status: 'Active' },
-        attributes: ['id', 'slug', 'updatedAt']
+        attributes: ['id', 'name', 'slug', 'cover_image', 'images', 'updatedAt']
       }),
       Category.findAll({
         attributes: ['id', 'name', 'slug', 'updatedAt']
@@ -40,7 +50,7 @@ router.get(['/sitemap.xml', '/sitemap'], async (req, res) => {
     ];
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n';
 
     // Static pages
     staticRoutes.forEach(route => {
@@ -53,7 +63,7 @@ router.get(['/sitemap.xml', '/sitemap'], async (req, res) => {
 
     // Category pages
     activeCategories.forEach(cat => {
-      const catSlug = cat.slug || encodeURIComponent(cat.name);
+      const catSlug = encodeURIComponent(cat.slug || cat.name || '');
       xml += '  <url>\n';
       xml += `    <loc>${baseUrl}/shop?category=${catSlug}</loc>\n`;
       xml += '    <changefreq>daily</changefreq>\n';
@@ -61,27 +71,79 @@ router.get(['/sitemap.xml', '/sitemap'], async (req, res) => {
       xml += '  </url>\n';
     });
 
-    // Dynamic Live Products
+    // Dynamic Live Products with Image Sitemaps
     activeProducts.forEach(prod => {
       const prodUrl = `${baseUrl}/product/${prod.slug || prod.id}`;
       const lastMod = prod.updatedAt ? new Date(prod.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      
+      let prodImages = [];
+      if (Array.isArray(prod.images)) {
+        prodImages = prod.images;
+      } else if (typeof prod.images === 'string') {
+        try { prodImages = JSON.parse(prod.images); } catch (e) { prodImages = [prod.images]; }
+      }
+
       xml += '  <url>\n';
-      xml += `    <loc>${prodUrl}</loc>\n`;
+      xml += `    <loc>${escapeXml(prodUrl)}</loc>\n`;
       xml += `    <lastmod>${lastMod}</lastmod>\n`;
       xml += '    <changefreq>daily</changefreq>\n';
       xml += '    <priority>0.8</priority>\n';
+
+      if (Array.isArray(prodImages) && prodImages.length > 0) {
+        prodImages.slice(0, 5).forEach(img => {
+          const imgUrl = typeof img === 'string' ? img : img?.url;
+          if (imgUrl) {
+            const absoluteImg = imgUrl.startsWith('http') ? imgUrl : `${baseUrl}${imgUrl.startsWith('/') ? imgUrl : '/' + imgUrl}`;
+            xml += '    <image:image>\n';
+            xml += `      <image:loc>${escapeXml(absoluteImg)}</image:loc>\n`;
+            if (prod.name) {
+              xml += `      <image:title>${escapeXml(prod.name)}</image:title>\n`;
+            }
+            xml += '    </image:image>\n';
+          }
+        });
+      }
+
       xml += '  </url>\n';
     });
 
-    // Dynamic Live Combos
+    // Dynamic Live Combos with Image Sitemaps
     activeCombos.forEach(combo => {
       const comboUrl = `${baseUrl}/combo/${combo.slug || combo.id}`;
       const lastMod = combo.updatedAt ? new Date(combo.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      
+      let comboImages = [];
+      if (combo.cover_image) comboImages.push(combo.cover_image);
+      if (Array.isArray(combo.images)) {
+        comboImages.push(...combo.images);
+      } else if (typeof combo.images === 'string') {
+        try { 
+          const parsed = JSON.parse(combo.images);
+          if (Array.isArray(parsed)) comboImages.push(...parsed);
+        } catch (e) {}
+      }
+
       xml += '  <url>\n';
-      xml += `    <loc>${comboUrl}</loc>\n`;
+      xml += `    <loc>${escapeXml(comboUrl)}</loc>\n`;
       xml += `    <lastmod>${lastMod}</lastmod>\n`;
       xml += '    <changefreq>daily</changefreq>\n';
       xml += '    <priority>0.8</priority>\n';
+
+      if (comboImages.length > 0) {
+        [...new Set(comboImages)].slice(0, 5).forEach(img => {
+          const imgUrl = typeof img === 'string' ? img : img?.url;
+          if (imgUrl) {
+            const absoluteImg = imgUrl.startsWith('http') ? imgUrl : `${baseUrl}${imgUrl.startsWith('/') ? imgUrl : '/' + imgUrl}`;
+            xml += '    <image:image>\n';
+            xml += `      <image:loc>${escapeXml(absoluteImg)}</image:loc>\n`;
+            if (combo.name) {
+              xml += `      <image:title>${escapeXml(combo.name)}</image:title>\n`;
+            }
+            xml += '    </image:image>\n';
+          }
+        });
+      }
+
       xml += '  </url>\n';
     });
 

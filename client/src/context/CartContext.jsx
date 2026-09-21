@@ -7,6 +7,7 @@ import {
   roundCurrency,
   isPairItem 
 } from '../utils/pairOfferCalculator';
+import { trackAddToCart } from '../utils/analytics';
 
 const CartContext = createContext();
 
@@ -28,12 +29,17 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => {
     let active = true;
-    const load = async () => {
-      const res = await getSettings();
-      if (active && res?.success) setSettings(res.data);
+    const loadSettings = async () => {
+      try {
+        const res = await getSettings();
+        if (active && res && res.success && res.data) {
+          setSettings(res.data);
+        }
+      } catch (err) {}
     };
-    load();
-    const onSync = () => load();
+    loadSettings();
+
+    const onSync = () => loadSettings();
     window.addEventListener('orderly_settings_updated', onSync);
     window.addEventListener('storage', onSync);
     return () => {
@@ -48,6 +54,11 @@ export const CartProvider = ({ children }) => {
   }, [cart]);
 
   const addToCart = (product, selectedSize = 'M', selectedColor = null, quantity = 1, sizeSpecificPrice = null, sizeSpecificOriginalPrice = null) => {
+    const qty = typeof selectedSize === 'number' ? selectedSize : (quantity || 1);
+    try {
+      trackAddToCart(product, qty);
+    } catch (e) {}
+
     setCart((prevCart) => {
       if (product && product.isCombo) {
         const itemKey = product.id || `combo-${Date.now()}`;

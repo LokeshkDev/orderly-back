@@ -4,6 +4,7 @@ import SEO from '../components/common/SEO';
 import { useCart } from '../context/CartContext';
 import { createOrder, createRazorpayOrder, getPaymentConfig, getSettings, verifyRazorpayPayment, reportRazorpayFailure, getActiveCoupons } from '../services/api';
 import { formatPrice, formatCamelCaseTitle } from '../utils/formatters';
+import { trackInitiateCheckout } from '../utils/analytics';
 import { 
   FiLock, FiCheckCircle, FiCreditCard, FiTruck, FiHome, FiBriefcase, FiMapPin, FiShield, FiAlertCircle, FiTag, FiCopy, FiCheck
 } from 'react-icons/fi';
@@ -126,6 +127,14 @@ const Checkout = () => {
       active = false;
       window.removeEventListener('orderly_settings_updated', loadConfig);
     };
+  }, []);
+
+  useEffect(() => {
+    if (Array.isArray(cart) && cart.length > 0) {
+      try {
+        trackInitiateCheckout(cart, total);
+      } catch (e) {}
+    }
   }, []);
 
   const codEnabled = String(siteSettings?.cod_enabled ?? 'true') !== 'false';

@@ -43,12 +43,18 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
-// Scroll to top helper
-const ScrollToTop = () => {
-  const { pathname } = useLocation();
+import { trackPageView } from './utils/analytics';
+
+// Scroll to top & SPA Analytics PageView tracker
+const NavigationTracker = () => {
+  const { pathname, search } = useLocation();
+
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [pathname]);
+    // Track Google Tag & Meta Pixel PageView on route change
+    trackPageView(pathname + search, document.title);
+  }, [pathname, search]);
+
   return null;
 };
 
@@ -124,7 +130,7 @@ function App() {
           <WishlistProvider>
             <QuickViewProvider>
               <Router>
-                <ScrollToTop />
+                <NavigationTracker />
                 <PageLoader />
                 <AppLayout />
               </Router>

@@ -15,7 +15,7 @@ export const trackGtagEvent = (action, params = {}) => {
   }
 };
 
-// Helper to safely call window.fbq
+// Helper to safely call window.fbq (Meta Pixel)
 export const trackMetaPixelEvent = (eventName, params = {}) => {
   try {
     if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
@@ -45,14 +45,15 @@ export const trackPageView = (url, title) => {
 };
 
 /**
- * Track Product / Item View (PDP)
+ * 1. ViewContent — Product Page / Quick View
+ * Triggered on Product Detail Page, Combo Detail Page, and QuickView Modal
  */
 export const trackViewItem = (item) => {
   if (!item) return;
-  const id = String(item.id || item.productId || item.sku || '');
+  const id = String(item.id || item.productId || item.product_id || item.sku || '');
   const name = item.name || item.title || 'Product';
-  const price = Number(item.price || item.offer_price || 0);
-  const category = item.category || 'Apparel';
+  const price = Math.max(0, Number(item.price || item.offer_price || item.unit_price || 0));
+  const category = item.category || (item.isCombo ? 'Combos' : 'Apparel');
 
   // Google Analytics 4: view_item
   trackGtagEvent('view_item', {
@@ -74,32 +75,35 @@ export const trackViewItem = (item) => {
     content_name: name,
     content_ids: [id],
     content_type: 'product',
+    content_category: category,
     value: price,
     currency: 'INR'
   });
 };
 
 /**
- * Track Add to Cart Event
+ * 2. AddToCart — When Product is added to Cart
+ * Triggered for single items, combo bundles, and paired items
  */
 export const trackAddToCart = (item, quantity = 1) => {
   if (!item) return;
-  const id = String(item.id || item.productId || item.sku || '');
+  const id = String(item.id || item.productId || item.product_id || item.sku || '');
   const name = item.name || item.title || 'Product';
-  const price = Number(item.price || item.offer_price || 0);
-  const category = item.category || 'Apparel';
+  const price = Math.max(0, Number(item.price || item.offer_price || item.unit_price || 0));
+  const category = item.category || (item.isCombo ? 'Combos' : 'Apparel');
+  const qty = Math.max(1, Number(quantity || 1));
 
   // Google Analytics 4: add_to_cart
   trackGtagEvent('add_to_cart', {
     currency: 'INR',
-    value: price * quantity,
+    value: price * qty,
     items: [
       {
         item_id: id,
         item_name: name,
         item_category: category,
         price: price,
-        quantity: quantity,
+        quantity: qty,
         item_variant: item.selectedSize || item.selectedColor || ''
       }
     ]
@@ -110,57 +114,65 @@ export const trackAddToCart = (item, quantity = 1) => {
     content_name: name,
     content_ids: [id],
     content_type: 'product',
-    value: price * quantity,
-    currency: 'INR'
+    content_category: category,
+    value: price * qty,
+    currency: 'INR',
+    num_items: qty
   });
 };
 
 /**
- * Track Initiate Checkout Event
+ * 3. InitiateCheckout — Checkout Started
+ * Triggered when clicking "Proceed To Checkout" or loading the Checkout page
  */
 export const trackInitiateCheckout = (items = [], total = 0) => {
   const parsedItems = Array.isArray(items) ? items.map(item => ({
-    item_id: String(item.id || item.productId || item.sku || ''),
+    item_id: String(item.id || item.productId || item.product_id || item.sku || ''),
     item_name: item.name || 'Product',
-    price: Number(item.price || 0),
-    quantity: Number(item.quantity || 1)
+    price: Math.max(0, Number(item.price || item.unit_price || 0)),
+    quantity: Math.max(1, Number(item.quantity || 1))
   })) : [];
 
-  const itemIds = parsedItems.map(i => i.item_id);
+  const itemIds = parsedItems.map(i => i.item_id).filter(Boolean);
+  const totalQuantity = parsedItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
+  const totalValue = Math.max(0, Number(total || 0));
 
   // Google Analytics 4: begin_checkout
   trackGtagEvent('begin_checkout', {
     currency: 'INR',
-    value: Number(total || 0),
+    value: totalValue,
     items: parsedItems
   });
 
   // Meta Pixel: InitiateCheckout
   trackMetaPixelEvent('InitiateCheckout', {
+    content_name: 'Store Checkout',
     content_ids: itemIds,
     content_type: 'product',
-    num_items: parsedItems.length,
-    value: Number(total || 0),
+    num_items: totalQuantity > 0 ? totalQuantity : 1,
+    value: totalValue,
     currency: 'INR'
   });
 };
 
 /**
- * Track Purchase / Conversion Event
+ * 4. Purchase — Only After Successful Order / Payment Completion
+ * Triggered on Order Confirmation page with deduplication against refreshes
  */
 export const trackPurchase = (order = {}) => {
   const orderNumber = String(order.order_number || order.id || Date.now());
-  const total = Number(order.total || order.amount || 0);
+  const total = Math.max(0, Number(order.total || order.amount || 0));
   const items = Array.isArray(order.items) ? order.items : [];
 
   const parsedItems = items.map(item => ({
     item_id: String(item.productId || item.product_id || item.id || item.sku || ''),
     item_name: item.name || item.product_name || 'Product',
-    price: Number(item.price || item.unit_price || 0),
-    quantity: Number(item.quantity || 1)
+    price: Math.max(0, Number(item.price || item.unit_price || 0)),
+    quantity: Math.max(1, Number(item.quantity || 1))
   }));
 
-  const itemIds = parsedItems.map(i => i.item_id);
+  const itemIds = parsedItems.map(i => i.item_id).filter(Boolean);
+  const totalQuantity = parsedItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
 
   // Google Analytics 4: purchase
   trackGtagEvent('purchase', {
@@ -174,11 +186,11 @@ export const trackPurchase = (order = {}) => {
 
   // Meta Pixel: Purchase
   trackMetaPixelEvent('Purchase', {
-    content_ids: itemIds,
+    content_ids: itemIds.length > 0 ? itemIds : [orderNumber],
     content_type: 'product',
-    num_items: parsedItems.length,
+    num_items: totalQuantity > 0 ? totalQuantity : 1,
     value: total,
-    currency: 'INR'
+    currency: 'INR',
+    order_id: orderNumber
   });
 };
-

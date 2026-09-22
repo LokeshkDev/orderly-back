@@ -49,17 +49,38 @@ const OrderSuccess = () => {
   const trackedPurchaseRef = useRef(false);
 
   useEffect(() => {
-    if (orderId && !trackedPurchaseRef.current) {
+    if (!orderId) return;
+
+    // Deduplicate so page reloads do not trigger duplicate conversions in Meta Pixel / GA4
+    const sessionKey = `orderly_purchase_tracked_${orderId}`;
+    if (sessionStorage.getItem(sessionKey)) {
+      trackedPurchaseRef.current = true;
+      return;
+    }
+
+    const orderItems = (liveOrder?.items && liveOrder.items.length > 0)
+      ? liveOrder.items
+      : (Array.isArray(state.items) && state.items.length > 0 ? state.items : []);
+
+    // Wait until items are ready from location.state or liveOrder API query
+    if (orderItems.length === 0 && !liveLoaded) {
+      return;
+    }
+
+    if (!trackedPurchaseRef.current) {
       trackedPurchaseRef.current = true;
       try {
+        sessionStorage.setItem(sessionKey, 'true');
         trackPurchase({
           order_number: orderId,
-          total: Number(total) || 0,
-          items: liveOrder?.items || state.items || []
+          total: Number(total) || Number(liveOrder?.total) || 0,
+          items: orderItems
         });
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Purchase tracking note:', e.message);
+      }
     }
-  }, [orderId, total, liveOrder, state.items]);
+  }, [orderId, total, liveOrder, liveLoaded, state.items]);
 
   useEffect(() => {
     if (!orderId) return;

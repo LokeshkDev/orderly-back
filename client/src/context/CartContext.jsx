@@ -98,6 +98,15 @@ export const CartProvider = ({ children }) => {
 
   const addMultipleToCart = (itemsList = []) => {
     if (!Array.isArray(itemsList) || itemsList.length === 0) return;
+    try {
+      itemsList.forEach((product) => {
+        if (product) {
+          const qty = Math.max(1, Number(product.quantity || 1));
+          trackAddToCart(product, qty);
+        }
+      });
+    } catch (e) {}
+
     setCart((prevCart) => {
       let updatedCart = [...prevCart];
       itemsList.forEach((product) => {

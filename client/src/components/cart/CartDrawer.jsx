@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fi';
 import { useCart } from '../../context/CartContext';
 import { formatPrice, formatCamelCaseTitle } from '../../utils/formatters';
+import { trackInitiateCheckout } from '../../utils/analytics';
 import './CartDrawer.css';
 
 const CartDrawer = () => {
@@ -95,6 +96,9 @@ const CartDrawer = () => {
   };
 
   const handleCheckout = () => {
+    try {
+      trackInitiateCheckout(cart, cartTotal);
+    } catch (e) {}
     setIsCartOpen(false);
     navigate('/checkout');
   };

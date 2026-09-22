@@ -5,6 +5,7 @@ import { useQuickView } from '../../context/QuickViewContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { formatPrice, calculateDiscount, normalizeProduct, colorImages, getProductSlug, formatCamelCaseTitle } from '../../utils/formatters';
+import { trackViewItem } from '../../utils/analytics';
 import './QuickViewModal.css';
 
 const QuickViewModal = () => {
@@ -18,6 +19,15 @@ const QuickViewModal = () => {
   const [quantity, setQuantity] = useState(1);
   const [addedNotice, setAddedNotice] = useState(false);
   const modalRef = useRef(null);
+
+  // Trigger ViewContent on QuickView open
+  useEffect(() => {
+    if (quickViewProduct) {
+      try {
+        trackViewItem(quickViewProduct);
+      } catch (e) {}
+    }
+  }, [quickViewProduct]);
 
   // WCAG 2.1 AA Keyboard Trap & Escape Dismissal
   useEffect(() => {

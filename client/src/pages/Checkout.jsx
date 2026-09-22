@@ -257,7 +257,8 @@ const Checkout = () => {
             paymentMethod: paymentLabel,
             amountPaid: 0,
             balanceDue: Number(createdOrder.total) || total,
-            pricingBreakdown
+            pricingBreakdown,
+            items: orderData.items
           }
         });
         return;
@@ -288,7 +289,8 @@ const Checkout = () => {
             paymentMethod: paymentLabel,
             amountPaid: paymentMethod === 'cod' ? codAdvanceAmount : total,
             balanceDue: paymentMethod === 'cod' ? codBalanceDue : 0,
-            pricingBreakdown
+            pricingBreakdown,
+            items: orderData.items
           }
         });
       };

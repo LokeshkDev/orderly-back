@@ -2,8 +2,81 @@ import React, { useState, useRef } from 'react';
 import { FiUploadCloud, FiImage, FiVideo, FiX, FiCheckCircle, FiFilm, FiInfo } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
-import { compressImageBeforeUpload } from '../../utils/imageCompressor.js';
 import './FileUploadInput.css';
+
+/**
+ * Client-side in-browser image compression to avoid HTTP 413 from Nginx/proxies
+ */
+const compressImageBeforeUpload = async (file, maxWidth = 1920, maxHeight = 1920, quality = 0.85) => {
+  if (!file || !file.type || !file.type.startsWith('image/')) {
+    return file;
+  }
+  if (file.type === 'image/gif' || file.type === 'image/svg+xml') {
+    return file;
+  }
+  if (file.size <= 600 * 1024) {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => resolve(file);
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          if (width > maxWidth || height > maxHeight) {
+            if (width / height > maxWidth / maxHeight) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(file);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob && blob.size < file.size) {
+                const baseName = file.name.replace(/\.[^/.]+$/, '');
+                resolve(new File([blob], `${baseName}.webp`, { type: 'image/webp', lastModified: Date.now() }));
+              } else {
+                canvas.toBlob(
+                  (jpegBlob) => {
+                    if (jpegBlob && jpegBlob.size < file.size) {
+                      const baseName = file.name.replace(/\.[^/.]+$/, '');
+                      resolve(new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg', lastModified: Date.now() }));
+                    } else {
+                      resolve(file);
+                    }
+                  },
+                  'image/jpeg',
+                  quality
+                );
+              }
+            },
+            'image/webp',
+            quality
+          );
+        } catch (err) {
+          resolve(file);
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
 
 const getDimensionHint = (type, folder, customHint) => {
   if (customHint) return customHint;

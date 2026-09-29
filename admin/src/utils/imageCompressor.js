@@ -96,3 +96,5 @@ export const compressImageBeforeUpload = async (file, maxWidth = 1920, maxHeight
     reader.readAsDataURL(file);
   });
 };
+
+export default compressImageBeforeUpload;

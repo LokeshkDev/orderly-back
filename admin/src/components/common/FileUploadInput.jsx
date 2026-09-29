@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { FiUploadCloud, FiImage, FiVideo, FiX, FiCheckCircle, FiFilm, FiInfo } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../../services/api.js';
+import { compressImageBeforeUpload } from '../../utils/imageCompressor.js';
 import './FileUploadInput.css';
 
 const getDimensionHint = (type, folder, customHint) => {
@@ -72,12 +73,23 @@ const FileUploadInput = ({
     }
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('image', file);
-    formData.append('folder', folder);
 
     try {
+      // Pre-compress images in the browser to ensure fast uploads and prevent HTTP 413 from Nginx
+      let uploadReadyFile = file;
+      if (type === 'image') {
+        try {
+          uploadReadyFile = await compressImageBeforeUpload(file);
+        } catch (compErr) {
+          console.warn('Browser pre-compression note:', compErr);
+        }
+      }
+
+      const formData = new FormData();
+      formData.append('file', uploadReadyFile);
+      formData.append('image', uploadReadyFile);
+      formData.append('folder', folder);
+
       const res = await api.post(`/upload?folder=${folder}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -91,7 +103,12 @@ const FileUploadInput = ({
       }
     } catch (err) {
       console.error('Upload error:', err);
-      toast.error('Upload failed: ' + (err.response?.data?.message || err.message || 'Network error'));
+      const status = err.response?.status;
+      if (status === 413) {
+        toast.error('Upload failed: File exceeds the server size limit (HTTP 413). Please choose a smaller file or update Nginx client_max_body_size.');
+      } else {
+        toast.error('Upload failed: ' + (err.response?.data?.message || err.message || 'Network error'));
+      }
     } finally {
       setUploading(false);
     }

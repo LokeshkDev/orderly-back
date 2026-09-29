@@ -128,17 +128,23 @@ export const deleteCustomer = (id) => api.delete(`/customers/${id}`);
 export const toggleCustomer = (id) => api.patch(`/customers/${id}/toggle`);
 
 // Upload
-export const uploadImage = (file) => {
+export const uploadImage = (file, folder = 'general') => {
   const formData = new FormData();
+  formData.append('file', file);
   formData.append('image', file);
-  return api.post('/upload', formData, {
+  formData.append('folder', folder);
+  return api.post(`/upload?folder=${folder}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
 };
-export const uploadImages = (files) => {
+export const uploadImages = (files, folder = 'general') => {
   const formData = new FormData();
-  Array.from(files).forEach(file => formData.append('images', file));
-  return api.post('/upload/multiple', formData, {
+  Array.from(files).forEach(file => {
+    formData.append('files', file);
+    formData.append('images', file);
+  });
+  formData.append('folder', folder);
+  return api.post(`/upload/multiple?folder=${folder}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
 };

@@ -74,6 +74,7 @@ const FileUploadInput = ({
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('image', file);
     formData.append('folder', folder);
 
     try {
@@ -94,6 +95,21 @@ const FileUploadInput = ({
     } finally {
       setUploading(false);
     }
+  };
+
+  const resolveMediaUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+      return url;
+    }
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
+    if (apiBase.startsWith('http')) {
+      try {
+        const origin = new URL(apiBase).origin;
+        return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+      } catch {}
+    }
+    return url;
   };
 
   const handleDrag = (e) => {
@@ -132,7 +148,7 @@ const FileUploadInput = ({
           {type === 'video' ? (
             <div className="position-relative video-preview-wrapper">
               <video 
-                src={value} 
+                src={resolveMediaUrl(value)} 
                 className="uploaded-video-preview" 
                 controls 
                 preload="metadata"
@@ -149,9 +165,13 @@ const FileUploadInput = ({
           ) : (
             <div className="position-relative image-preview-wrapper">
               <img 
-                src={value} 
+                src={resolveMediaUrl(value)} 
                 alt="Uploaded media" 
                 className="uploaded-image-preview" 
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = '/logo.png';
+                }}
               />
               <button 
                 type="button" 

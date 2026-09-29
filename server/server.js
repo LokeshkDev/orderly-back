@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -99,14 +100,14 @@ app.use(helmet({
 app.use(cors({
   origin: (origin, callback) => {
     if (isOriginPermitted(origin)) {
-      callback(null, true);
+      callback(null, origin || true);
     } else {
-      callback(null, true); // Permissive fallback so legitimate client API calls are not abruptly aborted
+      callback(null, origin || true); // Permissive fallback so legitimate client API calls are not abruptly aborted
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-admin-name']
 }));
 
 app.use(express.json({

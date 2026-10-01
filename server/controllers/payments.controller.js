@@ -293,7 +293,7 @@ export const verifyRazorpayPayment = async (req, res) => {
           orderNumber: order?.order_number || orderId || 'ORDER',
           customerName: order?.customer_name || order?.shippingAddress?.fullName || 'Customer',
           customerEmail: order?.email || order?.shippingAddress?.email || '',
-          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
           status: 'payment_failed',
           type: 'payment_failed',
           paymentStatus: 'failed',
@@ -320,13 +320,19 @@ export const verifyRazorpayPayment = async (req, res) => {
     try {
       await sendOrderEmail({
         orderNumber: updatedOrder?.order_number || order?.order_number || razorpay_order_id,
-        customerName: updatedOrder?.customer_name || updatedOrder?.shippingAddress?.fullName || 'Customer',
-        customerEmail: updatedOrder?.email || updatedOrder?.shippingAddress?.email || '',
-        adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+        customerName: updatedOrder?.customer_name || plainOrder.customer_name || plainOrder.shippingAddress?.fullName || 'Customer',
+        customerEmail: updatedOrder?.email || plainOrder.email || plainOrder.shippingAddress?.email || '',
+        adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
         status: 'confirmed',
         type: 'payment_success',
         paymentStatus: paymentStatus,
-        amount: updatedOrder?.total || updatedOrder?.payment_amount || 0
+        paymentMethod: paymentMethod,
+        subtotal: Number(plainOrder.subtotal || 0),
+        discount: Number(plainOrder.discount || 0),
+        deliveryCharge: Number(plainOrder.shipping_fee || plainOrder.deliveryCharge || 0),
+        amount: Number(updatedOrder?.total || plainOrder.total || updatedOrder?.payment_amount || 0),
+        items: plainOrder.items || [],
+        shippingAddress: plainOrder.shippingAddress || plainOrder.shipping_address || {}
       });
     } catch (emailError) {
       console.warn('Order payment success email failed:', emailError.message);
@@ -371,6 +377,32 @@ export const handleRazorpayWebhook = async (req, res) => {
           razorpay_payment_id: paymentEntity?.id || order.razorpay_payment_id,
           paid_at: order.paid_at || new Date()
         });
+
+        // Trigger payment confirmation email if not already sent
+        if (!order.new_order_email_sent) {
+          try {
+            const plainOrder = getPlainOrder(order);
+            await sendOrderEmail({
+              orderNumber: plainOrder.order_number,
+              customerName: plainOrder.customer_name || plainOrder.shippingAddress?.fullName || 'Customer',
+              customerEmail: plainOrder.email || plainOrder.shippingAddress?.email || '',
+              adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
+              status: 'confirmed',
+              type: 'payment_success',
+              paymentStatus: paymentMethod === 'cod' ? 'partially_paid' : 'paid',
+              paymentMethod: paymentMethod,
+              subtotal: Number(plainOrder.subtotal || 0),
+              discount: Number(plainOrder.discount || 0),
+              deliveryCharge: Number(plainOrder.shipping_fee || plainOrder.deliveryCharge || 0),
+              amount: Number(plainOrder.total || plainOrder.payment_amount || 0),
+              items: plainOrder.items || [],
+              shippingAddress: plainOrder.shippingAddress || plainOrder.shipping_address || {}
+            });
+            await order.update({ new_order_email_sent: true });
+          } catch (emailErr) {
+            console.warn('Webhook payment email notification note:', emailErr.message);
+          }
+        }
       }
     }
 
@@ -391,6 +423,25 @@ export const reportRazorpayFailure = async (req, res) => {
         payment_status: 'failed',
         notes: failureMessage || 'Payment failed or cancelled by user.'
       });
+
+      try {
+        const plainOrder = getPlainOrder(order);
+        await sendOrderEmail({
+          orderNumber: plainOrder.order_number || orderRef || 'ORDER',
+          customerName: plainOrder.customer_name || plainOrder.shippingAddress?.fullName || 'Customer',
+          customerEmail: plainOrder.email || plainOrder.shippingAddress?.email || '',
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
+          status: 'payment_failed',
+          type: 'payment_failed',
+          paymentStatus: 'failed',
+          failReason: failureMessage || 'Transaction was declined or cancelled.',
+          amount: Number(plainOrder.total || plainOrder.payment_amount || 0),
+          items: plainOrder.items || [],
+          shippingAddress: plainOrder.shippingAddress || plainOrder.shipping_address || {}
+        });
+      } catch (emailError) {
+        console.warn('Payment failure report email note:', emailError.message);
+      }
     }
 
     res.status(200).json({ success: true, message: 'Failure recorded.' });

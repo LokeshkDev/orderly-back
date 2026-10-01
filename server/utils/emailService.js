@@ -10,6 +10,38 @@ export const isEmailConfigured = () => {
   return Boolean(user && pass && user.includes('@') && !user.includes('your-email@'));
 };
 
+export const getSenderAddress = () => {
+  const rawSender = process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com';
+  if (rawSender.includes('<') && rawSender.includes('>')) {
+    return rawSender;
+  }
+  return `"ORDERLY Mens Wear" <${rawSender.trim()}>`;
+};
+
+export const getReplyToAddress = () => {
+  return process.env.EMAIL_REPLY_TO || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com';
+};
+
+let cachedTransporter = null;
+export const getMailTransporter = () => {
+  const user = process.env.EMAIL_USER || process.env.GMAIL_USER;
+  const pass = process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD;
+
+  if (!cachedTransporter) {
+    cachedTransporter = nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE || 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user,
+        pass
+      }
+    });
+  }
+  return cachedTransporter;
+};
+
 const formatCurrency = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
 
 export const interpolateTemplate = (template = '', variables = {}) => {
@@ -109,8 +141,8 @@ export const buildOrderEmailPayload = (details = {}) => {
 
   const normalizedOrderNumber = String(orderNumber || 'ORDER').trim();
   const normalizedStatus = String(status || 'pending').toUpperCase();
-  const adminTarget = adminEmail || process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'admin@orderlymenswear.in';
-  const customerTarget = customerEmail || '';
+  const adminTarget = String(adminEmail || process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com').trim();
+  const customerTarget = String(customerEmail || '').trim();
   const orderTotal = Number(amount || subtotal + deliveryCharge - discount || 0);
 
   const effectiveTrackingUrl = trackingUrl || buildCourierTrackingUrl(courierName, trackingNumber, courierSettings);
@@ -375,17 +407,131 @@ export const buildOrderEmailPayload = (details = {}) => {
     `;
   }
 
-  // GENERIC UPDATE
-  else {
-    customerSubject = `ORDERLY | Order Status Update #${normalizedOrderNumber}`;
-    adminSubject = `ORDERLY Admin | Order Status Update #${normalizedOrderNumber}`;
+  // 6. ORDER RETURNED / REFUNDED
+  else if (lowerType === 'order_returned' || lowerStatus === 'returned' || lowerStatus === 'refunded' || lowerStatus === 'return_requested') {
+    customerSubject = `ORDERLY | Return / Refund Update #${normalizedOrderNumber}`;
+    adminSubject = `🔄 ORDERLY Admin | Return / Refund Processed #${normalizedOrderNumber} (${formatCurrency(orderTotal)})`;
 
     customerContent = `
       <div style="padding: 32px 26px; background-color: #ffffff;">
-        <h2 style="margin: 0 0 12px 0; color: #0f172a; font-size: 20px; font-weight: 800;">Hello ${customerName},</h2>
-        <p style="font-size: 15px; color: #334155; line-height: 1.6;">Your order <strong>#${normalizedOrderNumber}</strong> status has been updated to <strong style="color: #dc2626;">${normalizedStatus}</strong>.</p>
-        <p style="font-size: 15px; color: #334155; line-height: 1.6;">Total: <strong>${formatCurrency(orderTotal)}</strong></p>
+        <div style="text-align: center; margin-bottom: 26px;">
+          <div style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 14px; letter-spacing: 0.5px;">
+            🔄 RETURN / REFUND STATUS: ${normalizedStatus}
+          </div>
+          <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 23px; font-weight: 800;">Order #${normalizedOrderNumber} Return/Refund</h2>
+          <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.5;">Hello ${customerName}, your return/refund request for order <strong style="color: #0f172a;">#${normalizedOrderNumber}</strong> has been updated to <strong style="color: #dc2626;">${normalizedStatus}</strong>.</p>
+        </div>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <p style="margin: 0 0 8px 0; color: #334155; font-size: 14px;"><strong>Order Total:</strong> ${formatCurrency(orderTotal)}</p>
+          <p style="margin: 0; color: #64748b; font-size: 13px;">Our support concierge coordinates all returns and reverse logistics. If an online prepayment refund was authorized, funds typically reflect in 3-5 business days.</p>
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 26px 0 12px 0; text-transform: uppercase;">Affected Items</h3>
         ${renderItemsHtml(items)}
+      </div>
+    `;
+  }
+
+  // 7. ORDER EXCHANGED
+  else if (lowerType === 'order_exchanged' || lowerStatus === 'exchange' || lowerStatus === 'exchanged' || lowerStatus === 'exchange_requested') {
+    customerSubject = `ORDERLY | Size Exchange Update #${normalizedOrderNumber}`;
+    adminSubject = `🔄 ORDERLY Admin | Size Exchange Request #${normalizedOrderNumber}`;
+
+    customerContent = `
+      <div style="padding: 32px 26px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 26px;">
+          <div style="display: inline-block; background-color: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 14px; letter-spacing: 0.5px;">
+            🔄 15-DAYS DOORSTEP EXCHANGE
+          </div>
+          <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 23px; font-weight: 800;">Size Exchange Update</h2>
+          <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.5;">Hello ${customerName}, your doorstep size exchange request for order <strong style="color: #0f172a;">#${normalizedOrderNumber}</strong> is being processed.</p>
+        </div>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <p style="margin: 0; color: #334155; font-size: 14px; line-height: 1.6;">Our delivery partner will bring your replacement size and collect the current unworn piece with original tags attached.</p>
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 26px 0 12px 0; text-transform: uppercase;">Exchange Order Items</h3>
+        ${renderItemsHtml(items)}
+      </div>
+    `;
+  }
+
+  // 8. TRACKING UPDATED
+  else if (lowerType === 'order_tracking_updated') {
+    customerSubject = `ORDERLY | Tracking Details Updated #${normalizedOrderNumber}`;
+    adminSubject = `📦 ORDERLY Admin | Tracking Updated #${normalizedOrderNumber} (${courierName || 'Courier'} - ${trackingNumber || 'AWB'})`;
+
+    customerContent = `
+      <div style="padding: 32px 26px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 26px;">
+          <div style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 14px; letter-spacing: 0.5px;">
+            📍 SHIPMENT TRACKING UPDATED
+          </div>
+          <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 23px; font-weight: 800;">Courier Tracking Assigned</h2>
+          <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.5;">Hello ${customerName}, tracking information has been updated for order <strong style="color: #0f172a;">#${normalizedOrderNumber}</strong>.</p>
+        </div>
+
+        <!-- Tracking Card -->
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 22px; margin: 20px 0; text-align: center;">
+          <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 6px;">Courier Partner</div>
+          <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">${courierName || 'Express Domestic Courier'}</div>
+          
+          <div style="font-size: 12px; color: #64748b; margin-bottom: 4px; font-weight: 700;">AWB / TRACKING NUMBER</div>
+          <div style="font-size: 16px; font-family: monospace; font-weight: 800; color: #0f172a; background-color: #ffffff; display: inline-block; padding: 8px 20px; border-radius: 6px; border: 1px solid #cbd5e1; margin-bottom: 16px;">
+            ${trackingNumber || 'Available shortly'}
+          </div>
+
+          ${effectiveTrackingUrl ? `
+          <div>
+            <a href="${effectiveTrackingUrl}" target="_blank" style="background-color: #dc2626; color: #ffffff; display: inline-block; padding: 12px 30px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none;">
+              Track Shipment Live →
+            </a>
+          </div>
+          ` : ''}
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 26px 0 12px 0; text-transform: uppercase;">Items in Shipment</h3>
+        ${renderItemsHtml(items)}
+      </div>
+    `;
+  }
+
+  // 9. GENERAL / OTHER STATUS UPDATE
+  else {
+    customerSubject = `ORDERLY | Order #${normalizedOrderNumber} Status: ${normalizedStatus}`;
+    adminSubject = `🔔 ORDERLY Admin | Order #${normalizedOrderNumber} Updated to ${normalizedStatus} (${formatCurrency(orderTotal)})`;
+
+    customerContent = `
+      <div style="padding: 32px 26px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 26px;">
+          <div style="display: inline-block; background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 14px; letter-spacing: 0.5px;">
+            ✦ ORDER STATUS: ${normalizedStatus}
+          </div>
+          <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 23px; font-weight: 800;">Order Status Update</h2>
+          <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.5;">Hello ${customerName}, order <strong style="color: #0f172a;">#${normalizedOrderNumber}</strong> has been updated to <strong style="color: #dc2626;">${normalizedStatus}</strong>.</p>
+        </div>
+
+        ${(courierName || trackingNumber) ? `
+        <!-- Tracking Card -->
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin: 18px 0; text-align: center;">
+          <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Courier & Tracking</div>
+          <div style="font-size: 15px; font-weight: 800; color: #0f172a;">${courierName || 'Express Courier'}${trackingNumber ? ` - AWB: ${trackingNumber}` : ''}</div>
+          ${effectiveTrackingUrl ? `
+          <div style="margin-top: 10px;">
+            <a href="${effectiveTrackingUrl}" target="_blank" style="background-color: #dc2626; color: #ffffff; display: inline-block; padding: 8px 22px; border-radius: 6px; font-weight: 700; font-size: 13px; text-decoration: none;">Track Live →</a>
+          </div>` : ''}
+        </div>
+        ` : ''}
+
+        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 26px 0 12px 0; text-transform: uppercase;">Order Summary</h3>
+        ${renderItemsHtml(items)}
+
+        <div style="margin-top: 18px;">
+          <strong>Delivery Address:</strong>
+          ${renderAddressHtml(shippingAddress)}
+        </div>
       </div>
     `;
   }
@@ -436,16 +582,21 @@ export const buildOrderEmailPayload = (details = {}) => {
     </html>
   `;
 
+  const formattedSender = getSenderAddress();
+  const replyTo = getReplyToAddress();
+
   return {
     customer: {
       to: customerTarget,
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.GMAIL_USER || 'concierge@orderlymenswear.in',
+      from: formattedSender,
+      replyTo: replyTo,
       subject: customerSubject,
       html: customerHtml
     },
     admin: {
       to: adminTarget,
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.GMAIL_USER || 'concierge@orderlymenswear.in',
+      from: formattedSender,
+      replyTo: customerTarget || replyTo,
       subject: adminSubject,
       html: adminHtml
     }
@@ -460,26 +611,60 @@ export const sendOrderEmail = async (details = {}) => {
 
   try {
     const payload = buildOrderEmailPayload(details);
-    const transporter = nodemailer.createTransport({
-      service: process.env.EMAIL_SERVICE || 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER || process.env.GMAIL_USER,
-        pass: process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD
+    const transporter = getMailTransporter();
+
+    if (!transporter) {
+      console.warn('[EmailService] Transporter unavailable.');
+      return { success: false, message: 'Mail transporter unavailable' };
+    }
+
+    const recipients = [];
+    const isValidEmail = (addr) => typeof addr === 'string' && addr.trim().includes('@');
+
+    // Both customer and admin are dispatched (including when testing with the same email)
+    if (isValidEmail(payload.customer?.to)) {
+      recipients.push({ role: 'customer', mail: payload.customer });
+    } else {
+      console.warn(`[EmailService] Customer email missing or invalid for order #${details.orderNumber || ''}: "${payload.customer?.to}"`);
+    }
+
+    if (isValidEmail(payload.admin?.to)) {
+      recipients.push({ role: 'admin', mail: payload.admin });
+    } else {
+      console.warn(`[EmailService] Admin alert email missing or invalid for order #${details.orderNumber || ''}: "${payload.admin?.to}"`);
+    }
+
+    if (!recipients.length) {
+      console.warn(`[EmailService] No valid recipients for order #${details.orderNumber || ''}`);
+      return { success: false, message: 'No valid email recipients configured.' };
+    }
+
+    console.log(`[EmailService] Dispatching ${recipients.length} email(s) for order #${details.orderNumber || 'N/A'}: ${recipients.map(r => `[${r.role}] ${r.mail.to}`).join(', ')}`);
+
+    const results = await Promise.allSettled(recipients.map((r) => transporter.sendMail(r.mail)));
+    let sentCount = 0;
+    const failures = [];
+
+    results.forEach((res, idx) => {
+      const { role, mail } = recipients[idx];
+      if (res.status === 'fulfilled') {
+        sentCount++;
+        console.log(`[EmailService] ✓ [${role.toUpperCase()}] Delivered to ${mail.to} | Subject: "${mail.subject}" | MessageId: ${res.value?.messageId || 'OK'}`);
+      } else {
+        const errorMsg = res.reason?.message || String(res.reason);
+        failures.push({ role, to: mail.to, error: errorMsg });
+        console.error(`[EmailService] ✗ [${role.toUpperCase()}] Failed delivery to ${mail.to}:`, errorMsg);
       }
     });
 
-    const recipients = [];
-    if (payload.customer.to) recipients.push({ ...payload.customer, to: payload.customer.to });
-    if (payload.admin.to && payload.admin.to !== payload.customer.to) recipients.push({ ...payload.admin, to: payload.admin.to });
-
-    if (!recipients.length) {
-      return { success: false, message: 'No email recipients configured.' };
-    }
-
-    await Promise.allSettled(recipients.map((mail) => transporter.sendMail(mail)));
-    return { success: true, sent: recipients.length };
+    return {
+      success: sentCount > 0,
+      sent: sentCount,
+      total: recipients.length,
+      failures: failures.length > 0 ? failures : undefined
+    };
   } catch (error) {
-    console.error('Order email sending error:', error.message);
+    console.error('[EmailService] Order email fatal error:', error.message);
     return { success: false, message: error.message };
   }
 };
@@ -492,18 +677,11 @@ export const sendAdminUserCreatedEmail = async ({ name, email, password, role, c
 
   try {
     const userAccount = process.env.EMAIL_USER || process.env.GMAIL_USER;
-    const userPass = process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD;
     const adminEmail = process.env.ADMIN_EMAIL || userAccount;
-    const loginUrl = process.env.ADMIN_URL || 'http://localhost:5174/login';
+    const loginUrl = process.env.ADMIN_URL || 'https://admin.orderlymenswear.in';
     const roleName = role ? String(role).toUpperCase() : 'ADMIN';
-
-    const transporter = nodemailer.createTransport({
-      service: process.env.EMAIL_SERVICE || 'gmail',
-      auth: {
-        user: userAccount,
-        pass: userPass
-      }
-    });
+    const transporter = getMailTransporter();
+    const formattedSender = getSenderAddress();
 
     const userHtml = `
       <!DOCTYPE html>
@@ -563,7 +741,7 @@ export const sendAdminUserCreatedEmail = async ({ name, email, password, role, c
     const mails = [
       {
         to: email,
-        from: process.env.EMAIL_FROM || userAccount,
+        from: formattedSender,
         subject: 'Welcome to ORDERLY Team | Your Admin Portal Credentials',
         html: userHtml
       }
@@ -572,7 +750,7 @@ export const sendAdminUserCreatedEmail = async ({ name, email, password, role, c
     if (adminEmail && adminEmail !== email) {
       mails.push({
         to: adminEmail,
-        from: process.env.EMAIL_FROM || userAccount,
+        from: formattedSender,
         subject: `ORDERLY Security | New Team Member Created (${name} - ${roleName})`,
         html: adminAlertHtml
       });

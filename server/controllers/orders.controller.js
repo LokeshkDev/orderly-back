@@ -664,8 +664,8 @@ export const createOrder = async (req, res) => {
         await sendOrderEmail({
           orderNumber: createdRecord.order_number,
           customerName: customerFullName,
-          customerEmail: createdRecord.email || shippingAddress.email || '',
-          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+          customerEmail: createdRecord.email || shippingAddress.email || req.body.email || normalizedOrder.email || '',
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
           status: 'pending',
           type: 'order_placed',
           paymentStatus: normalizedOrder.payment_method === 'cod' ? 'pending' : 'pending',
@@ -892,16 +892,16 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order record unavailable' });
     }
 
-    // Check status-specific email trigger (deduplicated)
+    // Check status-specific email trigger (always notify customer & admin)
     if (lowerStatus === 'cancelled' || lowerStatus === 'canceled') {
       const alreadySent = dbOrder ? dbOrder.cancelled_email_sent : runtimeItem?.cancelled_email_sent;
-      if (!alreadySent) {
+      if (!alreadySent || req.body.force_email) {
         try {
           await sendOrderEmail({
             orderNumber: orderRecord.order_number,
             customerName: orderRecord.customer_name || 'Customer',
             customerEmail: orderRecord.email,
-            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'admin@orderlymenswear.in',
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com',
             status: 'Cancelled',
             type: 'order_cancelled',
             paymentStatus: orderRecord.payment_status || 'refund_initiated',
@@ -925,13 +925,13 @@ export const updateOrderStatus = async (req, res) => {
       }
     } else if (lowerStatus === 'failed') {
       const alreadySent = dbOrder ? dbOrder.failed_email_sent : runtimeItem?.failed_email_sent;
-      if (!alreadySent) {
+      if (!alreadySent || req.body.force_email) {
         try {
           await sendOrderEmail({
             orderNumber: orderRecord.order_number,
             customerName: orderRecord.customer_name || 'Customer',
             customerEmail: orderRecord.email,
-            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'admin@orderlymenswear.in',
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com',
             status: 'Failed',
             type: 'order_failed',
             paymentStatus: 'failed',
@@ -955,13 +955,14 @@ export const updateOrderStatus = async (req, res) => {
       }
     } else if (lowerStatus === 'shipped') {
       const alreadySent = dbOrder ? dbOrder.shipped_email_sent : runtimeItem?.shipped_email_sent;
-      if (!alreadySent && email_settings?.order_shipped?.enabled !== false) {
+      const trackingChanged = effectiveTracking && effectiveTracking !== (dbOrder?.tracking_number || runtimeItem?.tracking_number);
+      if ((!alreadySent || trackingChanged || req.body.force_email) && email_settings?.order_shipped?.enabled !== false) {
         try {
           await sendOrderEmail({
             orderNumber: orderRecord.order_number,
             customerName: orderRecord.customer_name || 'Customer',
             customerEmail: orderRecord.email,
-            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
             status: 'Shipped',
             type: 'order_shipped',
             paymentStatus: orderRecord.payment_status || 'pending',
@@ -990,13 +991,13 @@ export const updateOrderStatus = async (req, res) => {
       }
     } else if (lowerStatus === 'delivered') {
       const alreadySent = dbOrder ? dbOrder.delivered_email_sent : runtimeItem?.delivered_email_sent;
-      if (!alreadySent && email_settings?.order_delivered?.enabled !== false) {
+      if ((!alreadySent || req.body.force_email) && email_settings?.order_delivered?.enabled !== false) {
         try {
           await sendOrderEmail({
             orderNumber: orderRecord.order_number,
             customerName: orderRecord.customer_name || 'Customer',
             customerEmail: orderRecord.email,
-            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@orderly.com',
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
             status: 'Delivered',
             type: 'order_delivered',
             paymentStatus: orderRecord.payment_status || 'pending',
@@ -1020,6 +1021,79 @@ export const updateOrderStatus = async (req, res) => {
           console.warn('Delivered email notification note:', emailError.message);
         }
       }
+    } else if (lowerStatus === 'returned' || lowerStatus === 'refunded' || lowerStatus === 'return_requested') {
+      try {
+        await sendOrderEmail({
+          orderNumber: orderRecord.order_number,
+          customerName: orderRecord.customer_name || 'Customer',
+          customerEmail: orderRecord.email,
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
+          status: formattedStatus,
+          type: 'order_returned',
+          paymentStatus: orderRecord.payment_status || 'refunded',
+          paymentMethod: orderRecord.payment_method,
+          subtotal: orderRecord.subtotal,
+          discount: orderRecord.discount,
+          deliveryCharge: orderRecord.shipping_fee,
+          amount: orderRecord.total,
+          items: orderRecord.items,
+          shippingAddress: orderRecord.shippingAddress,
+          emailSettings: email_settings,
+          courierSettings: courier_settings
+        });
+      } catch (emailError) {
+        console.warn('Return email notification note:', emailError.message);
+      }
+    } else if (lowerStatus === 'exchange' || lowerStatus === 'exchanged' || lowerStatus === 'exchange_requested') {
+      try {
+        await sendOrderEmail({
+          orderNumber: orderRecord.order_number,
+          customerName: orderRecord.customer_name || 'Customer',
+          customerEmail: orderRecord.email,
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
+          status: formattedStatus,
+          type: 'order_exchanged',
+          paymentStatus: orderRecord.payment_status || 'pending',
+          paymentMethod: orderRecord.payment_method,
+          subtotal: orderRecord.subtotal,
+          discount: orderRecord.discount,
+          deliveryCharge: orderRecord.shipping_fee,
+          amount: orderRecord.total,
+          items: orderRecord.items,
+          shippingAddress: orderRecord.shippingAddress,
+          emailSettings: email_settings,
+          courierSettings: courier_settings
+        });
+      } catch (emailError) {
+        console.warn('Exchange email notification note:', emailError.message);
+      }
+    } else {
+      // General status update (confirmed, processing, in_fulfillment, out_for_delivery, etc.)
+      try {
+        await sendOrderEmail({
+          orderNumber: orderRecord.order_number,
+          customerName: orderRecord.customer_name || 'Customer',
+          customerEmail: orderRecord.email,
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
+          status: formattedStatus,
+          type: 'status_update',
+          paymentStatus: orderRecord.payment_status || 'pending',
+          paymentMethod: orderRecord.payment_method,
+          subtotal: orderRecord.subtotal,
+          discount: orderRecord.discount,
+          deliveryCharge: orderRecord.shipping_fee,
+          amount: orderRecord.total,
+          items: orderRecord.items,
+          shippingAddress: orderRecord.shippingAddress,
+          courierName: effectiveCourier,
+          trackingNumber: effectiveTracking,
+          trackingUrl: dynamicTrackingUrl,
+          emailSettings: email_settings,
+          courierSettings: courier_settings
+        });
+      } catch (emailError) {
+        console.warn('General status update email note:', emailError.message);
+      }
     }
 
     res.status(200).json({
@@ -1039,11 +1113,12 @@ export const updateTrackingNumber = async (req, res) => {
     const finalTracking = tracking_number !== undefined ? tracking_number : tracking;
     const orderId = req.params.id;
 
-    const { courier_settings } = await getParsedSettings();
+    const { courier_settings, email_settings } = await getParsedSettings();
     const dynamicTrackingUrl = buildCourierTrackingUrl(courier_name, finalTracking, courier_settings);
 
+    let order = null;
     try {
-      const order = await Order.findOne({
+      order = await Order.findOne({
         where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] }
       });
       if (order) {
@@ -1064,6 +1139,35 @@ export const updateTrackingNumber = async (req, res) => {
       runtimeItem.tracking_number = finalTracking;
       if (courier_name) runtimeItem.courier_name = courier_name;
       runtimeItem.tracking_url = dynamicTrackingUrl;
+    }
+
+    const orderRecord = order ? normalizeOrder(order) : (runtimeItem ? normalizeOrder(runtimeItem) : null);
+    if (orderRecord && finalTracking) {
+      try {
+        await sendOrderEmail({
+          orderNumber: orderRecord.order_number,
+          customerName: orderRecord.customer_name || 'Customer',
+          customerEmail: orderRecord.email,
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
+          status: orderRecord.status || 'Shipped',
+          type: 'order_tracking_updated',
+          paymentStatus: orderRecord.payment_status || 'pending',
+          paymentMethod: orderRecord.payment_method,
+          subtotal: orderRecord.subtotal,
+          discount: orderRecord.discount,
+          deliveryCharge: orderRecord.shipping_fee,
+          amount: orderRecord.total,
+          items: orderRecord.items,
+          shippingAddress: orderRecord.shippingAddress,
+          courierName: courier_name || orderRecord.courier_name || 'Express Courier',
+          trackingNumber: finalTracking,
+          trackingUrl: dynamicTrackingUrl,
+          emailSettings: email_settings,
+          courierSettings: courier_settings
+        });
+      } catch (emailError) {
+        console.warn('Tracking update email notification note:', emailError.message);
+      }
     }
 
     res.status(200).json({ 
@@ -1095,11 +1199,12 @@ export const updateOrder = async (req, res) => {
     } = req.body;
     const orderId = req.params.id;
 
-    const { courier_settings } = await getParsedSettings();
+    const { courier_settings, email_settings } = await getParsedSettings();
     const dynamicTrackingUrl = tracking_number ? buildCourierTrackingUrl(courier_name, tracking_number, courier_settings) : null;
 
+    let order = null;
     try {
-      const order = await Order.findOne({
+      order = await Order.findOne({
         where: { [Op.or]: [{ id: orderId }, { order_number: orderId }] }
       });
       if (order) {
@@ -1130,6 +1235,44 @@ export const updateOrder = async (req, res) => {
       if (shippingAddress) runtimeItem.shippingAddress = shippingAddress;
       if (customer_name) runtimeItem.customer_name = customer_name;
       if (email) runtimeItem.email = email;
+    }
+
+    // Trigger email notification if status, tracking, or major order details changed
+    const orderRecord = order ? normalizeOrder(order) : (runtimeItem ? normalizeOrder(runtimeItem) : null);
+    if (orderRecord && (status || tracking_number || payment_status || paymentStatus)) {
+      try {
+        const lowerS = (status || orderRecord.status || '').toLowerCase();
+        const effectiveType = lowerS === 'shipped' ? 'order_shipped'
+          : (lowerS === 'delivered' ? 'order_delivered'
+          : (lowerS === 'cancelled' || lowerS === 'canceled' ? 'order_cancelled'
+          : (lowerS === 'returned' || lowerS === 'refunded' ? 'order_returned'
+          : (lowerS === 'exchange' || lowerS === 'exchanged' ? 'order_exchanged'
+          : (tracking_number ? 'order_tracking_updated' : 'status_update')))));
+
+        await sendOrderEmail({
+          orderNumber: orderRecord.order_number,
+          customerName: customer_name || orderRecord.customer_name || 'Customer',
+          customerEmail: email || orderRecord.email,
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
+          status: status || orderRecord.status || 'Updated',
+          type: effectiveType,
+          paymentStatus: payment_status || paymentStatus || orderRecord.payment_status || 'pending',
+          paymentMethod: orderRecord.payment_method,
+          subtotal: orderRecord.subtotal,
+          discount: orderRecord.discount,
+          deliveryCharge: orderRecord.shipping_fee,
+          amount: total !== undefined ? total : orderRecord.total,
+          items: orderRecord.items,
+          shippingAddress: shippingAddress || orderRecord.shippingAddress,
+          courierName: courier_name || orderRecord.courier_name,
+          trackingNumber: tracking_number || orderRecord.tracking_number,
+          trackingUrl: dynamicTrackingUrl || orderRecord.tracking_url,
+          emailSettings: email_settings,
+          courierSettings: courier_settings
+        });
+      } catch (emailError) {
+        console.warn('Order edit email notification note:', emailError.message);
+      }
     }
 
     res.status(200).json({ success: true, message: 'Order updated successfully' });

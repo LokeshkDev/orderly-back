@@ -222,4 +222,59 @@ console.log('--- Starting Delivery Engine & Pair Offer Unit Tests ---');
   console.log('✓ TEST 6 Passed: Combined Combo & Single Item Delivery Calculation with Additional Item Cost (120+30=150, 180+30=210, 180+60=240)');
 }
 
-console.log('\n ALL 6 UNIT TESTS PASSED SUCCESSFULLY! ');
+// TEST 7: Combined Combo & Single Items to Tamil Nadu (Order #ORD-20909218 Regression Test)
+{
+  const activeSettings = {
+    ...DEFAULT_DELIVERY_SETTINGS,
+    pincode_based: {
+      enabled: true,
+      chennai: {
+        charge: 50,
+        pincodes: ['600001', '600002'],
+        pincode_ranges: [{ from: '600001', to: '600100' }]
+      },
+      tamil_nadu: {
+        charge: 80,
+        pincodes: [],
+        pincode_ranges: [{ from: '600001', to: '643999' }]
+      },
+      other_states: {
+        charge: 120
+      }
+    },
+    combo_delivery: {
+      enabled: true,
+      charge: 120,
+      free_delivery_above: 3500,
+      per_combo_charge: 60,
+      label: 'Combo Express Delivery'
+    },
+    priority: 'pincode_based'
+  };
+
+  const cartItems = [
+    { id: 'combo-1791078716071', name: '2in1 porsche jackets combo', price: 1595, quantity: 1, isCombo: true },
+    { id: 101, name: 'korean baggy pant-black', price: 850, quantity: 1, isCombo: false },
+    { id: 102, name: 'lenin shirt-blue', price: 650, quantity: 1, isCombo: false },
+    { id: 103, name: 'lenin shirt-black', price: 650, quantity: 1, isCombo: false },
+    { id: 104, name: 'lenin shirt-white', price: 650, quantity: 1, isCombo: false }
+  ];
+
+  // Cart subtotal is 4395 (> 3500), but combo subtotal is only 1595 (< 3500).
+  // Combo must NOT be free, and single items to TN 600117 must be 80. Total must be 200.
+  const res = calculateDeliveryCharge({
+    cartItems,
+    subtotal: 4395,
+    pincode: '600117',
+    deliverySettings: activeSettings
+  });
+
+  assert.strictEqual(res.comboShippingFee, 120, 'Combo shipping fee must be 120 (not 0, since combo alone is < 3500)');
+  assert.strictEqual(res.singleShippingFee, 80, 'Single products shipping fee to Tamil Nadu must be 80');
+  assert.strictEqual(res.shippingFee, 200, 'Total delivery fee must be exactly 200');
+  assert.strictEqual(res.method, 'combined_delivery');
+
+  console.log('✓ TEST 7 Passed: Order #ORD-20909218 scenario verified: 1 Combo (120) + 4 Single Items to TN (80) = 200');
+}
+
+console.log('\n ALL 7 UNIT TESTS PASSED SUCCESSFULLY! ');

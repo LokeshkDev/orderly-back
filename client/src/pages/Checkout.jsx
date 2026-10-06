@@ -204,7 +204,11 @@ const Checkout = () => {
         price: item.price,
         originalPrice: item.originalPrice || item.original_price || item.price,
         quantity: item.quantity || 1,
-        selectedSize: item.selectedSize || 'M',
+        selectedSize: item.isCombo
+          ? (Array.isArray(item.selectedPieces) && item.selectedPieces.length > 0
+              ? item.selectedPieces.map(p => p.size).filter(Boolean).join(', ')
+              : (item.selectedSize || null))
+          : (item.selectedSize || item.size || null),
         selectedColor: item.selectedColor || null,
         selectedPieces: item.selectedPieces || [],
         pairOffer: item.pairOffer || null,
@@ -612,10 +616,10 @@ const Checkout = () => {
                           </div>
                           <div className="summary-item-meta">
                             <span>Qty: <strong className="meta-val-qty">{item.quantity}</strong></span>
-                            {(item.selectedSize || item.size) && (
+                            {!item.isCombo && (item.selectedSize || item.size) && (
                               <span className="ms-2">| Size: <strong className="meta-val-highlight">{item.selectedSize || item.size}</strong></span>
                             )}
-                            {(item.selectedColor || item.color) && (
+                            {!item.isCombo && (item.selectedColor || item.color) && (
                               <span className="ms-2">| Color: <strong className="meta-val-highlight">{item.selectedColor || item.color}</strong></span>
                             )}
                           </div>

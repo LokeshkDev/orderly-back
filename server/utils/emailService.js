@@ -58,9 +58,50 @@ const renderItemsHtml = (items = []) => {
 
   const rows = items.map((item) => {
     const name = item.name || item.product_name || item.productName || 'Curated Apparel Item';
-    const size = item.selectedSize || item.size ? `Size: ${item.selectedSize || item.size}` : '';
-    const color = item.selectedColor || item.color ? `Color: ${item.selectedColor || item.color}` : '';
-    const variant = [color, size].filter(Boolean).join(' | ');
+    let rawPieces = item.selectedPieces || item.selected_pieces || null;
+    if (typeof rawPieces === 'string') {
+      try { rawPieces = JSON.parse(rawPieces); } catch (e) { rawPieces = null; }
+    }
+    const isCombo = Boolean(item.isCombo || item.is_combo || (Array.isArray(rawPieces) && rawPieces.length > 0));
+
+    let detailsHtml = '';
+
+    if (isCombo && Array.isArray(rawPieces) && rawPieces.length > 0) {
+      const piecesList = rawPieces.map((piece, pIdx) => {
+        const pieceName = (piece.name || piece.pieceLabel || `Piece ${pIdx + 1}`).trim();
+        const pieceSize = piece.size || 'Standard';
+        const pieceColor = piece.color && piece.color !== 'Standard' ? ` | Color: ${piece.color}` : '';
+        return `
+          <div style="font-size: 12px; color: #334155; margin-top: 5px; line-height: 1.4;">
+            <span style="color: #dc2626; font-weight: bold; margin-right: 4px;">•</span>
+            <strong style="color: #0f172a;">${pieceName}:</strong>
+            <span style="display: inline-block; background-color: #f1f5f9; color: #0f172a; font-weight: 700; padding: 1px 7px; border-radius: 4px; border: 1px solid #e2e8f0; margin-left: 4px; font-size: 11px;">Size ${pieceSize}</span>
+            ${pieceColor ? `<span style="color: #64748b; font-size: 11px;">${pieceColor}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+
+      detailsHtml = `
+        <div style="margin-top: 4px;">
+          <span style="display: inline-block; background-color: #fef3c7; color: #92400e; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase;">Combo Bundle</span>
+        </div>
+        <div style="margin-top: 6px; padding: 6px 10px; background-color: #f8fafc; border-left: 3px solid #dc2626; border-radius: 0 6px 6px 0;">
+          ${piecesList}
+        </div>
+      `;
+    } else {
+      const size = item.selectedSize || item.size ? `Size: ${item.selectedSize || item.size}` : '';
+      const color = item.selectedColor || item.color ? `Color: ${item.selectedColor || item.color}` : '';
+      const variant = [color, size].filter(Boolean).join(' | ');
+      if (variant) {
+        detailsHtml = `
+          <div style="margin-top: 4px;">
+            <span style="font-size: 12px; color: #475569; font-weight: 600; display: inline-block; background-color: #f8fafc; padding: 2px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">${variant}</span>
+          </div>
+        `;
+      }
+    }
+
     const qty = Number(item.quantity || 1);
     const price = Number(item.price ?? item.unit_price ?? 0);
     const itemTotal = price * qty;
@@ -69,7 +110,7 @@ const renderItemsHtml = (items = []) => {
       <tr style="border-bottom: 1px solid #e2e8f0;">
         <td style="padding: 14px 10px; font-size: 14px; color: #0f172a; vertical-align: top;">
           <strong style="color: #0f172a; font-size: 14px; display: block;">${name}</strong>
-          ${variant ? `<span style="font-size: 12px; color: #64748b; margin-top: 3px; display: inline-block;">${variant}</span>` : ''}
+          ${detailsHtml}
         </td>
         <td style="padding: 14px 10px; font-size: 14px; color: #334155; text-align: center; vertical-align: top; font-weight: 600;">${qty}</td>
         <td style="padding: 14px 10px; font-size: 14px; color: #0f172a; text-align: right; font-weight: 700; vertical-align: top;">${formatCurrency(itemTotal)}</td>
@@ -202,7 +243,7 @@ export const buildOrderEmailPayload = (details = {}) => {
     <div style="background-color: #0b0f19; padding: 26px 20px; text-align: center; border-top: 1px solid rgba(255,255,255,0.08); border-radius: 0 0 12px 12px; font-size: 13px; color: #94a3b8;">
       <p style="margin: 0 0 6px 0; font-weight: 800; color: #ffffff; letter-spacing: 1px; font-size: 14px;">ORDERLY MENS WEAR</p>
       <p style="margin: 0 0 10px 0; color: #64748b; font-size: 12px;">Valasaravakkam & Kundrathur, Chennai, Tamil Nadu, India</p>
-      <p style="margin: 0; font-size: 12px; color: #94a3b8;">Need assistance with this order? Reply directly to this email or reach us at <a href="mailto:support@orderlymenswear.in" style="color: #dc2626; text-decoration: none; font-weight: 600;">support@orderlymenswear.in</a></p>
+      <p style="margin: 0; font-size: 12px; color: #94a3b8;">Need assistance with this order? Reply directly to this email or reach us at <a href="orderlymenswear01@gmail.com" style="color: #dc2626; text-decoration: none; font-weight: 600;">orderlymenswear01@gmail.com</a></p>
       <p style="margin: 12px 0 0 0; font-size: 11px; color: #475569;">© 2026 ORDERLY Mens Wear. All rights reserved.</p>
     </div>
   `;

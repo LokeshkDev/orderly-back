@@ -472,23 +472,33 @@ const OrderDetail = () => {
                       </div>
                     </td>
                     <td>
-                      {Array.isArray(item.selectedPieces) && item.selectedPieces.length > 0 ? (
-                        <div className="small">
-                          {item.selectedPieces.map((piece, pIdx) => (
-                            <div key={pIdx} className="text-muted mb-1">
-                              <strong className="text-dark">{piece.name || piece.pieceLabel || `Piece ${pIdx + 1}`}:</strong>{' '}
-                              Size <strong className="text-dark">{piece.size || 'M'}</strong>
-                              {piece.color && piece.color !== 'Standard' && (
-                                <> | {piece.color}</>
-                              )}
+                      {(() => {
+                        let pieces = item.selectedPieces || item.selected_pieces;
+                        if (typeof pieces === 'string') {
+                          try { pieces = JSON.parse(pieces); } catch (e) { pieces = null; }
+                        }
+                        if (Array.isArray(pieces) && pieces.length > 0) {
+                          return (
+                            <div className="small">
+                              {pieces.map((piece, pIdx) => (
+                                <div key={pIdx} className="text-muted mb-1">
+                                  <strong className="text-dark">{piece.name || piece.pieceLabel || `Piece ${pIdx + 1}`}:</strong>{' '}
+                                  Size <strong className="text-dark">{piece.size || 'M'}</strong>
+                                  {piece.color && piece.color !== 'Standard' && (
+                                    <> | {piece.color}</>
+                                  )}
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="small text-muted">
-                          Color: <strong className="text-dark">{item.selectedColor || item.color || 'Standard'}</strong> | Size: <strong className="text-dark">{item.selectedSize || item.size || 'M'}</strong>
-                        </span>
-                      )}
+                          );
+                        }
+
+                        return (
+                          <span className="small text-muted">
+                            Color: <strong className="text-dark">{item.selectedColor || item.color || 'Standard'}</strong> | Size: <strong className="text-dark">{item.selectedSize || item.size || 'Standard'}</strong>
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>₹{item.price || order.total}</td>
                     <td><strong className="text-dark">{item.quantity || 1}</strong></td>

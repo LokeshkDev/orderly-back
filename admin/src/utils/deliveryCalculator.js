@@ -22,12 +22,10 @@ export const DEFAULT_DELIVERY_SETTINGS = {
         '600041', '600042', '600043', '600044', '600045', '600048', '600049', '600050', '600051', '600052',
         '600053', '600054', '600056', '600058', '600059', '600061', '600062', '600064', '600069', '600070',
         '600073', '600075', '600077', '600078', '600082', '600083', '600084', '600085', '600087', '600088',
-        '600089', '600091', '600092', '600093', '600094', '600095', '600096', '600097', '600099', '600100',
-        '600101', '600102', '600106', '600107', '600108', '600113', '600114', '600116', '600117', '600118',
-        '600119', '600122', '600123', '600124', '600125', '600126', '600127', '600128', '600129', '600130'
+        '600089', '600091', '600092', '600093', '600094', '600095', '600096', '600097', '600099', '600100'
       ],
       pincode_ranges: [
-        { from: '600001', to: '600130' }
+        { from: '600001', to: '600100' }
       ]
     },
     tamil_nadu: {
@@ -281,7 +279,7 @@ export const calculateComboDelivery = ({
     };
   }
 
-  const isFree = freeThreshold > 0 && (comboSubtotal >= freeThreshold || cartSubtotal >= freeThreshold);
+  const isFree = freeThreshold > 0 && comboSubtotal >= freeThreshold;
   const charge = isFree ? 0 : (flatCharge + Math.max(0, comboCount - 1) * perComboFee);
   const comboLabel = comboCount > 1 ? `${label} (${comboCount} combos)` : label;
 
@@ -315,8 +313,27 @@ export const calculateStandardDelivery = ({
     ? totalItemQuantity 
     : (Array.isArray(items) ? items.reduce((acc, item) => acc + (Math.max(1, Number(item.quantity) || 1)), 0) : 0);
 
-  // When combos are already in the cart, single products are charged at the additional item rate
+  const isPriceEnabled = Boolean(settings?.price_based?.enabled);
+  const isPincodeEnabled = Boolean(settings?.pincode_based?.enabled);
+  const isItemEnabled = Boolean(settings?.item_based?.enabled);
+
+  // When combos are already in the cart:
+  // If pincode/location delivery is enabled and valid pincode is provided, use location rate for single items
   if (isAdditionalToCombo) {
+    if (isPincodeEnabled && isValidPincode(pincode)) {
+      const pinResult = determinePincodeLocation(pincode, settings.pincode_based);
+      return {
+        shippingFee: pinResult.charge ?? 0,
+        method: 'pincode_based',
+        methodLabel: `Delivery to ${pinResult.location}`,
+        locationLabel: pinResult.location,
+        isBelowMinOrder: false,
+        minOrderAmount: 0,
+        breakdownText: `Delivery to ${pinResult.location}: ₹${pinResult.charge}`,
+        explanation: `${totalQty} single product(s) delivery to ${pinResult.location} [₹${pinResult.charge}]`
+      };
+    }
+
     const additionalPerItem = Number(settings?.item_based?.additional_item_charge ?? 10);
     const itemResult = calculateItemBasedDelivery(totalQty, settings?.item_based || DEFAULT_DELIVERY_SETTINGS.item_based, true);
     return {
@@ -330,10 +347,6 @@ export const calculateStandardDelivery = ({
       explanation: `${totalQty} additional single product(s) @ ₹${additionalPerItem}`
     };
   }
-
-  const isPriceEnabled = Boolean(settings?.price_based?.enabled);
-  const isPincodeEnabled = Boolean(settings?.pincode_based?.enabled);
-  const isItemEnabled = Boolean(settings?.item_based?.enabled);
 
   if (!isPriceEnabled && !isPincodeEnabled && !isItemEnabled) {
     const freeThreshold = Number(legacySettings?.free_shipping_threshold ?? 2500);

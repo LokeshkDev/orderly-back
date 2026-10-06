@@ -5,7 +5,7 @@ import db from '../models/index.js';
 import { RUNTIME_ORDERS, addRuntimeOrder } from './orders.controller.js';
 import { sendOrderEmail } from '../utils/emailService.js';
 
-const { Order, SiteSetting } = db;
+const { Order, OrderItem, SiteSetting } = db;
 
 const DEFAULT_COD_ADVANCE_PERCENTAGE = 10;
 const DEFAULT_CURRENCY = 'INR';
@@ -58,7 +58,10 @@ const findOrder = async (orderRef) => {
       orConditions.push({ id: Number(orderRef) });
     }
 
-    const order = await Order.findOne({ where: { [Op.or]: orConditions } });
+    const order = await Order.findOne({
+      where: { [Op.or]: orConditions },
+      include: [{ model: OrderItem, as: 'items', required: false }]
+    });
     if (order) return order;
   } catch (error) {}
 

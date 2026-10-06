@@ -189,6 +189,9 @@ export const enrichOrdersWithCatalog = async (orders) => {
 
         // For existing combo orders missing selectedPieces, reconstruct from combo catalog
         let reconstructedPieces = item.selectedPieces || item.selected_pieces || null;
+        if (typeof reconstructedPieces === 'string') {
+          try { reconstructedPieces = JSON.parse(reconstructedPieces); } catch (e) { reconstructedPieces = null; }
+        }
         if (isComboItem && (!reconstructedPieces || (Array.isArray(reconstructedPieces) && reconstructedPieces.length === 0))) {
           const matchedCombo = combos.find(c => {
             if (cId && String(c.id) === cId) return true;
@@ -219,14 +222,25 @@ export const enrichOrdersWithCatalog = async (orders) => {
           }
         }
 
+        const piecesArray = Array.isArray(reconstructedPieces) ? reconstructedPieces : [];
+        let pieceSizes = piecesArray.length > 0
+          ? piecesArray.map(p => p.size).filter(Boolean).join(', ')
+          : null;
+        let itemSize = item.selectedSize || item.size || null;
+        if (isComboItem && piecesArray.length > 0 && (!itemSize || itemSize === 'M')) {
+          itemSize = pieceSizes || itemSize;
+        }
+
         return {
           ...item,
           isCombo: isComboItem,
           is_combo: isComboItem,
           comboId: isComboItem ? resolvedComboId : null,
           combo_id: isComboItem ? resolvedComboId : null,
-          selectedPieces: reconstructedPieces || [],
-          selected_pieces: reconstructedPieces || null,
+          selectedPieces: piecesArray,
+          selected_pieces: piecesArray,
+          selectedSize: itemSize,
+          size: itemSize,
           image: resolvedImage || directImg || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&auto=format&fit=crop',
           sku: isComboItem ? null : (resolvedSku || item.sku || null),
           product_sku: isComboItem ? null : (resolvedSku || item.product_sku || item.sku || null)
@@ -294,7 +308,7 @@ const getParsedSettings = async () => {
   }
 };
 
-const normalizeOrder = (o) => {
+export const normalizeOrder = (o) => {
   const row = o && typeof o.toJSON === 'function' ? o.toJSON() : (o || {});
   const orderItems = row.items || row.OrderItems || [];
 
@@ -341,27 +355,45 @@ const normalizeOrder = (o) => {
     new_order_email_sent: Boolean(row.new_order_email_sent),
     shipped_email_sent: Boolean(row.shipped_email_sent),
     delivered_email_sent: Boolean(row.delivered_email_sent),
-    items: Array.isArray(orderItems) ? orderItems.map(item => ({
-      ...item,
-      id: item.id || item.order_item_id || null,
-      name: item.name || item.product_name || item.productName || 'Product',
-      productId: item.productId || item.product_id || null,
-      product_id: item.productId || item.product_id || null,
-      isCombo: Boolean(item.isCombo || item.is_combo),
-      comboId: item.comboId || item.combo_id || null,
-      image: item.image || item.primaryImage || item.coverImage || item.cover_image || item.product_image || item.imageUrl || item.Product?.primaryImage || item.Product?.image || item.Product?.images?.[0] || (Array.isArray(item.images) ? item.images[0] : null) || null,
-      selectedSize: item.selectedSize || item.size || null,
-      size: item.selectedSize || item.size || null,
-      selectedColor: item.selectedColor || item.color || null,
-      color: item.selectedColor || item.color || null,
-      selectedPieces: item.selectedPieces || item.selected_pieces || [],
-      quantity: Number(item.quantity || 1),
-      price: Number(item.price ?? item.unit_price ?? item.amount ?? 0),
-      unit_price: Number(item.unit_price ?? item.price ?? item.amount ?? 0),
-      originalPrice: Number(item.originalPrice ?? item.original_price ?? item.price ?? item.unit_price ?? 0),
-      pairOffer: item.pairOffer || null,
-      isPairOffer: Boolean(item.isPairOffer || item.pairOffer?.enabled)
-    })) : [],
+    items: Array.isArray(orderItems) ? orderItems.map(item => {
+      let rawPieces = item.selectedPieces || item.selected_pieces || [];
+      if (typeof rawPieces === 'string') {
+        try { rawPieces = JSON.parse(rawPieces); } catch (e) { rawPieces = []; }
+      }
+      const pieces = Array.isArray(rawPieces) ? rawPieces : [];
+      const isCombo = Boolean(item.isCombo || item.is_combo || pieces.length > 0);
+
+      let pieceSizes = pieces.map(p => p.size).filter(Boolean).join(', ');
+      let itemSize = item.selectedSize || item.size || null;
+      if (isCombo && pieces.length > 0 && (!itemSize || itemSize === 'M')) {
+        itemSize = pieceSizes || itemSize;
+      }
+
+      return {
+        ...item,
+        id: item.id || item.order_item_id || null,
+        name: item.name || item.product_name || item.productName || 'Product',
+        productId: item.productId || item.product_id || null,
+        product_id: item.productId || item.product_id || null,
+        isCombo: isCombo,
+        is_combo: isCombo,
+        comboId: item.comboId || item.combo_id || null,
+        combo_id: item.comboId || item.combo_id || null,
+        image: item.image || item.primaryImage || item.coverImage || item.cover_image || item.product_image || item.imageUrl || item.Product?.primaryImage || item.Product?.image || item.Product?.images?.[0] || (Array.isArray(item.images) ? item.images[0] : null) || null,
+        selectedSize: itemSize,
+        size: itemSize,
+        selectedColor: item.selectedColor || item.color || null,
+        color: item.selectedColor || item.color || null,
+        selectedPieces: pieces,
+        selected_pieces: pieces,
+        quantity: Number(item.quantity || 1),
+        price: Number(item.price ?? item.unit_price ?? item.amount ?? 0),
+        unit_price: Number(item.unit_price ?? item.price ?? item.amount ?? 0),
+        originalPrice: Number(item.originalPrice ?? item.original_price ?? item.price ?? item.unit_price ?? 0),
+        pairOffer: item.pairOffer || null,
+        isPairOffer: Boolean(item.isPairOffer || item.pairOffer?.enabled)
+      };
+    }) : [],
     shippingAddress: parsedShippingAddress,
     shipping_address: parsedShippingAddress,
     billingAddress: parsedBillingAddress,
@@ -415,23 +447,38 @@ export const normalizeOrderPayload = async (payload = {}) => {
     pairSettings: pair_settings || DEFAULT_PAIR_OFFER_SETTINGS
   });
 
-  const normalizedItems = pairCalc.normalizedItems.map((item, index) => ({
-    product_id: item.productId ?? item.product_id ?? item.id ?? null,
-    combo_id: item.comboId ?? item.combo_id ?? null,
-    is_combo: Boolean(item.isCombo || item.is_combo),
-    product_name: item.name || item.product_name || item.productName || `Item ${index + 1}`,
-    image: item.image || item.primaryImage || item.coverImage || item.cover_image || item.product_image || item.imageUrl || (Array.isArray(item.images) ? item.images[0] : null) || null,
-    sku: item.sku || item.product_sku || null,
-    product_sku: item.product_sku || item.sku || null,
-    size: item.selectedSize || item.size || null,
-    color: item.selectedColor || item.color || null,
-    selected_pieces: Array.isArray(item.selectedPieces) && item.selectedPieces.length > 0 ? item.selectedPieces : null,
-    quantity: Math.max(1, Number(item.quantity || 1)),
-    unit_price: roundCurrency(item.unit_price ?? item.price ?? 0),
-    original_price: roundCurrency(item.original_price ?? item.originalPrice ?? item.price ?? 0),
-    is_pair_offer: Boolean(item.isPairOffer),
-    line_total: roundCurrency(item.line_total ?? (Number(item.unit_price ?? item.price ?? 0) * Number(item.quantity || 1)))
-  }));
+  const normalizedItems = pairCalc.normalizedItems.map((item, index) => {
+    let rawPieces = item.selectedPieces || item.selected_pieces || null;
+    if (typeof rawPieces === 'string') {
+      try { rawPieces = JSON.parse(rawPieces); } catch (e) { rawPieces = null; }
+    }
+    const pieces = Array.isArray(rawPieces) && rawPieces.length > 0 ? rawPieces : null;
+    const isCombo = Boolean(item.isCombo || item.is_combo || pieces);
+
+    let pieceSizes = pieces ? pieces.map(p => p.size).filter(Boolean).join(', ') : null;
+    let itemSize = item.selectedSize || item.size || null;
+    if (isCombo && pieces && (!itemSize || itemSize === 'M')) {
+      itemSize = pieceSizes || itemSize;
+    }
+
+    return {
+      product_id: item.productId ?? item.product_id ?? item.id ?? null,
+      combo_id: item.comboId ?? item.combo_id ?? null,
+      is_combo: isCombo,
+      product_name: item.name || item.product_name || item.productName || `Item ${index + 1}`,
+      image: item.image || item.primaryImage || item.coverImage || item.cover_image || item.product_image || item.imageUrl || (Array.isArray(item.images) ? item.images[0] : null) || null,
+      sku: item.sku || item.product_sku || null,
+      product_sku: item.product_sku || item.sku || null,
+      size: itemSize,
+      color: item.selectedColor || item.color || null,
+      selected_pieces: pieces,
+      quantity: Math.max(1, Number(item.quantity || 1)),
+      unit_price: roundCurrency(item.unit_price ?? item.price ?? 0),
+      original_price: roundCurrency(item.original_price ?? item.originalPrice ?? item.price ?? 0),
+      is_pair_offer: Boolean(item.isPairOffer),
+      line_total: roundCurrency(item.line_total ?? (Number(item.unit_price ?? item.price ?? 0) * Number(item.quantity || 1)))
+    };
+  });
 
   const effectiveSubtotal = pairCalc.subtotal > 0 ? pairCalc.subtotal : Number(clientSubtotal || 0);
 
@@ -642,7 +689,11 @@ export const createOrder = async (req, res) => {
             selectedColor: item.color,
             quantity: item.quantity,
             price: item.unit_price,
-            productId: item.product_id
+            productId: item.product_id,
+            product_id: item.product_id,
+            isCombo: Boolean(item.is_combo),
+            is_combo: Boolean(item.is_combo),
+            selectedPieces: item.selected_pieces || []
           })),
           shippingAddress: shippingAddress,
           pricingBreakdown: normalizedOrder.pricing_breakdown,

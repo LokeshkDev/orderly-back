@@ -442,6 +442,15 @@ const OrdersList = () => {
     setEditingOrderId(order.id || order.order_number);
     const item = order.items?.[0] || {};
     const addr = order.shippingAddress || {};
+    const rawPieces = item.selectedPieces || item.selected_pieces;
+    let pieces = [];
+    if (Array.isArray(rawPieces)) pieces = rawPieces;
+    else if (typeof rawPieces === 'string') {
+      try { pieces = JSON.parse(rawPieces); } catch (e) {}
+    }
+    const pieceSizes = pieces.map(p => p.size).filter(Boolean).join(', ');
+    const resolvedItemSize = (pieces.length > 0 ? pieceSizes : null) || item.selectedSize || item.size || 'L';
+
     setOrderForm({
       customer_name: order.customer_name || order.customer || `${addr.firstName || ''} ${addr.lastName || ''}`.trim() || 'Customer',
       email: order.email || addr.email || '',
@@ -451,7 +460,7 @@ const OrdersList = () => {
       state: addr.state || 'Maharashtra',
       pincode: addr.pincode || '',
       item_name: item.name || 'Custom Apparel',
-      selectedSize: item.selectedSize || 'L',
+      selectedSize: resolvedItemSize,
       selectedColor: item.selectedColor || 'Pristine White',
       quantity: item.quantity || 1,
       price: item.price || order.total || 0,
@@ -1260,21 +1269,30 @@ const OrdersList = () => {
                                         {itemIdentifier.label}: {itemIdentifier.value}
                                       </span>
                                     )}
-                                    {Array.isArray(item.selectedPieces) && item.selectedPieces.length > 0 ? (
-                                      <div className="extra-small text-muted mt-1">
-                                        {item.selectedPieces.map((piece, pIdx) => (
-                                          <div key={pIdx}>
-                                            <strong className="text-dark">{piece.name || piece.pieceLabel || `Piece ${pIdx + 1}`}:</strong>{' '}
-                                            Size {piece.size || 'M'}
-                                            {piece.color && piece.color !== 'Standard' ? ` | ${piece.color}` : ''}
+                                    {(() => {
+                                      let pieces = item.selectedPieces || item.selected_pieces;
+                                      if (typeof pieces === 'string') {
+                                        try { pieces = JSON.parse(pieces); } catch (e) { pieces = null; }
+                                      }
+                                      if (Array.isArray(pieces) && pieces.length > 0) {
+                                        return (
+                                          <div className="extra-small text-muted mt-1">
+                                            {pieces.map((piece, pIdx) => (
+                                              <div key={pIdx}>
+                                                <strong className="text-dark">{piece.name || piece.pieceLabel || `Piece ${pIdx + 1}`}:</strong>{' '}
+                                                Size <strong className="text-dark">{piece.size || 'M'}</strong>
+                                                {piece.color && piece.color !== 'Standard' ? ` | ${piece.color}` : ''}
+                                              </div>
+                                            ))}
                                           </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <span className="text-muted extra-small">
-                                        Size: {item.selectedSize || item.size || 'L'} {item.selectedColor || item.color ? `| ${item.selectedColor || item.color}` : ''}
-                                      </span>
-                                    )}
+                                        );
+                                      }
+                                      return (
+                                        <span className="text-muted extra-small">
+                                          Size: {item.selectedSize || item.size || 'Standard'} {item.selectedColor || item.color ? `| ${item.selectedColor || item.color}` : ''}
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
                               </div>

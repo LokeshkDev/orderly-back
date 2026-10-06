@@ -15,33 +15,35 @@ import BottomNavbar from './components/common/BottomNavbar';
 import Footer from './components/common/Footer';
 import PageLoader from './components/common/PageLoader';
 
-// Lazy-load heavy components
-const CartDrawer = lazy(() => import('./components/cart/CartDrawer'));
-const QuickViewModal = lazy(() => import('./components/product/QuickViewModal'));
-const CouponsPopupModal = lazy(() => import('./components/common/CouponsPopupModal'));
+import lazyWithRetry from './utils/lazyWithRetry';
+import ChunkErrorBoundary from './components/common/ChunkErrorBoundary';
 
-// Lazy-load pages by feature
-// Home & Shop (critical - load first)
-const Home = lazy(() => import('./pages/Home'));
-const Shop = lazy(() => import('./pages/Shop'));
+// Lazy-load heavy components with auto-retry
+const CartDrawer = lazyWithRetry(() => import('./components/cart/CartDrawer'), 'CartDrawer');
+const QuickViewModal = lazyWithRetry(() => import('./components/product/QuickViewModal'), 'QuickViewModal');
+const CouponsPopupModal = lazyWithRetry(() => import('./components/common/CouponsPopupModal'), 'CouponsPopupModal');
+
+// Lazy-load pages by feature with auto-retry on stale deployments
+const Home = lazyWithRetry(() => import('./pages/Home'), 'Home');
+const Shop = lazyWithRetry(() => import('./pages/Shop'), 'Shop');
 
 // Product & Combo Detail (heavy - code split)
-const ProductDetail = lazy(() => import('./pages/ProductDetail'));
-const ComboDetail = lazy(() => import('./pages/ComboDetail'));
+const ProductDetail = lazyWithRetry(() => import('./pages/ProductDetail'), 'ProductDetail');
+const ComboDetail = lazyWithRetry(() => import('./pages/ComboDetail'), 'ComboDetail');
 
 // Other pages
-const CombosPage = lazy(() => import('./pages/CombosPage'));
-const Wishlist = lazy(() => import('./pages/Wishlist'));
-const Checkout = lazy(() => import('./pages/Checkout'));
-const OrderSuccess = lazy(() => import('./pages/OrderSuccess'));
-const OrderFailure = lazy(() => import('./pages/OrderFailure'));
-const AboutUs = lazy(() => import('./pages/AboutUs'));
-const ContactUs = lazy(() => import('./pages/ContactUs'));
-const ShippingPolicy = lazy(() => import('./pages/ShippingPolicy'));
-const ReturnsPolicy = lazy(() => import('./pages/ReturnsPolicy'));
-const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
-const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
-const NotFound = lazy(() => import('./pages/NotFound'));
+const CombosPage = lazyWithRetry(() => import('./pages/CombosPage'), 'CombosPage');
+const Wishlist = lazyWithRetry(() => import('./pages/Wishlist'), 'Wishlist');
+const Checkout = lazyWithRetry(() => import('./pages/Checkout'), 'Checkout');
+const OrderSuccess = lazyWithRetry(() => import('./pages/OrderSuccess'), 'OrderSuccess');
+const OrderFailure = lazyWithRetry(() => import('./pages/OrderFailure'), 'OrderFailure');
+const AboutUs = lazyWithRetry(() => import('./pages/AboutUs'), 'AboutUs');
+const ContactUs = lazyWithRetry(() => import('./pages/ContactUs'), 'ContactUs');
+const ShippingPolicy = lazyWithRetry(() => import('./pages/ShippingPolicy'), 'ShippingPolicy');
+const ReturnsPolicy = lazyWithRetry(() => import('./pages/ReturnsPolicy'), 'ReturnsPolicy');
+const PrivacyPolicy = lazyWithRetry(() => import('./pages/PrivacyPolicy'), 'PrivacyPolicy');
+const TermsAndConditions = lazyWithRetry(() => import('./pages/TermsAndConditions'), 'TermsAndConditions');
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'), 'NotFound');
 
 import { trackPageView } from './utils/analytics';
 
@@ -70,13 +72,15 @@ const PageSkeleton = () => (
   </div>
 );
 
-// Global Modals with Suspense
+// Global Modals with Suspense & Chunk Error Boundary
 const GlobalModals = () => (
-  <Suspense fallback={null}>
-    <CartDrawer />
-    <QuickViewModal />
-    <CouponsPopupModal />
-  </Suspense>
+  <ChunkErrorBoundary>
+    <Suspense fallback={null}>
+      <CartDrawer />
+      <QuickViewModal />
+      <CouponsPopupModal />
+    </Suspense>
+  </ChunkErrorBoundary>
 );
 
 // Main Layout Wrapper conditional on route
@@ -88,30 +92,32 @@ const AppLayout = () => {
       {!isAuthPage && <AnnouncementBar />}
       {!isAuthPage && <Navbar />}
       
-      <Suspense fallback={<PageSkeleton />}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/category/:slug" element={<Shop />} />
-          <Route path="/collections/:slug" element={<Shop />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
-          <Route path="/combo/:id" element={<ComboDetail />} />
-          <Route path="/combos" element={<CombosPage />} />
-          <Route path="/wishlist" element={<Wishlist />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/order-success" element={<OrderSuccess />} />
-          <Route path="/order-failure" element={<OrderFailure />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/contact" element={<ContactUs />} />
-          <Route path="/shipping-policy" element={<ShippingPolicy />} />
-          <Route path="/returns-policy" element={<ReturnsPolicy />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
-          <Route path="/terms" element={<TermsAndConditions />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+      <ChunkErrorBoundary>
+        <Suspense fallback={<PageSkeleton />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/category/:slug" element={<Shop />} />
+            <Route path="/collections/:slug" element={<Shop />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/combo/:id" element={<ComboDetail />} />
+            <Route path="/combos" element={<CombosPage />} />
+            <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/order-success" element={<OrderSuccess />} />
+            <Route path="/order-failure" element={<OrderFailure />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/contact" element={<ContactUs />} />
+            <Route path="/shipping-policy" element={<ShippingPolicy />} />
+            <Route path="/returns-policy" element={<ReturnsPolicy />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </ChunkErrorBoundary>
 
       {!isAuthPage && <Footer />}
       {!isAuthPage && <BottomNavbar />}

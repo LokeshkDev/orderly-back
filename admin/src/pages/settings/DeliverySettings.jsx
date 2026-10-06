@@ -383,12 +383,12 @@ const DeliverySettings = () => {
                 <div style={{ minWidth: '280px' }}>
                   <select 
                     className="admin-select"
-                    value={delivery.priority || 'pincode_based'}
+                    value={delivery.priority || 'item_based'}
                     onChange={(e) => setDelivery(prev => ({ ...prev, priority: e.target.value }))}
                   >
+                    <option value="item_based">Priority 1: Item-Count Based (Single Products)</option>
                     <option value="pincode_based">Priority 1: Pincode / Location Based</option>
                     <option value="price_based">Priority 1: Price / Order-Value Based</option>
-                    <option value="item_based">Priority 1: Item-Count Based</option>
                   </select>
                 </div>
               </div>

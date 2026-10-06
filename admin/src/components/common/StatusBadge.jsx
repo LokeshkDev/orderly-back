@@ -89,8 +89,20 @@ const StatusBadge = ({ status }) => {
     );
   }
 
-  // 7. Cancelled Order Status - Rose / Crimson Red
-  if (['cancelled', 'canceled', 'rejected', 'failed'].includes(normalized)) {
+  // 7. Failed Order Status - Crimson / Dark Red
+  if (['failed', 'payment_failed', 'order_failed'].includes(normalized)) {
+    return (
+      <span 
+        className="badge fw-bold px-2.5 py-1 rounded-pill d-inline-flex align-items-center gap-1.5 shadow-sm"
+        style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', fontSize: '0.75rem', letterSpacing: '0.04em' }}
+      >
+        <FiXCircle style={{ fontSize: '0.85rem', color: '#dc2626' }} /> FAILED
+      </span>
+    );
+  }
+
+  // 8. Cancelled Order Status - Rose / Crimson Red
+  if (['cancelled', 'canceled', 'rejected'].includes(normalized)) {
     return (
       <span 
         className="badge fw-bold px-2.5 py-1 rounded-pill d-inline-flex align-items-center gap-1.5 shadow-sm"

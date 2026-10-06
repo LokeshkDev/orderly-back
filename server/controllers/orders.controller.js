@@ -709,35 +709,41 @@ export const createOrder = async (req, res) => {
 
     addRuntimeOrder(createdRecord);
 
-    // Send New Order Confirmation Email
-    try {
-      if (email_settings?.new_order?.enabled !== false) {
-        await sendOrderEmail({
-          orderNumber: createdRecord.order_number,
-          customerName: customerFullName,
-          customerEmail: createdRecord.email || shippingAddress.email || req.body.email || normalizedOrder.email || '',
-          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
-          status: 'pending',
-          type: 'order_placed',
-          paymentStatus: normalizedOrder.payment_method === 'cod' ? 'pending' : 'pending',
-          paymentMethod: normalizedOrder.payment_method,
-          subtotal: Number(createdRecord.subtotal || 0),
-          discount: Number(createdRecord.discount || 0),
-          deliveryCharge: Number(createdRecord.shipping_fee || 0),
-          amount: Number(createdRecord.total || 0),
-          items: createdRecord.items,
-          shippingAddress: shippingAddress,
-          emailSettings: email_settings,
-          courierSettings: courier_settings
-        });
+    // Send New Order Confirmation Email ONLY if pure COD (where payment is not required online upfront)
+    // For online payments or COD with advance payment, the confirmation email is dispatched after Razorpay verification in payments.controller.js
+    const isPureCod = normalizedOrder.payment_method === 'cod' && (!normalizedOrder.cod_advance_amount || Number(normalizedOrder.cod_advance_amount) <= 0);
 
-        if (order) {
-          try { await order.update({ new_order_email_sent: true }); } catch (e) {}
+    if (isPureCod) {
+      try {
+        if (email_settings?.new_order?.enabled !== false) {
+          await sendOrderEmail({
+            orderNumber: createdRecord.order_number,
+            customerName: customerFullName,
+            customerEmail: createdRecord.email || shippingAddress.email || req.body.email || normalizedOrder.email || '',
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com',
+            status: 'confirmed',
+            type: 'order_placed',
+            paymentStatus: 'pending',
+            paymentMethod: 'cod',
+            subtotal: Number(createdRecord.subtotal || 0),
+            discount: Number(createdRecord.discount || 0),
+            deliveryCharge: Number(createdRecord.shipping_fee || 0),
+            amount: Number(createdRecord.total || 0),
+            items: createdRecord.items,
+            shippingAddress: shippingAddress,
+            emailSettings: email_settings,
+            courierSettings: courier_settings
+          });
+
+          if (order) {
+            try { await order.update({ new_order_email_sent: true, status: 'confirmed' }); } catch (e) {}
+          }
+          createdRecord.new_order_email_sent = true;
+          createdRecord.status = 'confirmed';
         }
-        createdRecord.new_order_email_sent = true;
+      } catch (emailError) {
+        console.warn('COD order placement email note:', emailError.message);
       }
-    } catch (emailError) {
-      console.warn('Order placement email note:', emailError.message);
     }
 
     res.status(201).json({
@@ -981,7 +987,7 @@ export const updateOrderStatus = async (req, res) => {
           await sendOrderEmail({
             orderNumber: orderRecord.order_number,
             customerName: orderRecord.customer_name || 'Customer',
-            customerEmail: orderRecord.email,
+            customerEmail: orderRecord.email || orderRecord.shippingAddress?.email || orderRecord.shipping_address?.email || '',
             adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com',
             status: 'Failed',
             type: 'order_failed',
@@ -992,7 +998,7 @@ export const updateOrderStatus = async (req, res) => {
             deliveryCharge: orderRecord.shipping_fee,
             amount: orderRecord.total,
             items: orderRecord.items,
-            shippingAddress: orderRecord.shippingAddress,
+            shippingAddress: orderRecord.shippingAddress || orderRecord.shipping_address,
             emailSettings: email_settings,
             courierSettings: courier_settings
           });
@@ -1118,14 +1124,41 @@ export const updateOrderStatus = async (req, res) => {
       } catch (emailError) {
         console.warn('Exchange email notification note:', emailError.message);
       }
-    } else {
-      // General status update (confirmed, processing, in_fulfillment, out_for_delivery, etc.)
+    } else if (lowerStatus === 'confirmed') {
       try {
         await sendOrderEmail({
           orderNumber: orderRecord.order_number,
           customerName: orderRecord.customer_name || 'Customer',
           customerEmail: orderRecord.email,
-          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com',
+          status: 'Confirmed',
+          type: 'order_placed',
+          paymentStatus: orderRecord.payment_status || 'paid',
+          paymentMethod: orderRecord.payment_method,
+          subtotal: orderRecord.subtotal,
+          discount: orderRecord.discount,
+          deliveryCharge: orderRecord.shipping_fee,
+          amount: orderRecord.total,
+          items: orderRecord.items,
+          shippingAddress: orderRecord.shippingAddress,
+          emailSettings: email_settings,
+          courierSettings: courier_settings
+        });
+        if (dbOrder) {
+          try { await dbOrder.update({ new_order_email_sent: true }); } catch (e) {}
+        }
+        if (runtimeItem) runtimeItem.new_order_email_sent = true;
+      } catch (emailError) {
+        console.warn('Confirmed status update email note:', emailError.message);
+      }
+    } else {
+      // General status update (processing, in_fulfillment, out_for_delivery, etc.)
+      try {
+        await sendOrderEmail({
+          orderNumber: orderRecord.order_number,
+          customerName: orderRecord.customer_name || 'Customer',
+          customerEmail: orderRecord.email,
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com',
           status: formattedStatus,
           type: 'status_update',
           paymentStatus: orderRecord.payment_status || 'pending',
@@ -1296,9 +1329,11 @@ export const updateOrder = async (req, res) => {
         const effectiveType = lowerS === 'shipped' ? 'order_shipped'
           : (lowerS === 'delivered' ? 'order_delivered'
           : (lowerS === 'cancelled' || lowerS === 'canceled' ? 'order_cancelled'
+          : (lowerS === 'failed' ? 'order_failed'
           : (lowerS === 'returned' || lowerS === 'refunded' ? 'order_returned'
           : (lowerS === 'exchange' || lowerS === 'exchanged' ? 'order_exchanged'
-          : (tracking_number ? 'order_tracking_updated' : 'status_update')))));
+          : (lowerS === 'confirmed' ? 'order_placed'
+          : (tracking_number ? 'order_tracking_updated' : 'status_update')))))));
 
         await sendOrderEmail({
           orderNumber: orderRecord.order_number,

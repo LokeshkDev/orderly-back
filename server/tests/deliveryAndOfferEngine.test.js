@@ -277,4 +277,78 @@ console.log('--- Starting Delivery Engine & Pair Offer Unit Tests ---');
   console.log('✓ TEST 7 Passed: Order #ORD-20909218 scenario verified: 1 Combo (120) + 4 Single Items to TN (80) = 200');
 }
 
-console.log('\n ALL 7 UNIT TESTS PASSED SUCCESSFULLY! ');
+// TEST 8: 2 Single Products (Clubhouse Polo T-Shirt + Old-Money Tees Brown) with item_based delivery
+{
+  const activeSettings = {
+    ...DEFAULT_DELIVERY_SETTINGS,
+    pincode_based: {
+      enabled: true,
+      chennai: {
+        charge: 50,
+        pincodes: ['600001', '600002'],
+        pincode_ranges: [{ from: '600001', to: '600100' }]
+      },
+      tamil_nadu: {
+        charge: 80,
+        pincodes: [],
+        pincode_ranges: [{ from: '600001', to: '643999' }]
+      },
+      other_states: {
+        charge: 120
+      }
+    },
+    item_based: {
+      enabled: true,
+      first_item_charge: 60,
+      additional_item_charge: 30
+    },
+    combo_delivery: {
+      enabled: true,
+      charge: 120,
+      free_delivery_above: 3500,
+      per_combo_charge: 60,
+      label: 'Combo Express Delivery'
+    },
+    priority: 'item_based'
+  };
+
+  const singleItemsCart = [
+    { id: 201, name: 'Clubhouse Polo T-Shirt - Beige', price: 795, quantity: 1, isCombo: false },
+    { id: 202, name: 'Old-Money Tees Brown', price: 480, quantity: 1, isCombo: false }
+  ];
+
+  // 2 items to Chennai (600001) must charge 60 + 30 = 90 (not 50 flat pincode charge)
+  const resChennai = calculateDeliveryCharge({
+    cartItems: singleItemsCart,
+    subtotal: 1275,
+    pincode: '600001',
+    deliverySettings: activeSettings
+  });
+
+  assert.strictEqual(resChennai.shippingFee, 90, '2 single items to Chennai must charge ₹90 (60 + 30)');
+  assert.strictEqual(resChennai.singleShippingFee, 90);
+  assert.strictEqual(resChennai.method, 'item_based');
+  assert.strictEqual(resChennai.methodLabel, 'Delivery to Chennai');
+
+  // 1 item must charge 60
+  const resOneItem = calculateDeliveryCharge({
+    cartItems: [singleItemsCart[0]],
+    subtotal: 795,
+    pincode: '600001',
+    deliverySettings: activeSettings
+  });
+  assert.strictEqual(resOneItem.shippingFee, 60, '1 single item to Chennai must charge ₹60');
+
+  // 3 items must charge 60 + 30 + 30 = 120
+  const resThreeItems = calculateDeliveryCharge({
+    cartItems: [singleItemsCart[0], { ...singleItemsCart[1], quantity: 2 }],
+    subtotal: 1755,
+    pincode: '600001',
+    deliverySettings: activeSettings
+  });
+  assert.strictEqual(resThreeItems.shippingFee, 120, '3 single items to Chennai must charge ₹120');
+
+  console.log('✓ TEST 8 Passed: 2 Single Products to Chennai correctly calculates ₹90 (60 + 30), 1 item = ₹60, 3 items = ₹120');
+}
+
+console.log('\n ALL 8 UNIT TESTS PASSED SUCCESSFULLY! ');

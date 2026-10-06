@@ -45,18 +45,18 @@ export const DEFAULT_DELIVERY_SETTINGS = {
     }
   },
   item_based: {
-    enabled: false,
-    first_item_charge: 50,
-    additional_item_charge: 10
+    enabled: true,
+    first_item_charge: 60,
+    additional_item_charge: 30
   },
   combo_delivery: {
     enabled: true,
-    charge: 99,
-    free_delivery_above: 1999,
-    per_combo_charge: 0,
+    charge: 120,
+    free_delivery_above: 3500,
+    per_combo_charge: 60,
     label: 'Combo Express Delivery'
   },
-  priority: 'pincode_based' // 'pincode_based' | 'price_based' | 'item_based'
+  priority: 'item_based' // 'item_based' | 'pincode_based' | 'price_based'
 };
 
 export const DEFAULT_COURIER_SETTINGS = [
@@ -342,11 +342,12 @@ export const calculateStandardDelivery = ({
   const isPriceEnabled = Boolean(settings?.price_based?.enabled);
   const isPincodeEnabled = Boolean(settings?.pincode_based?.enabled);
   const isItemEnabled = Boolean(settings?.item_based?.enabled);
+  const priorityPreference = settings?.priority || 'item_based';
 
   // When combos are already in the cart:
-  // If pincode/location delivery is enabled and valid pincode is provided, use location rate for single items
+  // If priority is pincode_based and valid pincode is provided, use location rate for single items; otherwise additional item charge
   if (isAdditionalToCombo) {
-    if (isPincodeEnabled && isValidPincode(pincode)) {
+    if (priorityPreference === 'pincode_based' && isPincodeEnabled && isValidPincode(pincode)) {
       const pinResult = determinePincodeLocation(pincode, settings.pincode_based);
       return {
         shippingFee: pinResult.charge ?? 0,
@@ -360,7 +361,7 @@ export const calculateStandardDelivery = ({
       };
     }
 
-    const additionalPerItem = Number(settings?.item_based?.additional_item_charge ?? 10);
+    const additionalPerItem = Number(settings?.item_based?.additional_item_charge ?? 30);
     const itemResult = calculateItemBasedDelivery(totalQty, settings?.item_based || DEFAULT_DELIVERY_SETTINGS.item_based, true);
     return {
       shippingFee: itemResult.charge,
@@ -392,28 +393,48 @@ export const calculateStandardDelivery = ({
     };
   }
 
-  const priorityPreference = settings.priority || 'pincode_based';
   const methodsInOrder = [];
 
-  if (priorityPreference === 'pincode_based') {
+  if (priorityPreference === 'item_based') {
+    if (isItemEnabled) methodsInOrder.push('item_based');
     if (isPincodeEnabled) methodsInOrder.push('pincode_based');
     if (isPriceEnabled) methodsInOrder.push('price_based');
-    if (isItemEnabled) methodsInOrder.push('item_based');
-  } else if (priorityPreference === 'item_based') {
-    if (isItemEnabled) methodsInOrder.push('item_based');
+  } else if (priorityPreference === 'pincode_based') {
     if (isPincodeEnabled) methodsInOrder.push('pincode_based');
+    if (isItemEnabled) methodsInOrder.push('item_based');
     if (isPriceEnabled) methodsInOrder.push('price_based');
   } else {
     if (isPriceEnabled) methodsInOrder.push('price_based');
-    if (isPincodeEnabled) methodsInOrder.push('pincode_based');
     if (isItemEnabled) methodsInOrder.push('item_based');
+    if (isPincodeEnabled) methodsInOrder.push('pincode_based');
   }
 
-  if (isPriceEnabled && !methodsInOrder.includes('price_based')) methodsInOrder.push('price_based');
-  if (isPincodeEnabled && !methodsInOrder.includes('pincode_based')) methodsInOrder.push('pincode_based');
   if (isItemEnabled && !methodsInOrder.includes('item_based')) methodsInOrder.push('item_based');
+  if (isPincodeEnabled && !methodsInOrder.includes('pincode_based')) methodsInOrder.push('pincode_based');
+  if (isPriceEnabled && !methodsInOrder.includes('price_based')) methodsInOrder.push('price_based');
 
   for (const method of methodsInOrder) {
+    if (method === 'item_based' && isItemEnabled) {
+      const itemResult = calculateItemBasedDelivery(totalQty, settings.item_based, false);
+      const pinResult = (isPincodeEnabled && isValidPincode(pincode))
+        ? determinePincodeLocation(pincode, settings.pincode_based)
+        : null;
+      const locationLabel = pinResult?.valid ? pinResult.location : null;
+
+      return {
+        shippingFee: itemResult.charge,
+        method: 'item_based',
+        methodLabel: locationLabel ? `Delivery to ${locationLabel}` : 'Standard Delivery',
+        locationLabel,
+        isBelowMinOrder: false,
+        minOrderAmount: 0,
+        breakdownText: locationLabel
+          ? `Delivery to ${locationLabel}: ₹${itemResult.charge}`
+          : itemResult.description,
+        explanation: `${totalQty} single product(s) (1st item ₹${itemResult.firstItemCharge} + ${Math.max(0, totalQty - 1)} addl @ ₹${itemResult.additionalItemCharge}) = ₹${itemResult.charge}`
+      };
+    }
+
     if (method === 'pincode_based' && isPincodeEnabled) {
       if (isValidPincode(pincode)) {
         const pinResult = determinePincodeLocation(pincode, settings.pincode_based);
@@ -428,7 +449,7 @@ export const calculateStandardDelivery = ({
           explanation: `Calculated from pincode ${pincode} (${pinResult.location})`
         };
       }
-      if (methodsInOrder.length === 1) {
+      if (methodsInOrder.length === 1 || !isItemEnabled) {
         const pinResult = determinePincodeLocation(pincode, settings.pincode_based);
         const charge = pinResult.valid ? pinResult.charge : (Number(settings.pincode_based?.other_states?.charge) || 150);
         return {
@@ -455,20 +476,6 @@ export const calculateStandardDelivery = ({
         minOrderAmount: priceResult.minOrderAmount,
         breakdownText: priceResult.description,
         explanation: `Order value ₹${numSubtotal.toLocaleString('en-IN')}`
-      };
-    }
-
-    if (method === 'item_based' && isItemEnabled) {
-      const itemResult = calculateItemBasedDelivery(totalQty, settings.item_based, false);
-      return {
-        shippingFee: itemResult.charge,
-        method: 'item_based',
-        methodLabel: 'Item-Based Delivery',
-        locationLabel: null,
-        isBelowMinOrder: false,
-        minOrderAmount: 0,
-        breakdownText: itemResult.description,
-        explanation: `${totalQty} total item(s) in cart`
       };
     }
   }

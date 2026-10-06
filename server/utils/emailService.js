@@ -156,7 +156,7 @@ const renderAddressHtml = (address = {}) => {
 export const buildOrderEmailPayload = (details = {}) => {
   const {
     orderNumber = 'ORDER',
-    customerName = 'Valued Customer',
+    customerName: initialCustomerName = 'Valued Customer',
     customerEmail = '',
     adminEmail = '',
     status = 'pending',
@@ -180,10 +180,32 @@ export const buildOrderEmailPayload = (details = {}) => {
     courierSettings = null
   } = details;
 
+  let resolvedCustomerEmail = customerEmail || details.email || details.customer_email || '';
+  if (!resolvedCustomerEmail && shippingAddress) {
+    const sAddr = typeof shippingAddress === 'string'
+      ? (() => { try { return JSON.parse(shippingAddress); } catch (e) { return null; } })()
+      : shippingAddress;
+    if (sAddr && typeof sAddr === 'object') {
+      resolvedCustomerEmail = sAddr.email || sAddr.customerEmail || '';
+    }
+  }
+
+  let resolvedCustomerName = initialCustomerName;
+  if ((!resolvedCustomerName || resolvedCustomerName === 'Valued Customer' || resolvedCustomerName === 'Customer') && shippingAddress) {
+    const sAddr = typeof shippingAddress === 'string'
+      ? (() => { try { return JSON.parse(shippingAddress); } catch (e) { return null; } })()
+      : shippingAddress;
+    if (sAddr && typeof sAddr === 'object') {
+      const nameFromAddress = sAddr.fullName || (sAddr.firstName ? `${sAddr.firstName} ${sAddr.lastName || ''}`.trim() : '');
+      if (nameFromAddress) resolvedCustomerName = nameFromAddress;
+    }
+  }
+  const customerName = resolvedCustomerName;
+
   const normalizedOrderNumber = String(orderNumber || 'ORDER').trim();
   const normalizedStatus = String(status || 'pending').toUpperCase();
   const adminTarget = String(adminEmail || process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com').trim();
-  const customerTarget = String(customerEmail || '').trim();
+  const customerTarget = String(resolvedCustomerEmail || '').trim();
   const orderTotal = Number(amount || subtotal + deliveryCharge - discount || 0);
 
   const effectiveTrackingUrl = trackingUrl || buildCourierTrackingUrl(courierName, trackingNumber, courierSettings);
@@ -206,7 +228,7 @@ export const buildOrderEmailPayload = (details = {}) => {
       ].filter(Boolean).join(', ');
 
   const templateVariables = {
-    customerName,
+    customerName: resolvedCustomerName,
     orderNumber: normalizedOrderNumber,
     orderDate: formattedOrderDate,
     products: productsText,
@@ -221,16 +243,16 @@ export const buildOrderEmailPayload = (details = {}) => {
     shippingAddress: addressString
   };
 
-  // Master Dark Luxury Header with Brand Phoenix Emblem & Bold Typography
+  // Master Dark Luxury Header with Brand Logo & Bold Typography
   const emailHeader = `
     <div style="background-color: #06090e; padding: 28px 20px; text-align: center; border-radius: 12px 12px 0 0; border-bottom: 3px solid #dc2626;">
       <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
         <tr>
           <td align="center" style="vertical-align: middle;">
-            <div style="font-size: 28px; font-weight: 900; letter-spacing: 4px; color: #ffffff; font-family: 'Helvetica Neue', Arial, sans-serif; text-transform: uppercase;">
-              <span style="color: #dc2626;">✦</span> ORDERLY
-            </div>
-            <div style="font-size: 11px; letter-spacing: 2.5px; color: #94a3b8; font-weight: 800; margin-top: 4px; text-transform: uppercase;">
+            <a href="https://orderlymenswear.in" target="_blank" style="text-decoration: none; display: inline-block;">
+              <img src="https://orderlymenswear.in/logo.png" alt="ORDERLY" width="180" style="width: 180px; max-width: 100%; height: auto; display: block; margin: 0 auto; border: 0;" />
+            </a>
+            <div style="font-size: 11px; letter-spacing: 2.5px; color: #94a3b8; font-weight: 800; margin-top: 10px; text-transform: uppercase;">
               STYLE THAT MATTERS • MENS WEAR
             </div>
           </td>
@@ -252,11 +274,72 @@ export const buildOrderEmailPayload = (details = {}) => {
   let customerContent = '';
   let adminSubject = '';
 
-  const lowerType = String(type || '').toLowerCase();
-  const lowerStatus = String(status || '').toLowerCase();
+  const lowerType = String(type || '').toLowerCase().trim();
+  const lowerStatus = String(status || '').toLowerCase().trim();
+  const lowerPaymentStatus = String(paymentStatus || '').toLowerCase().trim();
 
-  // 1. ORDER PLACED (CONFIRMED)
-  if (lowerType === 'order_placed' || lowerType === 'payment_success' || lowerStatus === 'confirmed' || lowerStatus === 'pending') {
+  // 1. ORDER FAILED / PAYMENT FAILED (Top priority so failed transactions never send confirmation)
+  if (lowerType === 'order_failed' || lowerType === 'payment_failed' || lowerStatus === 'failed' || lowerPaymentStatus === 'failed') {
+    customerSubject = `ORDERLY | Payment Incomplete for Order #${normalizedOrderNumber}`;
+    adminSubject = `⚠️ ORDERLY Admin | Payment Failed for Order #${normalizedOrderNumber} (${formatCurrency(orderTotal)})`;
+
+    customerContent = `
+      <div style="padding: 32px 26px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 26px;">
+          <div style="display: inline-block; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 14px; letter-spacing: 0.5px;">
+            ⚠️ PAYMENT INCOMPLETE / FAILED
+          </div>
+          <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 23px; font-weight: 800;">Payment Was Not Completed</h2>
+          <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.5;">Hello ${customerName}, the transaction for order <strong style="color: #0f172a;">#${normalizedOrderNumber}</strong> was not completed.</p>
+        </div>
+
+        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 6px; margin-bottom: 22px; font-size: 14px; color: #92400e; line-height: 1.5;">
+          <strong>What happened?</strong> Your bank or payment gateway encountered an issue while processing the amount of <strong>${formatCurrency(orderTotal)}</strong>. Any debited amount will be reversed back by your bank automatically.
+          ${failReason ? `<div style="margin-top: 6px;"><strong>Details:</strong> ${failReason}</div>` : ''}
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 26px 0 12px 0; text-transform: uppercase;">Items In Your Bag</h3>
+        ${renderItemsHtml(items)}
+
+        <div style="text-align: center; margin: 26px 0 10px 0;">
+          <a href="https://orderlymenswear.in/checkout" target="_blank" style="background-color: #dc2626; color: #ffffff; padding: 12px 32px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-block;">Retry Payment / Checkout →</a>
+        </div>
+      </div>
+    `;
+  }
+
+  // 2. ORDER CANCELLED
+  else if (lowerType === 'order_cancelled' || lowerStatus === 'cancelled' || lowerStatus === 'canceled') {
+    customerSubject = `ORDERLY | Order Cancelled #${normalizedOrderNumber}`;
+    adminSubject = `⚠️ ORDERLY Admin | Order Cancelled #${normalizedOrderNumber} (${formatCurrency(orderTotal)})`;
+
+    customerContent = `
+      <div style="padding: 32px 26px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 26px;">
+          <div style="display: inline-block; background-color: #fee2e2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 14px; letter-spacing: 0.5px;">
+            ✕ ORDER CANCELLED
+          </div>
+          <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 23px; font-weight: 800;">Your Order #${normalizedOrderNumber} Has Been Cancelled</h2>
+          <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.5;">Hello ${customerName}, your order #${normalizedOrderNumber} has been marked as cancelled.</p>
+        </div>
+
+        <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; border-radius: 6px; margin-bottom: 22px; font-size: 14px; color: #991b1b; line-height: 1.5;">
+          <strong>Refund Information:</strong> If you made an online prepayment (Card/UPI/NetBanking), a full refund of <strong>${formatCurrency(orderTotal)}</strong> has been initiated and will reflect in your bank/card within 3-5 business days.
+          ${cancelReason ? `<div style="margin-top: 6px; color: #7f1d1d;"><strong>Reason:</strong> ${cancelReason}</div>` : ''}
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 26px 0 12px 0; text-transform: uppercase;">Cancelled Items</h3>
+        ${renderItemsHtml(items)}
+
+        <div style="text-align: center; margin: 26px 0 10px 0;">
+          <a href="https://orderlymenswear.in/shop" target="_blank" style="background-color: #dc2626; color: #ffffff; padding: 12px 30px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-block;">Browse Latest Collections →</a>
+        </div>
+      </div>
+    `;
+  }
+
+  // 3. ORDER PLACED / PAYMENT SUCCESS (Confirmed orders only)
+  else if (lowerType === 'order_placed' || lowerType === 'payment_success' || lowerStatus === 'confirmed' || lowerPaymentStatus === 'paid' || lowerPaymentStatus === 'partially_paid') {
     const config = emailSettings?.new_order;
     customerSubject = config?.subject
       ? interpolateTemplate(config.subject, templateVariables)
@@ -308,66 +391,6 @@ export const buildOrderEmailPayload = (details = {}) => {
 
         <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 28px 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Delivery Address</h3>
         ${renderAddressHtml(shippingAddress)}
-      </div>
-    `;
-  }
-
-  // 2. ORDER CANCELLED
-  else if (lowerType === 'order_cancelled' || lowerStatus === 'cancelled' || lowerStatus === 'canceled') {
-    customerSubject = `ORDERLY | Order Cancelled #${normalizedOrderNumber}`;
-    adminSubject = `⚠️ ORDERLY Admin | Order Cancelled #${normalizedOrderNumber} (${formatCurrency(orderTotal)})`;
-
-    customerContent = `
-      <div style="padding: 32px 26px; background-color: #ffffff;">
-        <div style="text-align: center; margin-bottom: 26px;">
-          <div style="display: inline-block; background-color: #fee2e2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 14px; letter-spacing: 0.5px;">
-            ✕ ORDER CANCELLED
-          </div>
-          <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 23px; font-weight: 800;">Your Order #${normalizedOrderNumber} Has Been Cancelled</h2>
-          <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.5;">Hello ${customerName}, your order #${normalizedOrderNumber} has been marked as cancelled.</p>
-        </div>
-
-        <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; border-radius: 6px; margin-bottom: 22px; font-size: 14px; color: #991b1b; line-height: 1.5;">
-          <strong>Refund Information:</strong> If you made an online prepayment (Card/UPI/NetBanking), a full refund of <strong>${formatCurrency(orderTotal)}</strong> has been initiated and will reflect in your bank/card within 3-5 business days.
-          ${cancelReason ? `<div style="margin-top: 6px; color: #7f1d1d;"><strong>Reason:</strong> ${cancelReason}</div>` : ''}
-        </div>
-
-        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 26px 0 12px 0; text-transform: uppercase;">Cancelled Items</h3>
-        ${renderItemsHtml(items)}
-
-        <div style="text-align: center; margin: 26px 0 10px 0;">
-          <a href="https://orderlymenswear.in/shop" target="_blank" style="background-color: #dc2626; color: #ffffff; padding: 12px 30px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-block;">Browse Latest Collections →</a>
-        </div>
-      </div>
-    `;
-  }
-
-  // 3. ORDER FAILED / PAYMENT FAILED
-  else if (lowerType === 'order_failed' || lowerType === 'payment_failed' || lowerStatus === 'failed') {
-    customerSubject = `ORDERLY | Payment Incomplete for Order #${normalizedOrderNumber}`;
-    adminSubject = `⚠️ ORDERLY Admin | Payment Failed for Order #${normalizedOrderNumber} (${formatCurrency(orderTotal)})`;
-
-    customerContent = `
-      <div style="padding: 32px 26px; background-color: #ffffff;">
-        <div style="text-align: center; margin-bottom: 26px;">
-          <div style="display: inline-block; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 14px; letter-spacing: 0.5px;">
-            ⚠️ PAYMENT INCOMPLETE / FAILED
-          </div>
-          <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 23px; font-weight: 800;">Payment Was Not Completed</h2>
-          <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.5;">Hello ${customerName}, the transaction for order <strong style="color: #0f172a;">#${normalizedOrderNumber}</strong> was not completed.</p>
-        </div>
-
-        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 6px; margin-bottom: 22px; font-size: 14px; color: #92400e; line-height: 1.5;">
-          <strong>What happened?</strong> Your bank or payment gateway encountered an issue while processing the amount of <strong>${formatCurrency(orderTotal)}</strong>. Any debited amount will be reversed back by your bank automatically.
-          ${failReason ? `<div style="margin-top: 6px;"><strong>Details:</strong> ${failReason}</div>` : ''}
-        </div>
-
-        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 26px 0 12px 0; text-transform: uppercase;">Items In Your Bag</h3>
-        ${renderItemsHtml(items)}
-
-        <div style="text-align: center; margin: 26px 0 10px 0;">
-          <a href="https://orderlymenswear.in/checkout" target="_blank" style="background-color: #dc2626; color: #ffffff; padding: 12px 32px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-block;">Retry Payment / Checkout →</a>
-        </div>
       </div>
     `;
   }
@@ -539,7 +562,66 @@ export const buildOrderEmailPayload = (details = {}) => {
     `;
   }
 
-  // 9. GENERAL / OTHER STATUS UPDATE
+  // 9. ORDER PENDING / PAYMENT PENDING
+  else if (lowerType === 'order_pending' || lowerStatus === 'pending' || lowerPaymentStatus === 'pending') {
+    customerSubject = `ORDERLY | Order #${normalizedOrderNumber} - Payment Pending`;
+    adminSubject = `⏳ ORDERLY Admin | Order #${normalizedOrderNumber} Awaiting Payment (${formatCurrency(orderTotal)})`;
+
+    customerContent = `
+      <div style="padding: 32px 26px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 26px;">
+          <div style="display: inline-block; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 14px; letter-spacing: 0.5px;">
+            ⏳ AWAITING PAYMENT
+          </div>
+          <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 23px; font-weight: 800;">Order Initiated - Payment Pending</h2>
+          <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.5;">Hello ${customerName}, your order <strong style="color: #0f172a;">#${normalizedOrderNumber}</strong> has been registered and is awaiting payment verification.</p>
+        </div>
+
+        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 6px; margin-bottom: 22px; font-size: 14px; color: #92400e; line-height: 1.5;">
+          <strong>Action Required:</strong> Please complete your payment to confirm your order and begin dispatch fulfillment.
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 26px 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Order Summary</h3>
+        ${renderItemsHtml(items)}
+
+        <!-- Pricing Breakdown -->
+        <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; color: #334155;">
+          <tr>
+            <td style="padding: 6px 0; color: #64748b;">Subtotal</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0f172a;">${formatCurrency(subtotal || orderTotal)}</td>
+          </tr>
+          ${discount > 0 ? `
+          <tr>
+            <td style="padding: 6px 0; color: #059669;">Promo Discount</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #059669;">-${formatCurrency(discount)}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding: 6px 0; color: #64748b;">Delivery Fee</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${deliveryCharge === 0 ? '#059669' : '#0f172a'};">
+              ${deliveryCharge === 0 ? 'FREE' : formatCurrency(deliveryCharge)}
+            </td>
+          </tr>
+          <tr style="border-top: 2px solid #cbd5e1; font-size: 16px;">
+            <td style="padding: 12px 0 6px 0; font-weight: 800; color: #0f172a;">Grand Total</td>
+            <td style="padding: 12px 0 6px 0; text-align: right; font-weight: 900; color: #dc2626;">${formatCurrency(orderTotal)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; color: #64748b; font-size: 13px;">Payment Status</td>
+            <td style="padding: 4px 0; text-align: right; font-weight: 700; color: #d97706; font-size: 13px;">AWAITING PAYMENT</td>
+          </tr>
+        </table>
+
+        <div style="text-align: center; margin: 26px 0 10px 0;">
+          <a href="https://orderlymenswear.in/checkout" target="_blank" style="background-color: #dc2626; color: #ffffff; padding: 12px 32px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-block;">Complete Payment Now →</a>
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin: 28px 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Delivery Address</h3>
+        ${renderAddressHtml(shippingAddress)}
+      </div>
+    `;
+  }
+
+  // 10. GENERAL / OTHER STATUS UPDATE
   else {
     customerSubject = `ORDERLY | Order #${normalizedOrderNumber} Status: ${normalizedStatus}`;
     adminSubject = `🔔 ORDERLY Admin | Order #${normalizedOrderNumber} Updated to ${normalizedStatus} (${formatCurrency(orderTotal)})`;
@@ -600,8 +682,11 @@ export const buildOrderEmailPayload = (details = {}) => {
       <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/></head>
       <body style="margin: 0; padding: 24px 12px; background-color: #0b0f19; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; border: 1px solid #cbd5e1;">
-          <div style="background-color: #06090e; padding: 20px; text-align: center; border-bottom: 2px solid #dc2626;">
-            <h2 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 1px;">ORDERLY STORE ALERT</h2>
+          <div style="background-color: #06090e; padding: 22px 20px; text-align: center; border-bottom: 2px solid #dc2626;">
+            <a href="https://orderlymenswear.in" target="_blank" style="text-decoration: none; display: inline-block;">
+              <img src="https://orderlymenswear.in/logo.png" alt="ORDERLY" width="140" style="width: 140px; max-width: 100%; height: auto; display: block; margin: 0 auto 10px auto; border: 0;" />
+            </a>
+            <h2 style="color: #ffffff; margin: 0; font-size: 16px; font-weight: 800; letter-spacing: 1px;">STORE ALERT</h2>
             <p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 12px; text-transform: uppercase;">Event: ${type} (${normalizedStatus})</p>
           </div>
           <div style="padding: 24px; font-size: 14px; color: #1e293b; line-height: 1.6;">
@@ -731,10 +816,10 @@ export const sendAdminUserCreatedEmail = async ({ name, email, password, role, c
         <body style="margin: 0; padding: 24px 12px; background-color: #f1f5f9; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;">
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; border: 1px solid #cbd5e1;">
             <div style="background-color: #06090e; padding: 26px 20px; text-align: center; border-bottom: 2px solid #dc2626;">
-              <div style="font-size: 28px; font-weight: 900; letter-spacing: 3px; color: #ffffff; font-family: 'Helvetica Neue', Arial, sans-serif;">
-                <span style="color: #dc2626;">✦</span> ORDERLY
-              </div>
-              <div style="font-size: 11px; letter-spacing: 2px; color: #94a3b8; font-weight: 700; margin-top: 4px; text-transform: uppercase;">
+              <a href="https://orderlymenswear.in" target="_blank" style="text-decoration: none; display: inline-block;">
+                <img src="https://orderlymenswear.in/logo.png" alt="ORDERLY" width="160" style="width: 160px; max-width: 100%; height: auto; display: block; margin: 0 auto; border: 0;" />
+              </a>
+              <div style="font-size: 11px; letter-spacing: 2px; color: #94a3b8; font-weight: 700; margin-top: 8px; text-transform: uppercase;">
                 STORE MANAGEMENT & TEAM ACCESS
               </div>
             </div>

@@ -74,6 +74,42 @@ const getPlainOrder = (order) => (
   order && typeof order.toJSON === 'function' ? order.toJSON() : (order || {})
 );
 
+const resolveCustomerDetails = (order, extra = {}) => {
+  const plainOrder = getPlainOrder(order);
+
+  let shippingAddr = plainOrder.shipping_address || plainOrder.shippingAddress || null;
+  if (typeof shippingAddr === 'string') {
+    try { shippingAddr = JSON.parse(shippingAddr); } catch (e) { shippingAddr = null; }
+  }
+
+  let billingAddr = plainOrder.billing_address || plainOrder.billingAddress || null;
+  if (typeof billingAddr === 'string') {
+    try { billingAddr = JSON.parse(billingAddr); } catch (e) { billingAddr = null; }
+  }
+
+  const customerEmail = (
+    extra.customerEmail ||
+    extra.email ||
+    plainOrder.email ||
+    plainOrder.customer_email ||
+    shippingAddr?.email ||
+    billingAddr?.email ||
+    plainOrder.Customer?.email ||
+    ''
+  ).trim();
+
+  const customerName = (
+    extra.customerName ||
+    plainOrder.customer_name ||
+    plainOrder.Customer?.name ||
+    shippingAddr?.fullName ||
+    (shippingAddr?.firstName ? `${shippingAddr.firstName} ${shippingAddr.lastName || ''}`.trim() : '') ||
+    'Valued Customer'
+  ).trim();
+
+  return { customerEmail, customerName, shippingAddr, billingAddr, plainOrder };
+};
+
 const updateOrderPayment = async (order, updates) => {
   if (!order) return null;
 
@@ -204,7 +240,22 @@ export const createRazorpayOrder = async (req, res) => {
     const payment = await buildPaymentBreakdown({ order: plainOrder, paymentMethod });
 
     if (payment.amountPaise <= 0) {
-      return res.status(400).json({ success: false, message: 'Payment amount must be greater than zero.' });
+      return res.status(200).json({
+        success: true,
+        data: {
+          keyId,
+          currency,
+          orderId: plainOrder.id,
+          orderNumber: plainOrder.order_number,
+          razorpayOrderId: null,
+          amount: 0,
+          amountRupees: 0,
+          paymentMethod: payment.paymentMethod,
+          codAdvancePercentage: 0,
+          codAdvanceAmount: 0,
+          codDueAmount: plainOrder.total
+        }
+      });
     }
 
     const receipt = String(plainOrder.order_number || `ORD-${Date.now()}`).slice(0, 40);
@@ -286,21 +337,27 @@ export const verifyRazorpayPayment = async (req, res) => {
 
     if (!verified) {
       await updateOrderPayment(order, {
+        status: 'failed',
         payment_status: 'failed',
         razorpay_payment_id,
-        razorpay_signature
+        razorpay_signature,
+        notes: 'Razorpay payment signature mismatch or verification error.'
       });
 
       try {
+        const { customerEmail, customerName, shippingAddr, plainOrder: currentPlainOrder } = resolveCustomerDetails(order, req.body);
         await sendOrderEmail({
-          orderNumber: order?.order_number || orderId || 'ORDER',
-          customerName: order?.customer_name || order?.shippingAddress?.fullName || 'Customer',
-          customerEmail: order?.email || order?.shippingAddress?.email || '',
-          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
-          status: 'payment_failed',
+          orderNumber: currentPlainOrder.order_number || order?.order_number || orderId || 'ORDER',
+          customerName,
+          customerEmail,
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com',
+          status: 'failed',
           type: 'payment_failed',
           paymentStatus: 'failed',
-          amount: order?.total || 0
+          failReason: 'Payment signature mismatch during verification.',
+          amount: Number(currentPlainOrder.total || order?.total || 0),
+          items: currentPlainOrder.items || [],
+          shippingAddress: shippingAddr || {}
         });
       } catch (emailError) {
         console.warn('Order payment failed email failed:', emailError.message);
@@ -317,25 +374,27 @@ export const verifyRazorpayPayment = async (req, res) => {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      paid_at: new Date()
+      paid_at: new Date(),
+      new_order_email_sent: true
     });
 
     try {
+      const { customerEmail, customerName, shippingAddr, plainOrder: currentPlainOrder } = resolveCustomerDetails(order, req.body);
       await sendOrderEmail({
         orderNumber: updatedOrder?.order_number || order?.order_number || razorpay_order_id,
-        customerName: updatedOrder?.customer_name || plainOrder.customer_name || plainOrder.shippingAddress?.fullName || 'Customer',
-        customerEmail: updatedOrder?.email || plainOrder.email || plainOrder.shippingAddress?.email || '',
+        customerName,
+        customerEmail,
         adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
         status: 'confirmed',
         type: 'payment_success',
         paymentStatus: paymentStatus,
         paymentMethod: paymentMethod,
-        subtotal: Number(plainOrder.subtotal || 0),
-        discount: Number(plainOrder.discount || 0),
-        deliveryCharge: Number(plainOrder.shipping_fee || plainOrder.deliveryCharge || 0),
-        amount: Number(updatedOrder?.total || plainOrder.total || updatedOrder?.payment_amount || 0),
-        items: plainOrder.items || [],
-        shippingAddress: plainOrder.shippingAddress || plainOrder.shipping_address || {}
+        subtotal: Number(currentPlainOrder.subtotal || 0),
+        discount: Number(currentPlainOrder.discount || 0),
+        deliveryCharge: Number(currentPlainOrder.shipping_fee || currentPlainOrder.deliveryCharge || 0),
+        amount: Number(updatedOrder?.total || currentPlainOrder.total || updatedOrder?.payment_amount || 0),
+        items: currentPlainOrder.items || [],
+        shippingAddress: shippingAddr || {}
       });
     } catch (emailError) {
       console.warn('Order payment success email failed:', emailError.message);
@@ -384,27 +443,56 @@ export const handleRazorpayWebhook = async (req, res) => {
         // Trigger payment confirmation email if not already sent
         if (!order.new_order_email_sent) {
           try {
-            const plainOrder = getPlainOrder(order);
+            const { customerEmail, customerName, shippingAddr, plainOrder: currentPlainOrder } = resolveCustomerDetails(order);
             await sendOrderEmail({
-              orderNumber: plainOrder.order_number,
-              customerName: plainOrder.customer_name || plainOrder.shippingAddress?.fullName || 'Customer',
-              customerEmail: plainOrder.email || plainOrder.shippingAddress?.email || '',
+              orderNumber: currentPlainOrder.order_number,
+              customerName,
+              customerEmail,
               adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
               status: 'confirmed',
               type: 'payment_success',
               paymentStatus: paymentMethod === 'cod' ? 'partially_paid' : 'paid',
               paymentMethod: paymentMethod,
-              subtotal: Number(plainOrder.subtotal || 0),
-              discount: Number(plainOrder.discount || 0),
-              deliveryCharge: Number(plainOrder.shipping_fee || plainOrder.deliveryCharge || 0),
-              amount: Number(plainOrder.total || plainOrder.payment_amount || 0),
-              items: plainOrder.items || [],
-              shippingAddress: plainOrder.shippingAddress || plainOrder.shipping_address || {}
+              subtotal: Number(currentPlainOrder.subtotal || 0),
+              discount: Number(currentPlainOrder.discount || 0),
+              deliveryCharge: Number(currentPlainOrder.shipping_fee || currentPlainOrder.deliveryCharge || 0),
+              amount: Number(currentPlainOrder.total || currentPlainOrder.payment_amount || 0),
+              items: currentPlainOrder.items || [],
+              shippingAddress: shippingAddr || {}
             });
             await order.update({ new_order_email_sent: true });
           } catch (emailErr) {
             console.warn('Webhook payment email notification note:', emailErr.message);
           }
+        }
+      }
+    } else if (razorpayOrderId && ['payment.failed'].includes(event.event)) {
+      const order = await Order.findOne({ where: { razorpay_order_id: razorpayOrderId } });
+      if (order && order.status !== 'confirmed') {
+        const errorDesc = paymentEntity?.error_description || paymentEntity?.error_reason || 'Payment failed or declined by issuing bank.';
+        await updateOrderPayment(order, {
+          status: 'failed',
+          payment_status: 'failed',
+          notes: errorDesc
+        });
+
+        try {
+          const { customerEmail, customerName, shippingAddr, plainOrder: currentPlainOrder } = resolveCustomerDetails(order);
+          await sendOrderEmail({
+            orderNumber: currentPlainOrder.order_number,
+            customerName,
+            customerEmail,
+            adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com',
+            status: 'failed',
+            type: 'payment_failed',
+            paymentStatus: 'failed',
+            failReason: errorDesc,
+            amount: Number(currentPlainOrder.total || currentPlainOrder.payment_amount || 0),
+            items: currentPlainOrder.items || [],
+            shippingAddress: shippingAddr || {}
+          });
+        } catch (emailErr) {
+          console.warn('Webhook payment failure email notification note:', emailErr.message);
         }
       }
     }
@@ -423,24 +511,27 @@ export const reportRazorpayFailure = async (req, res) => {
 
     if (order) {
       await updateOrderPayment(order, {
+        status: 'failed',
         payment_status: 'failed',
         notes: failureMessage || 'Payment failed or cancelled by user.'
       });
 
       try {
-        const plainOrder = getPlainOrder(order);
+        const { customerEmail, customerName, shippingAddr, plainOrder: currentPlainOrder } = resolveCustomerDetails(order, req.body);
+        console.log(`[PaymentController] Reporting failure for order #${currentPlainOrder.order_number || orderRef}. Dispatching email to customer: "${customerEmail}" (${customerName})`);
+
         await sendOrderEmail({
-          orderNumber: plainOrder.order_number || orderRef || 'ORDER',
-          customerName: plainOrder.customer_name || plainOrder.shippingAddress?.fullName || 'Customer',
-          customerEmail: plainOrder.email || plainOrder.shippingAddress?.email || '',
-          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'orderlymenswear01@gmail.com',
-          status: 'payment_failed',
+          orderNumber: currentPlainOrder.order_number || orderRef || 'ORDER',
+          customerName,
+          customerEmail,
+          adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_USER || process.env.GMAIL_USER || 'orderlymenswear01@gmail.com',
+          status: 'failed',
           type: 'payment_failed',
           paymentStatus: 'failed',
           failReason: failureMessage || 'Transaction was declined or cancelled.',
-          amount: Number(plainOrder.total || plainOrder.payment_amount || 0),
-          items: plainOrder.items || [],
-          shippingAddress: plainOrder.shippingAddress || plainOrder.shipping_address || {}
+          amount: Number(currentPlainOrder.total || currentPlainOrder.payment_amount || 0),
+          items: currentPlainOrder.items || [],
+          shippingAddress: shippingAddr || {}
         });
       } catch (emailError) {
         console.warn('Payment failure report email note:', emailError.message);

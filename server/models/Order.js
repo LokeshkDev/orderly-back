@@ -17,7 +17,7 @@ const Order = sequelize.define('Order', {
     unique: 'uq_orders_order_number',
   },
   status: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'),
+    type: DataTypes.ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'failed'),
     allowNull: false,
     defaultValue: 'pending',
   },

@@ -306,7 +306,9 @@ const Checkout = () => {
           reportRazorpayFailure({
             orderId: createdOrder.id,
             orderNumber: createdOrder.order_number,
-            failureMessage: message
+            failureMessage: message,
+            customerEmail: formData.email,
+            customerName: formData.fullName
           });
         } catch (e) {}
 

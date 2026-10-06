@@ -1328,6 +1328,8 @@ const OrdersList = () => {
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
                         <option value="cancelled">Cancelled</option>
+                        <option value="failed">Failed</option>
+                        <option value="returned">Returned</option>
                       </select>
                     </div>
 
@@ -1599,6 +1601,8 @@ const OrdersList = () => {
                     <option value="Shipped">Shipped</option>
                     <option value="Delivered">Delivered</option>
                     <option value="Cancelled">Cancelled</option>
+                    <option value="Failed">Failed</option>
+                    <option value="Returned">Returned</option>
                   </select>
                 </div>
 

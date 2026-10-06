@@ -1,3 +1,8 @@
+/**
+ * ORDERLY Delivery Calculation Engine
+ * Shared delivery calculation logic for Orderly E-Commerce Backend.
+ */
+
 export const DEFAULT_DELIVERY_SETTINGS = {
   price_based: {
     enabled: true,
@@ -40,18 +45,18 @@ export const DEFAULT_DELIVERY_SETTINGS = {
     }
   },
   item_based: {
-    enabled: false,
-    first_item_charge: 50,
-    additional_item_charge: 10
+    enabled: true,
+    first_item_charge: 60,
+    additional_item_charge: 30
   },
   combo_delivery: {
     enabled: true,
-    charge: 99,
-    free_delivery_above: 1999,
-    per_combo_charge: 0,
+    charge: 120,
+    free_delivery_above: 3500,
+    per_combo_charge: 60,
     label: 'Combo Express Delivery'
   },
-  priority: 'pincode_based'
+  priority: 'item_based' // 'item_based' | 'pincode_based' | 'price_based'
 };
 
 export const DEFAULT_COURIER_SETTINGS = [
@@ -99,6 +104,7 @@ export const buildCourierTrackingUrl = (courierName, trackingNumber, customCouri
     return matched.tracking_url_template.replace('{trackingNumber}', encodeURIComponent(cleanTracking));
   }
 
+  // Fallbacks for known couriers if no custom match
   if (normalizedName.includes('st')) {
     return `https://stcourier.com/track?tracking=${encodeURIComponent(cleanTracking)}`;
   }
@@ -115,12 +121,18 @@ export const buildCourierTrackingUrl = (courierName, trackingNumber, customCouri
   return `https://www.google.com/search?q=${encodeURIComponent(`${courierName || 'courier'} tracking ${cleanTracking}`)}`;
 };
 
+/**
+ * Validate if a pincode is a 6-digit Indian pincode
+ */
 export const isValidPincode = (pincode) => {
   if (!pincode) return false;
   const clean = String(pincode).trim();
   return /^[1-9][0-9]{5}$/.test(clean);
 };
 
+/**
+ * Determine location category (Chennai, Tamil Nadu, Other State) for a given pincode
+ */
 export const determinePincodeLocation = (pincode, pincodeSettings = DEFAULT_DELIVERY_SETTINGS.pincode_based) => {
   if (!isValidPincode(pincode)) {
     return { location: 'Invalid Pincode', locationKey: 'invalid', charge: null, valid: false };
@@ -133,10 +145,12 @@ export const determinePincodeLocation = (pincode, pincodeSettings = DEFAULT_DELI
   const tnConfig = pincodeSettings?.tamil_nadu || DEFAULT_DELIVERY_SETTINGS.pincode_based.tamil_nadu;
   const otherConfig = pincodeSettings?.other_states || DEFAULT_DELIVERY_SETTINGS.pincode_based.other_states;
 
+  // 1. Check Chennai exact pincodes list
   if (Array.isArray(chennaiConfig.pincodes) && chennaiConfig.pincodes.map(String).includes(codeStr)) {
     return { location: 'Chennai', locationKey: 'chennai', charge: Number(chennaiConfig.charge ?? 50), valid: true };
   }
 
+  // Check Chennai ranges
   if (Array.isArray(chennaiConfig.pincode_ranges)) {
     for (const range of chennaiConfig.pincode_ranges) {
       const from = parseInt(range.from, 10);
@@ -147,10 +161,12 @@ export const determinePincodeLocation = (pincode, pincodeSettings = DEFAULT_DELI
     }
   }
 
+  // 2. Check Tamil Nadu exact pincodes list
   if (Array.isArray(tnConfig.pincodes) && tnConfig.pincodes.map(String).includes(codeStr)) {
     return { location: 'Tamil Nadu', locationKey: 'tamil_nadu', charge: Number(tnConfig.charge ?? 80), valid: true };
   }
 
+  // Check Tamil Nadu ranges
   if (Array.isArray(tnConfig.pincode_ranges)) {
     for (const range of tnConfig.pincode_ranges) {
       const from = parseInt(range.from, 10);
@@ -161,13 +177,18 @@ export const determinePincodeLocation = (pincode, pincodeSettings = DEFAULT_DELI
     }
   }
 
+  // Check default Tamil Nadu pincode range 600001 - 643999
   if (codeNum >= 600001 && codeNum <= 643999) {
     return { location: 'Tamil Nadu', locationKey: 'tamil_nadu', charge: Number(tnConfig.charge ?? 80), valid: true };
   }
 
+  // 3. Other State
   return { location: 'Other State', locationKey: 'other_states', charge: Number(otherConfig.charge ?? 150), valid: true };
 };
 
+/**
+ * Calculate Price-Based Delivery Fee
+ */
 export const calculatePriceBasedDelivery = (subtotal, priceConfig = DEFAULT_DELIVERY_SETTINGS.price_based) => {
   const numericSubtotal = Math.max(0, Number(subtotal) || 0);
   const minOrderRequired = Boolean(priceConfig?.min_order_required);
@@ -178,6 +199,7 @@ export const calculatePriceBasedDelivery = (subtotal, priceConfig = DEFAULT_DELI
     ? priceConfig.ranges
     : DEFAULT_DELIVERY_SETTINGS.price_based.ranges;
 
+  // Sort ranges by min ascending
   const sortedRanges = [...ranges].sort((a, b) => Number(a.min) - Number(b.min));
 
   let matchedCharge = 0;
@@ -194,6 +216,7 @@ export const calculatePriceBasedDelivery = (subtotal, priceConfig = DEFAULT_DELI
     }
   }
 
+  // If subtotal is greater than highest range max, use charge from the highest range (usually ₹0 free delivery)
   if (!matchedRange && sortedRanges.length > 0) {
     const highest = sortedRanges[sortedRanges.length - 1];
     if (numericSubtotal >= Number(highest.min || 0)) {
@@ -212,6 +235,9 @@ export const calculatePriceBasedDelivery = (subtotal, priceConfig = DEFAULT_DELI
   };
 };
 
+/**
+ * Calculate Item-Count Based Delivery Fee
+ */
 export const calculateItemBasedDelivery = (totalItems, itemConfig = DEFAULT_DELIVERY_SETTINGS.item_based, isAdditionalOnly = false) => {
   const count = Math.max(0, Number(totalItems) || 0);
   if (count === 0) return { charge: 0, totalItems: 0, description: '₹0 (0 items)' };
@@ -316,11 +342,12 @@ export const calculateStandardDelivery = ({
   const isPriceEnabled = Boolean(settings?.price_based?.enabled);
   const isPincodeEnabled = Boolean(settings?.pincode_based?.enabled);
   const isItemEnabled = Boolean(settings?.item_based?.enabled);
+  const priorityPreference = settings?.priority || 'item_based';
 
   // When combos are already in the cart:
-  // If pincode/location delivery is enabled and valid pincode is provided, use location rate for single items
+  // If priority is pincode_based and valid pincode is provided, use location rate for single items; otherwise additional item charge
   if (isAdditionalToCombo) {
-    if (isPincodeEnabled && isValidPincode(pincode)) {
+    if (priorityPreference === 'pincode_based' && isPincodeEnabled && isValidPincode(pincode)) {
       const pinResult = determinePincodeLocation(pincode, settings.pincode_based);
       return {
         shippingFee: pinResult.charge ?? 0,
@@ -334,7 +361,7 @@ export const calculateStandardDelivery = ({
       };
     }
 
-    const additionalPerItem = Number(settings?.item_based?.additional_item_charge ?? 10);
+    const additionalPerItem = Number(settings?.item_based?.additional_item_charge ?? 30);
     const itemResult = calculateItemBasedDelivery(totalQty, settings?.item_based || DEFAULT_DELIVERY_SETTINGS.item_based, true);
     return {
       shippingFee: itemResult.charge,
@@ -366,28 +393,48 @@ export const calculateStandardDelivery = ({
     };
   }
 
-  const priorityPreference = settings.priority || 'pincode_based';
   const methodsInOrder = [];
 
-  if (priorityPreference === 'pincode_based') {
+  if (priorityPreference === 'item_based') {
+    if (isItemEnabled) methodsInOrder.push('item_based');
     if (isPincodeEnabled) methodsInOrder.push('pincode_based');
     if (isPriceEnabled) methodsInOrder.push('price_based');
-    if (isItemEnabled) methodsInOrder.push('item_based');
-  } else if (priorityPreference === 'item_based') {
-    if (isItemEnabled) methodsInOrder.push('item_based');
+  } else if (priorityPreference === 'pincode_based') {
     if (isPincodeEnabled) methodsInOrder.push('pincode_based');
+    if (isItemEnabled) methodsInOrder.push('item_based');
     if (isPriceEnabled) methodsInOrder.push('price_based');
   } else {
     if (isPriceEnabled) methodsInOrder.push('price_based');
-    if (isPincodeEnabled) methodsInOrder.push('pincode_based');
     if (isItemEnabled) methodsInOrder.push('item_based');
+    if (isPincodeEnabled) methodsInOrder.push('pincode_based');
   }
 
-  if (isPriceEnabled && !methodsInOrder.includes('price_based')) methodsInOrder.push('price_based');
-  if (isPincodeEnabled && !methodsInOrder.includes('pincode_based')) methodsInOrder.push('pincode_based');
   if (isItemEnabled && !methodsInOrder.includes('item_based')) methodsInOrder.push('item_based');
+  if (isPincodeEnabled && !methodsInOrder.includes('pincode_based')) methodsInOrder.push('pincode_based');
+  if (isPriceEnabled && !methodsInOrder.includes('price_based')) methodsInOrder.push('price_based');
 
   for (const method of methodsInOrder) {
+    if (method === 'item_based' && isItemEnabled) {
+      const itemResult = calculateItemBasedDelivery(totalQty, settings.item_based, false);
+      const pinResult = (isPincodeEnabled && isValidPincode(pincode))
+        ? determinePincodeLocation(pincode, settings.pincode_based)
+        : null;
+      const locationLabel = pinResult?.valid ? pinResult.location : null;
+
+      return {
+        shippingFee: itemResult.charge,
+        method: 'item_based',
+        methodLabel: locationLabel ? `Delivery to ${locationLabel}` : 'Standard Delivery',
+        locationLabel,
+        isBelowMinOrder: false,
+        minOrderAmount: 0,
+        breakdownText: locationLabel
+          ? `Delivery to ${locationLabel}: ₹${itemResult.charge}`
+          : itemResult.description,
+        explanation: `${totalQty} single product(s) (1st item ₹${itemResult.firstItemCharge} + ${Math.max(0, totalQty - 1)} addl @ ₹${itemResult.additionalItemCharge}) = ₹${itemResult.charge}`
+      };
+    }
+
     if (method === 'pincode_based' && isPincodeEnabled) {
       if (isValidPincode(pincode)) {
         const pinResult = determinePincodeLocation(pincode, settings.pincode_based);
@@ -402,7 +449,7 @@ export const calculateStandardDelivery = ({
           explanation: `Calculated from pincode ${pincode} (${pinResult.location})`
         };
       }
-      if (methodsInOrder.length === 1) {
+      if (methodsInOrder.length === 1 || !isItemEnabled) {
         const pinResult = determinePincodeLocation(pincode, settings.pincode_based);
         const charge = pinResult.valid ? pinResult.charge : (Number(settings.pincode_based?.other_states?.charge) || 150);
         return {
@@ -431,20 +478,6 @@ export const calculateStandardDelivery = ({
         explanation: `Order value ₹${numSubtotal.toLocaleString('en-IN')}`
       };
     }
-
-    if (method === 'item_based' && isItemEnabled) {
-      const itemResult = calculateItemBasedDelivery(totalQty, settings.item_based);
-      return {
-        shippingFee: itemResult.charge,
-        method: 'item_based',
-        methodLabel: 'Item-Based Delivery',
-        locationLabel: null,
-        isBelowMinOrder: false,
-        minOrderAmount: 0,
-        breakdownText: itemResult.description,
-        explanation: `${totalQty} total item(s) in cart`
-      };
-    }
   }
 
   return {
@@ -459,6 +492,10 @@ export const calculateStandardDelivery = ({
   };
 };
 
+/**
+ * Centralized Master Delivery Calculation Function
+ * Computes the final authoritative delivery fee based on active settings and order details.
+ */
 export const calculateDeliveryCharge = ({
   cartItems = [],
   subtotal = 0,
@@ -519,7 +556,8 @@ export const calculateDeliveryCharge = ({
       comboSettings: settings.combo_delivery
     });
 
-    // Case 1: Both combo and single products are present in the cart -> sum both delivery charges
+    // Case 1: Both combo and single products are present in the cart
+    // Single products are charged at the additional item rate (additional cost of delivery)
     if (hasSingles) {
       const singleSubtotal = singleItems.reduce((acc, it) => acc + (Number(it.line_total ?? (Number(it.price ?? it.unit_price ?? 0) * (Number(it.quantity) || 1))) || 0), 0);
       const singleQty = singleItems.reduce((acc, it) => acc + Math.max(1, Number(it.quantity) || 1), 0);
